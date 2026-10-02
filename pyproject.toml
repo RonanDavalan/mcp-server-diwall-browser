@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools==84.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp-server-diwall-browser"
+version = "0.0.1"
+description = "MCP server that lets a language model see and act in an operator's own browser."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp==1.25.0",
+    "websockets==15.0.1",
+    "pillow==12.0.0",
+    "pydantic==2.12.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+]
+
+[project.scripts]
+mcp-server-diwall-browser = "mcp_server_diwall_browser.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "browser: integration test that needs a Chromium-family browser",
+]

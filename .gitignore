@@ -1,0 +1,18 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python build and cache output
+__pycache__/
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# Operator data that must never be committed by mistake
+profile.json
+*.jsonl
+credentials/
+evidence/
+downloads/
+browser-profile/
