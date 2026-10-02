@@ -119,7 +119,13 @@ def standard_profile_path(environ: Mapping[str, str] | None = None) -> Path:
 
 
 def load_profile(environ: Mapping[str, str] | None = None, *, euid: int | None = None) -> Profile:
-    """Locate, check and validate the profile; read again on every call."""
+    """Locate, check and validate the profile; read again on every call.
+
+    Order: the rights of the file and of its directory (owner, mode 600,
+    directory 700) are checked on the open descriptor before a single byte
+    is read, so the content of a file others may write is never read; then
+    the keys that would configure the red list; then the schema.
+    """
     env = os.environ if environ is None else environ
     standard = standard_profile_path(env)
     designated = env.get(ENV_VAR, "")

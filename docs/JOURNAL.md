@@ -188,3 +188,19 @@ set aside.
   with `test_host_check_catches_a_parser_that_trusts_idna_2003`.
 - Set aside: an IDNA 2008 implementation (not in the standard library, and the dependency list is
   closed); mapping `ß` to `ss` like IDNA 2003 (it designates another domain).
+
+### The profile's rights are checked before its content is read
+
+- Decided: the order stays: rights of the file and its directory on the open descriptor (owner,
+  mode 600, directory 700) before any byte is read, then the red-list keys, then the schema. The
+  order is written in the docstring of `load_profile` and in the README.
+- Why: the profile lists the allowed sites; content that someone else may write must not be read,
+  let alone quoted in an error. No sentence of the module or the README stated another order
+  (the original prompt text that it contradicted is not in the repository).
+- Control: `test_content_of_a_profile_with_wrong_rights_never_appears_in_the_error` (a file
+  readable by others, a directory open to others, a file of another user: the refusal is
+  `permissions` and no byte of the content is in it), with
+  `test_rights_check_catches_a_loader_that_reads_the_content_first`; the existing
+  `test_redlist_key_is_refused_before_any_other_validation`.
+- Set aside: validating the schema first to give a richer message; it reads content that may
+  have been written by someone else.

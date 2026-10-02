@@ -286,3 +286,57 @@ def test_written_profile_is_private(tmp_path: Path) -> None:
     assert path.stat().st_mode & 0o777 == 0o600
     assert path.parent.stat().st_mode & 0o777 == 0o700
     assert json.loads(path.read_text())["schema_version"] == 1
+
+
+# --- the content of a profile with wrong rights is never read -------------------------------
+
+MARKER = "distinctive-profile-content-8"
+Loader = Callable[[dict[str, str], int | None], Profile]
+
+RIGHTS_DEFECTS: list[tuple[str, Callable[[Path], None], int]] = [
+    ("file readable by others", lambda path: os.chmod(path, 0o644), 0),
+    ("directory open to others", lambda path: os.chmod(path.parent, 0o755), 0),
+    ("file of another user", lambda path: None, 1),
+]
+
+
+def content_never_quoted_on_wrong_rights(loader: Loader, tmp_path: Path) -> bool:
+    # Content that would fail any later check and quote itself if it were read.
+    raw = '{"' + MARKER + '": "' + MARKER + '", "payment": "' + MARKER + '"'
+    for number, (_case, spoil, euid_shift) in enumerate(RIGHTS_DEFECTS):
+        base = tmp_path / str(number)
+        base.mkdir()
+        path = write_profile(base, _raw=raw)
+        spoil(path)
+        try:
+            loader(env_for(base), os.geteuid() + euid_shift)
+        except ToolError as exc:
+            text = json.dumps([exc.code, exc.message, exc.extra_server])
+            if MARKER in text or exc.extra_server.get("reason") != "permissions":
+                return False
+        else:
+            return False
+    return True
+
+
+def real_loader(environ: dict[str, str], euid: int | None) -> Profile:
+    return load_profile(environ, euid=euid)
+
+
+def content_first_loader(environ: dict[str, str], euid: int | None) -> Profile:
+    # Defective: parses the file before looking at who may write it.
+    path = operator_profile.standard_profile_path(environ)
+    raw = path.read_text()
+    try:
+        json.loads(raw)
+    except ValueError:
+        raise ToolError("profile_invalid", f"profil illisible : {raw[:60]}", extra_server={"reason": "not_json"}) from None
+    return load_profile(environ, euid=euid)
+
+
+def test_content_of_a_profile_with_wrong_rights_never_appears_in_the_error(tmp_path: Path) -> None:
+    assert content_never_quoted_on_wrong_rights(real_loader, tmp_path)
+
+
+def test_rights_check_catches_a_loader_that_reads_the_content_first(tmp_path: Path) -> None:
+    assert not content_never_quoted_on_wrong_rights(content_first_loader, tmp_path)
