@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Drift page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  button { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<div id="buttons">
+  <button id="first" type="button">Insert a button</button>
+  <button id="second" type="button" onclick="document.getElementById('log').textContent = 'second clicked'">Second button</button>
+</div>
+<p id="log">Nothing clicked</p>
+<script>
+  // A click on the first button, or a timer when the address asks for it,
+  // inserts an interactive button before the second one in document order.
+  function insertBefore() {
+    if (document.getElementById("inserted")) { return; }
+    var button = document.createElement("button");
+    button.id = "inserted";
+    button.type = "button";
+    button.textContent = "Inserted button";
+    button.onclick = function () { document.getElementById("log").textContent = "inserted clicked"; };
+    document.getElementById("buttons").insertBefore(button, document.getElementById("second"));
+  }
+  document.getElementById("first").addEventListener("click", insertBefore);
+  if (location.hash === "#timer") { setTimeout(insertBefore, 500); }
+</script>
+</body>
+</html>

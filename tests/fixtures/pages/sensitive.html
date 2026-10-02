@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sensitive fields page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  label { display: block; margin: 8px 0; }
+  input { font-size: 16px; color: #000000; background: #ffffff; border: 1px solid #333333; }
+</style>
+</head>
+<body>
+<form id="checkout" action="#" onsubmit="return false">
+  <label>Username <input id="username" name="username" type="text" autocomplete="username"></label>
+  <label>Password <input id="password" name="password" type="password" autocomplete="current-password"></label>
+  <label>Card number <input id="card" name="cardnumber" type="text" inputmode="numeric" autocomplete="cc-number"></label>
+  <label>One-time code <input id="otp" name="otp" type="text"></label>
+  <label>Comment <input id="comment" name="comment" type="text" value="plain visible comment"></label>
+  <button id="pay" type="submit">Pay</button>
+</form>
+<script>
+  window.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("password").value = "test-secret-value-1";
+  });
+</script>
+</body>
+</html>

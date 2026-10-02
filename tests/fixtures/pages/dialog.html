@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dialog page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<button id="ask" type="button">Ask for confirmation</button>
+<p id="answer">No answer</p>
+<script>
+  document.getElementById("ask").addEventListener("click", function () {
+    var accepted = confirm("Do you confirm this test action?");
+    document.getElementById("answer").textContent = accepted ? "Accepted" : "Dismissed";
+  });
+</script>
+</body>
+</html>

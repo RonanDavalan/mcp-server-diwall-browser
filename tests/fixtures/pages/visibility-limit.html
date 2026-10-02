@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visibility limit page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; background: #ffffff; }
+  #same-colour { color: #ffffff; background: #ffffff; }
+  #clipped-box { width: 40px; height: 40px; overflow: hidden; }
+  #clipped { position: relative; left: 200px; }
+</style>
+</head>
+<body>
+<p id="same-colour">Text written in the colour of its background</p>
+<div id="clipped-box"><button id="clipped" type="button">Clipped button</button></div>
+<button id="visible" type="button">Visible button</button>
+</body>
+</html>

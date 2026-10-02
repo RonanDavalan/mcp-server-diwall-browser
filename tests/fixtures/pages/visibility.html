@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Visibility test page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; background: #ffffff; }
+  button { display: block; margin: 8px 0; }
+  #display-none { display: none; }
+  #transparent { opacity: 0; }
+  #transparent-parent { opacity: 0; }
+  #thin { width: 1px; min-width: 0; padding: 0; border: 0; overflow: hidden; white-space: nowrap; }
+  #off-page { position: absolute; left: -9999px; top: 40px; }
+</style>
+</head>
+<body>
+<button id="display-none" type="button">Display none button</button>
+<button id="transparent" type="button">Transparent button</button>
+<div id="transparent-parent"><button id="inherited" type="button">Inherited transparent button</button></div>
+<button id="thin" type="button">Thin button</button>
+<button id="off-page" type="button">Off page button</button>
+<button id="aria-hidden" type="button" aria-hidden="true">Aria hidden button</button>
+<button id="visible" type="button">Visible button</button>
+</body>
+</html>

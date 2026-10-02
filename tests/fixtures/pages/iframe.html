@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Frame page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  iframe { width: 360px; height: 140px; border: 0; }
+</style>
+</head>
+<body>
+<h1>Page with a frame</h1>
+<iframe id="login-frame" title="Login frame" srcdoc="<!doctype html><style>body{background:#ffe08a}input{font-size:16px}</style><label>Frame password <input id='frame-password' type='password' value='frame-secret-value-2'></label><button type='button'>Frame button</button>"></iframe>
+<button id="outside" type="button">Outside button</button>
+</body>
+</html>

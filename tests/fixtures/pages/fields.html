@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fields page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  label { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<form id="details" action="#" onsubmit="return false">
+  <label>Country <select id="country" name="country"><option>Belgium</option><option selected>France</option></select></label>
+  <label>Expiry month <select id="expiry" name="expiry" autocomplete="cc-exp-month"><option>01</option><option selected>07</option></select></label>
+  <label>Story <textarea id="story" name="story">once upon a time</textarea></label>
+  <label><input id="agree" name="agree" type="checkbox" checked> I agree</label>
+  <button id="send" type="submit" disabled>Send</button>
+</form>
+</body>
+</html>
