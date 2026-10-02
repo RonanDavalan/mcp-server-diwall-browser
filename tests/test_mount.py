@@ -10,6 +10,7 @@ from conftest import (
     MOUNT_DEV,
     OTHER_DEV,
     ROOT_LINE,
+    VolumePaths,
     fake_mountinfo,
     make_volume,
     mounted_volume,
@@ -257,7 +258,7 @@ def test_symlink_inside_the_volume_to_a_directory_outside_is_refused(tmp_path: P
     (paths.project / "evidence").symlink_to(outside)
     with pytest.raises(ToolError) as caught:
         volume.resolve_inside("evidence", "capture.png")
-    assert caught.value.code == "mount_not_gocryptfs"
+    assert caught.value.code == "volume_path_refused"
     with pytest.raises(ToolError):
         volume.write_new("evidence", "capture.png", data=b"x")
     assert list(outside.iterdir()) == []
@@ -366,3 +367,106 @@ def test_read_file_checks_kind_owner_mode_and_size(tmp_path: Path) -> None:
 )
 def test_safe_name(text: str, expected: str) -> None:
     assert safe_name(text) == expected
+
+
+# --- a refused path has its own code -----------------------------------------------------------
+
+PathRefusal = Callable[[Volume, VolumePaths], None]
+
+
+def _link_outside(volume: Volume, paths: VolumePaths) -> None:
+    outside = paths.tmp / "outside"
+    outside.mkdir()
+    (paths.project / "evidence").symlink_to(outside)
+    volume.write_new("evidence", "capture.png", data=b"x")
+
+
+def _link_inside(volume: Volume, paths: VolumePaths) -> None:
+    (paths.project / "real").mkdir(mode=0o700)
+    (paths.project / "evidence").symlink_to(paths.project / "real")
+    volume.write_new("evidence", "capture.png", data=b"x")
+
+
+def _shared_directory(volume: Volume, paths: VolumePaths) -> None:
+    (paths.project / "evidence").mkdir(mode=0o700)
+    os.chmod(paths.project / "evidence", 0o755)
+    volume.ensure_dir("evidence")
+
+
+def _shared_file(volume: Volume, paths: VolumePaths) -> None:
+    (paths.project / "journal").mkdir(mode=0o700)
+    target = paths.project / "journal" / "operations.jsonl"
+    target.write_bytes(b"")
+    os.chmod(target, 0o644)
+    os.close(volume.open_append("journal", "operations.jsonl"))
+
+
+PATH_REFUSALS: list[tuple[str, PathRefusal, str]] = [
+    ("link to the outside", _link_outside, "path_outside_volume"),
+    ("link inside the volume", _link_inside, "symlink"),
+    ("directory not private", _shared_directory, "dir_not_private"),
+    ("file not private", _shared_file, "bad_mode"),
+]
+
+
+def path_refusals_have_their_own_code(make_volume: Callable[[Path], tuple[VolumePaths, Volume]], tmp_path: Path) -> bool:
+    for number, (_case, refusal, reason) in enumerate(PATH_REFUSALS):
+        base = tmp_path / str(number)
+        base.mkdir()
+        paths, volume = make_volume(base)
+        try:
+            refusal(volume, paths)
+        except ToolError as exc:
+            if exc.code != "volume_path_refused" or exc.extra_server.get("mount_reason") != reason:
+                return False
+        else:
+            return False
+    return True
+
+
+def _real_volume(base: Path) -> tuple[VolumePaths, Volume]:
+    paths, _fake, volume = mounted_volume(base)
+    return paths, volume
+
+
+class _OldCodeVolume(Volume):
+    """Defective: reports every refused path as a volume of the wrong kind."""
+
+    def _resolve(self, root: Path, parts: tuple[str, ...]) -> Path:
+        try:
+            return super()._resolve(root, parts)
+        except ToolError as exc:
+            raise ToolError("mount_not_gocryptfs", exc.message, extra_server=exc.extra_server) from None
+
+    def ensure_dir(self, *parts: str) -> Path:
+        try:
+            return super().ensure_dir(*parts)
+        except ToolError as exc:
+            raise ToolError("mount_not_gocryptfs", exc.message, extra_server=exc.extra_server) from None
+
+    def open_append(self, *parts: str) -> int:
+        try:
+            return super().open_append(*parts)
+        except ToolError as exc:
+            raise ToolError("mount_not_gocryptfs", exc.message, extra_server=exc.extra_server) from None
+
+
+def _old_code_volume(base: Path) -> tuple[VolumePaths, Volume]:
+    paths, fake, _volume = mounted_volume(base)
+    return paths, _OldCodeVolume(fake.checker, paths.mount_point)
+
+
+def test_refused_paths_inside_a_mounted_volume_have_their_own_code(tmp_path: Path) -> None:
+    assert path_refusals_have_their_own_code(_real_volume, tmp_path)
+
+
+def test_path_code_check_catches_refusals_reported_as_a_wrong_volume(tmp_path: Path) -> None:
+    assert not path_refusals_have_their_own_code(_old_code_volume, tmp_path)
+
+
+def test_a_volume_of_the_wrong_kind_keeps_its_own_code(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, fs_type="ext4")
+    with pytest.raises(ToolError) as caught:
+        Volume(fake.checker, paths.mount_point).require_mounted()
+    assert caught.value.code == "mount_not_gocryptfs"

@@ -56,6 +56,7 @@ ERROR_CODES = frozenset(
         "mount_not_gocryptfs",
         "mount_unreadable",
         "project_root_missing",
+        "volume_path_refused",
         "origin_not_allowed",
         "forbidden_scheme",
         "tab_not_owned",

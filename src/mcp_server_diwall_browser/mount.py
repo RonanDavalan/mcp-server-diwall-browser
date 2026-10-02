@@ -199,6 +199,10 @@ _NEVER_INITIALIZED_MESSAGE = (
     "(secrets_crypt_dir) ne porte pas de volume initialisé ; l'opérateur doit vérifier le profil"
 )
 _OUTSIDE_MESSAGE = "un chemin du répertoire chiffré mène hors du volume : refus par précaution"
+_LINK_MESSAGE = "un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution"
+# A refused path inside a mounted volume is not a volume of the wrong kind:
+# it has its own code, the precise reason stays in mount_reason.
+PATH_REFUSED = "volume_path_refused"
 _DIR_MODE_MESSAGE = (
     "un répertoire du volume chiffré n'est pas privé (mode 700, propriétaire du serveur) : "
     "refus par précaution"
@@ -272,7 +276,7 @@ class Volume:
                 raise ValueError("path parts must be plain names")
         real = Path(self._checker.realpath_fn(os.path.join(root, *parts)))
         if real != root and root not in real.parents:
-            raise ToolError("mount_not_gocryptfs", _OUTSIDE_MESSAGE, extra_server={"mount_reason": "path_outside_volume"})
+            raise ToolError(PATH_REFUSED, _OUTSIDE_MESSAGE, extra_server={"mount_reason": "path_outside_volume"})
         existing = real
         while not os.path.lexists(existing) and existing != root:
             existing = existing.parent
@@ -281,7 +285,7 @@ class Volume:
         except OSError:
             same_device = False
         if not same_device:
-            raise ToolError("mount_not_gocryptfs", _OUTSIDE_MESSAGE, extra_server={"mount_reason": "path_outside_volume"})
+            raise ToolError(PATH_REFUSED, _OUTSIDE_MESSAGE, extra_server={"mount_reason": "path_outside_volume"})
         return real
 
     def _resolve_exact(self, root: Path, parts: tuple[str, ...]) -> Path:
@@ -289,7 +293,7 @@ class Volume:
         # meant to refuse, so a file is only reached by a path without links.
         real = self._resolve(root, parts)
         if real != root.joinpath(*parts):
-            raise ToolError("mount_not_gocryptfs", _OUTSIDE_MESSAGE, extra_server={"mount_reason": "symlink"})
+            raise ToolError(PATH_REFUSED, _LINK_MESSAGE, extra_server={"mount_reason": "symlink"})
         return real
 
     def ensure_dir(self, *parts: str) -> Path:
@@ -308,7 +312,7 @@ class Volume:
                 or info.st_uid != self.euid
                 or stat.S_IMODE(info.st_mode) != 0o700
             ):
-                raise ToolError("mount_not_gocryptfs", _DIR_MODE_MESSAGE, extra_server={"mount_reason": "dir_not_private"})
+                raise ToolError(PATH_REFUSED, _DIR_MODE_MESSAGE, extra_server={"mount_reason": "dir_not_private"})
         return path
 
     def open_append(self, *parts: str) -> int:
@@ -386,7 +390,7 @@ class Volume:
         if reason is None:
             return info
         if raise_tool_error:
-            raise ToolError("mount_not_gocryptfs", _DIR_MODE_MESSAGE, extra_server={"mount_reason": reason})
+            raise ToolError(PATH_REFUSED, _DIR_MODE_MESSAGE, extra_server={"mount_reason": reason})
         raise VolumeFileError(reason)
 
 

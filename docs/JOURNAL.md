@@ -132,3 +132,24 @@ Remaining:
 
 - Colour contrast and clipping by `overflow` or `clip-path` are not computed (known limit,
   frozen by `test_known_limits_colour_and_clipping_are_not_computed`).
+
+## Decisions
+
+Each entry: what is decided, why, the test that would fail if it stopped holding, and what was
+set aside.
+
+### A refused path inside the volume has its own error code
+
+- Decided: a link leading out of the volume, a link inside it, and a directory or file of the
+  volume that is not private are refused with the new code `volume_path_refused`; the precise
+  reason stays in `server.mount_reason` (`path_outside_volume`, `symlink`, `dir_not_private`,
+  `bad_mode`, `bad_owner`, `not_regular_file`). `mount_not_gocryptfs` keeps its meaning: the
+  mounted file system is not a gocryptfs volume of the server's user.
+- Why: these refusals were reported as `mount_not_gocryptfs`, which tells the operator to look
+  at the mount when the mount is fine and one path inside it is wrong. Error codes are stable and
+  never renamed, so a code is added rather than an existing one changed.
+- Control: `test_refused_paths_inside_a_mounted_volume_have_their_own_code`, with
+  `test_path_code_check_catches_refusals_reported_as_a_wrong_volume` (a volume that reports them
+  the old way fails it); `test_a_volume_of_the_wrong_kind_keeps_its_own_code`.
+- Set aside: reusing `mount_unreadable` or `encrypted_dir_undetermined`, which describe the state
+  of the volume, not one path in it.
