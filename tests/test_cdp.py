@@ -210,6 +210,57 @@ async def test_list_check_catches_a_send_that_checks_only_some_calls(fake: FakeC
     assert "Target.getTargets" in fake.methods()
 
 
+# The exact list: a method is added only with the code that sends it.
+EXPECTED_METHODS = frozenset(
+    {
+        "Browser.getVersion",
+        "Browser.setDownloadBehavior",
+        "Target.setDiscoverTargets",
+        "Target.createTarget",
+        "Target.attachToTarget",
+        "Target.closeTarget",
+        "Page.enable",
+        "Inspector.enable",
+        "Page.navigate",
+        "Page.getFrameTree",
+        "Page.handleJavaScriptDialog",
+        "Page.getLayoutMetrics",
+        "Page.captureScreenshot",
+        "Accessibility.getFullAXTree",
+        "Accessibility.getPartialAXTree",
+        "DOMSnapshot.captureSnapshot",
+        "DOM.describeNode",
+        "DOM.getNodeForLocation",
+        "DOM.getContentQuads",
+        "DOM.scrollIntoViewIfNeeded",
+        "DOM.focus",
+        "Input.dispatchMouseEvent",
+        "Input.dispatchKeyEvent",
+        "Input.insertText",
+        "Runtime.evaluate",
+        "Runtime.callFunctionOn",
+    }
+)
+
+
+def list_is_exactly_the_expected_one(allowed: frozenset[str]) -> bool:
+    return allowed == EXPECTED_METHODS
+
+
+def test_the_list_of_allowed_methods_is_exactly_the_one_the_code_needs() -> None:
+    assert list_is_exactly_the_expected_one(ALLOWED_METHODS)
+    assert len(ALLOWED_METHODS) == 26
+
+
+@pytest.mark.parametrize("extra", ["Target.activateTarget", "DOM.getDocument", "DOM.resolveNode", "DOM.getBoxModel", "Target.getTargets"])
+def test_list_check_catches_one_more_method(extra: str) -> None:
+    assert not list_is_exactly_the_expected_one(ALLOWED_METHODS | {extra})
+
+
+def test_list_check_catches_one_method_less() -> None:
+    assert not list_is_exactly_the_expected_one(ALLOWED_METHODS - {"Inspector.enable"})
+
+
 def test_the_list_is_frozen_and_does_not_hold_the_dangerous_methods() -> None:
     assert isinstance(ALLOWED_METHODS, frozenset)
     for method in DISALLOWED:

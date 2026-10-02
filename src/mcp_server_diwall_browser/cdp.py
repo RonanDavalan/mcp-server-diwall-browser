@@ -42,6 +42,8 @@ ALLOWED_METHODS = frozenset(
         "Target.attachToTarget",
         "Target.closeTarget",
         "Page.enable",
+        # Without it the browser never sends Inspector.targetCrashed, and a
+        # crashed tab would stay listed as usable.
         "Inspector.enable",
         "Page.navigate",
         "Page.getFrameTree",
@@ -57,6 +59,13 @@ ALLOWED_METHODS = frozenset(
         "DOM.focus",
         "Input.insertText",
         "Input.dispatchKeyEvent",
+        # Actions: identity of an element, where it is, the gesture itself,
+        # and where downloads go.
+        "Accessibility.getPartialAXTree",
+        "DOM.getContentQuads",
+        "DOM.scrollIntoViewIfNeeded",
+        "Input.dispatchMouseEvent",
+        "Browser.setDownloadBehavior",
         # Page scripts: only through call_internal, from INTERNAL_SCRIPTS.
         "Runtime.evaluate",
         "Runtime.callFunctionOn",

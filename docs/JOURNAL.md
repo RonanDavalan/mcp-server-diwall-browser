@@ -271,3 +271,21 @@ set aside.
   `test_not_bound_message_names_only_the_origin_and_the_expected_name`.
 - Set aside: replacing names by numbers, which would leave the operator unable to find the file
   to fix.
+
+### The list of allowed DevTools methods holds what the code sends, nothing more
+
+- Decided: `cdp.ALLOWED_METHODS` holds 26 methods. Added for the actions:
+  `Accessibility.getPartialAXTree` (identity of an element at the moment of acting),
+  `DOM.getContentQuads` and `DOM.scrollIntoViewIfNeeded` (where to click),
+  `Input.dispatchMouseEvent` (clicks and wheel), `Browser.setDownloadBehavior` (downloads into
+  the volume). Kept although not in the initial list: `Inspector.enable`, without which the
+  browser never sends `Inspector.targetCrashed` and a crashed tab stays listed as usable. Not
+  added although in the initial list: `Target.activateTarget`, `DOM.getDocument`,
+  `DOM.resolveNode`, `DOM.getBoxModel`, which no code sends.
+- Why: an allowed method that nothing uses is a capability offered for nothing to whoever finds a
+  way to make the server send it. The test-side raw client (`tests/fixtures/raw_cdp.py`) is the
+  only way the tests reach other methods; no method is added for a test.
+- Control: `test_the_list_of_allowed_methods_is_exactly_the_one_the_code_needs` (equality of
+  sets), with `test_list_check_catches_one_more_method` (each of the four unused methods, and
+  `Target.getTargets`) and `test_list_check_catches_one_method_less`.
+- Set aside: adding the 29 methods of the initial list at once.
