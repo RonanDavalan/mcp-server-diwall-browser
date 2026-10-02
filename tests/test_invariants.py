@@ -90,6 +90,13 @@ SINGLE_DEFINITIONS = {
     "resolve_inside": "mount.py",
     "resolve": "credentials.py",
     "load_profile": "operator_profile.py",
+    "CdpConnection": "cdp.py",
+    "InternalScript": "cdp.py",
+    "parse_proc_net_tcp": "browser.py",
+    "verify_loopback_listening": "browser.py",
+    "check_profile_dir": "browser.py",
+    "check_navigable": "browser.py",
+    "TabRegistry": "browser.py",
 }
 
 # Standard library helpers that parse an address; only origin.py may parse one.
@@ -318,3 +325,194 @@ def test_journal_files_are_private_and_never_follow_a_link(tmp_path: Path) -> No
 
 def test_file_check_catches_a_plain_append_writer(tmp_path: Path) -> None:
     assert not journal_files_are_private_and_unfollowed(plain_open_writer, tmp_path)
+
+
+# --- page scripts come from the fixed table only (INV-2, extended) -----------------------
+
+CDP_MODULE = "cdp.py"
+# The parameters that carry script text; only the CDP client may write them.
+SCRIPT_FIELD_STRINGS = ("functionDeclaration", '"expression"', "'expression'")
+# Calls whose string arguments reach the browser, and the script constructor.
+SCRIPT_CALLS = frozenset({"call_internal", "send", "InternalScript"})
+
+
+def script_field_mentions(package: Path) -> list[str]:
+    """Modules other than cdp.py that mention a parameter carrying script text."""
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        if relative == CDP_MODULE:
+            continue
+        text = path.read_text()
+        found.extend(f"{relative}: {needle}" for needle in SCRIPT_FIELD_STRINGS if needle in text)
+    return found
+
+
+def _is_formatting(node: ast.AST) -> bool:
+    if isinstance(node, ast.JoinedStr):
+        return any(isinstance(value, ast.FormattedValue) for value in node.values)
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "format":
+        return bool(node.args or node.keywords)
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mod):
+        left = node.left
+        return isinstance(left, ast.JoinedStr) or (isinstance(left, ast.Constant) and isinstance(left.value, str))
+    return False
+
+
+def _call_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    if isinstance(func, ast.Name):
+        return func.id
+    return None
+
+
+def formatted_script_strings(source: str) -> list[str]:
+    """Strings formed with a value by f-string, .format( or % that reach a script call.
+
+    The arguments of call_internal, send and InternalScript are searched,
+    and so are the values assigned to a name those arguments use.
+    """
+    tree = ast.parse(source)
+    assigned: dict[str, list[ast.AST]] = {}
+    for node in ast.walk(tree):
+        targets: list[ast.expr] = []
+        if isinstance(node, ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and node.value is not None:
+            targets = [node.target]
+        for target in targets:
+            for name in ast.walk(target):
+                if isinstance(name, ast.Name):
+                    assigned.setdefault(name.id, []).append(node.value)  # type: ignore[union-attr]
+    found = []
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and _call_name(node.func) in SCRIPT_CALLS):
+            continue
+        pending: list[ast.AST] = [*node.args, *(keyword.value for keyword in node.keywords)]
+        seen: set[str] = set()
+        while pending:
+            for sub in ast.walk(pending.pop()):
+                if _is_formatting(sub):
+                    found.append(f"line {sub.lineno}: formatted string in {_call_name(node.func)}()")
+                elif isinstance(sub, ast.Name) and sub.id in assigned and sub.id not in seen:
+                    seen.add(sub.id)
+                    pending.extend(assigned[sub.id])
+    return found
+
+
+def scripts_are_never_formatted(package: Path) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for mention in script_field_mentions(package):
+        result.setdefault(mention.split(":")[0], []).append(mention)
+    for path in sorted(package.rglob("*.py")):
+        found = formatted_script_strings(path.read_text())
+        if found:
+            result.setdefault(path.relative_to(package).as_posix(), []).extend(found)
+    return result
+
+
+def test_page_scripts_are_written_in_cdp_py_only_and_never_formatted() -> None:
+    assert scripts_are_never_formatted(PACKAGE_DIR) == {}
+
+
+def test_the_script_parameters_are_written_in_cdp_py() -> None:
+    text = (PACKAGE_DIR / CDP_MODULE).read_text()
+    assert "functionDeclaration" in text and '"expression"' in text
+
+
+@pytest.mark.parametrize(
+    ("module", "source"),
+    [
+        (
+            "actions.py",
+            "async def focus(conn, sid, selector):\n"
+            "    await conn.call_internal(f'focus {selector}', session_id=sid)\n",
+        ),
+        (
+            "actions.py",
+            "from .cdp import InternalScript\n"
+            "def build(selector):\n"
+            "    return InternalScript('evaluate', f\"document.querySelector('{selector}')\")\n",
+        ),
+        (
+            "actions.py",
+            "from .cdp import InternalScript\n"
+            "def build(selector):\n"
+            "    text = \"document.querySelector('{}')\".format(selector)\n"
+            "    return InternalScript('evaluate', text)\n",
+        ),
+        (
+            "perception.py",
+            "from .cdp import InternalScript\n"
+            "def build(selector):\n"
+            "    return InternalScript(kind='evaluate', text=\"document.title = '%s'\" % selector)\n",
+        ),
+        (
+            "perception.py",
+            "async def title(conn, sid, value):\n"
+            "    await conn.send('Page.navigate', {'url': 'https://example.test/?q=%s' % value}, session_id=sid)\n",
+        ),
+        (
+            "tools/evaluate.py",
+            "async def run(conn, sid, code):\n"
+            "    await conn.send('Runtime.evaluate', {\"expression\": code}, session_id=sid)\n",
+        ),
+        (
+            "tools/call.py",
+            "async def run(conn, sid, code, oid):\n"
+            "    await conn.send('Runtime.callFunctionOn', {'functionDeclaration': code, 'objectId': oid})\n",
+        ),
+    ],
+)
+def test_script_check_catches_a_formatted_or_foreign_script(tmp_path: Path, module: str, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / module).parent.mkdir(parents=True, exist_ok=True)
+    (copy / module).write_text(source)
+    assert module in scripts_are_never_formatted(copy)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "async def f(conn, sid, oid, value):\n"
+        "    await conn.call_internal('focus', session_id=sid, object_id=oid, arguments=[{'value': value}])\n",
+        "MESSAGE = f'{1}'\nasync def f(conn):\n    await conn.send('Browser.getVersion')\n",
+        "from .cdp import InternalScript\nFOCUS = InternalScript('call_function_on', 'function () { this.focus(); }')\n",
+    ],
+)
+def test_script_check_leaves_plain_scripts_and_protocol_arguments_alone(source: str) -> None:
+    assert formatted_script_strings(source) == []
+
+
+# --- the WebSocket and the unchecked transport stay inside cdp.py ----------------------------
+
+_PRIVATE_TRANSPORT_RE = re.compile(r"\b(websockets|_exchange)\b")
+
+
+def transport_uses_outside_cdp(package: Path) -> list[str]:
+    return [
+        path.relative_to(package).as_posix()
+        for path in sorted(package.rglob("*.py"))
+        if path.relative_to(package).as_posix() != CDP_MODULE and _PRIVATE_TRANSPORT_RE.search(path.read_text())
+    ]
+
+
+def test_only_cdp_py_reaches_the_browser_socket() -> None:
+    assert transport_uses_outside_cdp(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from websockets.asyncio.client import connect\n",
+        "import websockets\n",
+        "async def f(conn):\n    await conn._exchange('Target.getTargets', {}, None, 5)\n",
+    ],
+)
+def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "perception.py").write_text(source)
+    assert transport_uses_outside_cdp(copy) == ["perception.py"]
