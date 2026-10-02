@@ -304,3 +304,18 @@ set aside.
   `_origin_label`), with `test_rename_check_catches_the_old_name`; the browser and perception
   tests that call `main_frame_info` with and without the keyword.
 - Set aside: a second, private copy of the helper in the perception (two copies of one rule).
+
+### `counters.redacted_fields` counts the filled sensitive fields
+
+- Decided: the counter counts the visible sensitive fields whose value was not empty and was
+  withheld; an empty sensitive field is marked `sensitive` in its element reference but adds
+  nothing. Written in the docstring of `perception.build`.
+- Why: the perception specification asked both that every sensitive field increment the counter
+  and that it be 1 on `sensitive.html`, which holds three sensitive fields of which one is filled;
+  only this reading satisfies the measured case, and it tells the model that a value exists and
+  was withheld.
+- Control: `test_redacted_fields_counts_the_filled_sensitive_fields` (three sensitive fields, two
+  filled, one plain field: the counter is 2), with
+  `test_redacted_count_check_catches_a_count_of_every_sensitive_field`; the browser test
+  `test_a_password_filled_by_the_page_never_leaves` (1 on `sensitive.html`).
+- Set aside: counting every sensitive field (3 on `sensitive.html`).

@@ -539,7 +539,13 @@ def mask_boxes(dom: Dom, viewport: Box, fields: dict[int, _Field]) -> tuple[list
 def build(
     ax_raw: dict[str, Any], dom: Dom, viewport: Box, origin: Origin, *, tree_builder: Callable[..., list[str]] | None = None
 ) -> Built:
-    """Merge the accessibility tree and the snapshot of the main document."""
+    """Merge the accessibility tree and the snapshot of the main document.
+
+    ``counters.redacted_fields`` counts the visible sensitive fields whose
+    value was not empty and was withheld; an empty sensitive field is marked
+    sensitive but counts nothing, there being nothing to withhold.
+    ``counters.omitted_not_visible`` counts each hidden subtree once.
+    """
     walk = _walk(ax_raw, dom, viewport)
     counters: dict[str, Any] = {
         "omitted_not_visible": walk.omitted,

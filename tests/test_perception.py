@@ -873,3 +873,41 @@ def test_wait_timeout_is_ten_by_default_and_sixty_at_most() -> None:
     assert perception._wait_timeout(600) == 60.0
     with pytest.raises(ValueError):
         perception._wait_timeout(-1)
+
+
+# --- what redacted_fields counts --------------------------------------------------------------
+
+
+def three_sensitive_two_filled() -> Page:
+    return Page(
+        "Two filled",
+        [
+            field_input("Password", (10, 10, 200, 20), attrs={"type": "password"}, value=FAKE_PASSWORD),
+            field_input("Card", (10, 40, 200, 20), attrs={"autocomplete": "cc-number"}, value=CARD_NUMBER),
+            field_input("One-time code", (10, 70, 200, 20), attrs={"name": "otp"}),
+            field_input("Comment", (10, 100, 200, 20), value="plain"),
+        ],
+    )
+
+
+def redacted_count_is_two() -> bool:
+    result = built(three_sensitive_two_filled())
+    return result.counters["redacted_fields"] == 2 and [e.sensitive for e in result.elements] == [True, True, True, False]
+
+
+def test_redacted_fields_counts_the_filled_sensitive_fields() -> None:
+    assert redacted_count_is_two()
+
+
+def test_redacted_count_check_catches_a_count_of_every_sensitive_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    original = perception._element
+
+    def counts_every_sensitive_field(mark: int, item: Any, dom: Dom, fields: Any, origin: Any, counters: dict[str, Any]) -> Any:
+        before = counters["redacted_fields"]
+        ref = original(mark, item, dom, fields, origin, counters)
+        if ref.sensitive and counters["redacted_fields"] == before:
+            counters["redacted_fields"] += 1
+        return ref
+
+    monkeypatch.setattr(perception, "_element", counts_every_sensitive_field)
+    assert not redacted_count_is_two()
