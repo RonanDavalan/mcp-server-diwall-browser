@@ -386,3 +386,193 @@ set aside.
   `test_label_check_catches_a_label` (a requirement label in a comment, an invariant label in a
   docstring, a session number in a test name, a history word in a comment).
 - Set aside: rewriting past journal entries.
+
+### Page scripts reach a node through `DOM.resolveNode`
+
+- Decided: `DOM.resolveNode` joins the allowed methods. The scripts of the fixed table that work
+  on a node (`is_connected`, `contains`, `select_text`, `set_select_option`) run with
+  `Runtime.callFunctionOn` on the page object of that node, and the browser gives that object only
+  through this method. The list now holds 27 methods, frozen by an equality test.
+- Why: the actions need the object of a marked node to check it is still in the page, that the
+  node under the pointer or the focused node is inside it, and to select its text or an option;
+  `backendNodeId` alone is not accepted by `Runtime.callFunctionOn`.
+- Control: `test_the_list_of_allowed_methods_is_exactly_the_one_the_code_needs`, with
+  `test_list_check_catches_one_more_method` (the four other methods of the initial list that no
+  code sends still make it fail).
+- Set aside: `DOM.getDocument` with a selector query (a selector would come from page data) and a
+  script that finds the node by itself (a script formed with a value).
+
+### The identity check also asks whether the node is still in the page
+
+- Decided: between `DOM.describeNode` and `Accessibility.getPartialAXTree`, the check resolves the
+  node and runs `is_connected` on it; a detached node is `element_stale` like a vanished one. The
+  order of the four specified checks is kept, and all of them run again after a granted
+  confirmation, just before the gesture.
+- Why: a node removed from the document can still be described for a while; acting on it would
+  act on nothing the human sees.
+- Control: `test_a_target_replaced_by_a_clone_is_stale_and_nothing_is_clicked` (fake and real
+  browser), `test_a_change_of_the_element_during_the_question_stops_the_click`.
+- Set aside: checking only the role and name, which a clone keeps.
+
+### Enter gives the focus only after the identity check
+
+- Decided: for `press_key` with `Enter`, the mark is verified first, then the element gets the
+  focus, then the gate is asked, then the key is sent. The specification lists the focus first.
+- Why: giving the focus runs the page's own handlers; it is an effect on the page, and it must
+  not reach an element that changed since the snapshot.
+- Control: `test_enter_on_a_changed_element_gives_it_no_focus`, with
+  `test_counter_proof_a_focus_before_the_check_reaches_the_changed_element`.
+- Set aside: the order as written, which focuses an unverified element.
+
+### Enter in a field of a form is a possible submission for the gate
+
+- Decided: the gate counts `Enter` as a submission when the element is a submit control or any
+  field inside a form (`form_backend_id` set); `is_submit_like` keeps its meaning for a click.
+- Why: the browser submits a form on Enter from any of its text fields; a payment form whose card
+  field is focused would otherwise be submitted without confirmation.
+- Control: `test_enter_in_a_payment_form_is_armed` (fake and real browser),
+  `test_a_card_field_in_the_form_arms_its_submission`.
+- Set aside: widening `is_submit_like` itself, which the perception computes for clicks.
+
+### A gesture that opens a dialog counts as done
+
+- Decided: when a dialog opens during a gesture (after its first event), the gesture is reported
+  as done, with `dialog_open` true and a notice that asks for `handle_dialog`; no settling is
+  waited for. A dialog already open before the first event refuses the action at once.
+  `handle_dialog` with no open dialog is `unsupported_element`.
+- Why: measured on Chromium 141, the mouse release that opens a `confirm()` is not answered until
+  the dialog is closed; waiting for it would block the action until the call delay.
+- Control: `test_a_dialog_opened_by_the_click_is_said_and_left_to_the_dialog_tool`,
+  `test_dialogs_opened_by_a_click_are_answered_through_the_gate`,
+  `test_handling_a_dialog_when_none_is_open_is_refused`.
+- Set aside: a new error code for a missing dialog.
+
+### Accepting an armed dialog is refused: no evidence can be taken while it is open
+
+- Decided: an `accept` whose dialog message arms the gate journals its request, then fails with
+  `capture_unavailable` before any question: the evidence before the action cannot be taken while
+  the dialog blocks the page, and an irreversible action without evidence does not leave. Dismissing
+  stays always possible; an unarmed dialog is accepted without question.
+- Why: measured on Chromium 141, `Page.captureScreenshot` waits like every other page call while
+  a dialog is open; the specification refuses an armed action whose evidence cannot be taken.
+- Control: `test_a_dialog_saying_delete_permanently_arms_the_gate`,
+  `test_dialogs_opened_by_a_click_are_answered_through_the_gate` (real browser).
+- Set aside: using the image of the last snapshot as evidence (taken before the dialog, it does
+  not show the state at the time of the action); accepting without evidence.
+
+### Settling waits for a load the gesture started, never for a quiet network
+
+- Decided: after the gesture, the action waits up to 0.5 s for the main frame to start loading
+  (the loading state is kept from the browser's events at all times), then, if it is loading, up
+  to 10 s for it to stop; past that, a notice says the page had not finished loading. Both delays
+  are parameters of `ActionContext`.
+- Why: the specification gives three seconds for a load started by the gesture and ten seconds
+  for the load event; waiting three seconds after every click that starts no load would slow every
+  action without protecting anything.
+- Control: `test_a_load_started_by_the_click_is_waited_for`, `test_a_quiet_page_is_not_waited_for`,
+  `test_a_load_that_never_ends_is_said_in_a_notice`.
+- Set aside: waiting for network silence, which never comes on many pages.
+
+### `unavailable` is a confirmation state of the journal
+
+- Decided: the journal accepts `unavailable` in `gates.confirmation`, and the `gate` of an action
+  outcome carries it when no window could be opened.
+- Why: the final journal line must say why an armed action did not leave; `denied` would claim a
+  human said no.
+- Control: `test_without_consent_pay_now_does_nothing` (three refusals, each with its state).
+- Set aside: folding it into `denied` or `expired`.
+
+### Confirmations asked by the operator's setting are journaled first, without evidence
+
+- Decided: an unarmed change on an origin of `confirm_each_change` writes its `requested` line
+  (with `red_list` false) before asking, like an armed action; the evidence before and after is
+  kept only for armed actions.
+- Why: a question asked to the operator is an event worth a trace; the evidence is required for
+  irreversible actions, and keeping images of every ordinary change would fill the volume.
+- Control: `test_the_operator_setting_asks_for_an_unarmed_change_on_its_origin_only`.
+- Set aside: evidence for every confirmed change.
+
+### A credential is resolved before any question, and again at typing time
+
+- Decided: `fill` with `credential_ref` resolves the credential against the origin read in the
+  browser before the gate is asked, then resolves it again from the origin read right after the
+  focus, just before typing. Only the second value is typed.
+- Why: a credential on an origin it is not bound to is refused without any confirmation; asking
+  the operator first would offer consent where none can apply. The second reading binds the value
+  to the page that receives the keys.
+- Control: `test_a_credential_on_a_neighbouring_origin_is_refused_without_confirmation` (other
+  port, other scheme, sub-domain; implicit and by name), `test_the_credential_origin_is_the_one_read_at_typing_time`
+  with `test_counter_proof_an_origin_taken_from_the_snapshot_types_on_the_wrong_site`.
+- Set aside: reading the origin once, at the start of the action.
+
+### The download setting is given before every gesture, and measured to end with its connection
+
+- Decided: `DownloadManager.prepare` runs before every click and every Enter, as specified, and
+  the notices of settled downloads are added to the outcome of the action that is finishing (a
+  download that ends later is said by the next action).
+- Why: measured on Chromium 141, `Browser.setDownloadBehavior` ends with the connection that set
+  it (after a reconnection, a download goes to the browser's default directory), and the browser
+  creates the download directory, parents included, when it does not exist.
+- Control: `test_the_download_setting_ends_with_the_connection_that_set_it` (real browser),
+  `test_a_click_prepares_downloads_into_the_volume`, `test_a_click_with_the_volume_closed_forbids_downloads`.
+- Set aside: setting the behaviour once at attachment, which a reconnection silently undoes.
+
+### The simulated page never gives the identity of a removed node to a new one
+
+- Decided: the page model of the tests keeps the highest identity it gave and numbers new nodes
+  above it.
+- Why: a browser never reuses a node identity within a document; a fake that did made a replaced
+  node look like the original and hid the stale-element case.
+- Control: `test_a_target_replaced_by_a_clone_is_stale_and_nothing_is_clicked`.
+- Set aside: none.
+
+## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
+
+Done:
+
+- `gate.py`: the hard-coded vocabulary of the three locked categories, whole-word matching after
+  normalisation, the card-field and declared-category signals (the model's category only adds),
+  and `Pacer` (250 ms between actions, 200 actions and 50 pages per process by default, the
+  profile read on every call).
+- `confirm.py`: the text of the window built from the browser state, `kdialog` or `zenity` started
+  without a shell with refusal as the default button when the tool offers it, the 90 s watchdog
+  that kills the window, the client's elicitation only on the operator's declaration, one answer
+  for one action.
+- `cdp.py`: the five constant scripts of the actions, and `DOM.resolveNode`.
+- `browser.py`: internal scripts that give up when a dialog opens.
+- `actions.py`: click, fill (text or credential), select an option, keys, scroll, dialogs and
+  manual evidence, through one pipeline: ceilings, identity of the mark, allowed sites, gate,
+  journal line and evidence before an armed action, the human's consent, identity again, the
+  gesture, settling, evidence after.
+- `evidence.py`: captures and downloads written through the volume facade only, downloads named
+  by the browser with an identifier and renamed from the suggestion reduced to safe characters.
+- Tests: `tests/test_gate.py` (88-row table, 100-label measure), `tests/test_confirm.py` (fake
+  `kdialog` and `zenity`), `tests/test_evidence.py`, `tests/test_actions.py` (fake browser),
+  `tests/test_actions_integration.py` (Chromium), new invariants (no script formed in the actions,
+  private evidence and download files).
+
+Proof:
+
+```
+.venv/bin/python -m pytest -q                       # 1045 passed, 45 skipped: no browser on PATH
+PATH=<dir with a chromium link>:$PATH .venv/bin/python -m pytest -q   # 1090 passed, browser tests included
+.venv/bin/python -m compileall -q src               # no output, exit code 0
+```
+
+Measured:
+
+- On 100 common button labels, the gate arms 14: the 12 a careful reader would lock, and 2 false
+  positives (`Effacer le formulaire`, `Supprimer le filtre`), no miss. Known misses of the starting
+  vocabulary outside that list: `Reset your password`, `Regenerate API key`, `Finaliser l'achat`,
+  `Valider mon panier`.
+- Against Chromium 141.0.7390.37: the download setting ends with its connection; the browser
+  creates a missing download directory; the mouse release that opens a dialog is not answered
+  until the dialog closes; a page capture waits while a dialog is open.
+
+Remaining:
+
+- The tools that expose these actions to the model, and the final journal line of each tool,
+  are not wired yet.
+- A download started by a page between two actions goes to the directory prepared for the last
+  action; if the volume is closed in the meantime, the browser would create that directory on the
+  unencrypted disk below the mount point.
