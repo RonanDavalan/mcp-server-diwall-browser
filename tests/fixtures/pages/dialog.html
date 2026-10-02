@@ -9,11 +9,16 @@
 </head>
 <body>
 <button id="ask" type="button">Ask for confirmation</button>
+<button id="erase" type="button">Archive settings</button>
 <p id="answer">No answer</p>
 <script>
   document.getElementById("ask").addEventListener("click", function () {
     var accepted = confirm("Do you confirm this test action?");
     document.getElementById("answer").textContent = accepted ? "Accepted" : "Dismissed";
+  });
+  document.getElementById("erase").addEventListener("click", function () {
+    var accepted = confirm("Supprimer définitivement ?");
+    document.getElementById("answer").textContent = accepted ? "Erased" : "Kept";
   });
 </script>
 </body>

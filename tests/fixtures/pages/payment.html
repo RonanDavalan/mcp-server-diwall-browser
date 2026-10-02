@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Payment page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  form > * { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<form id="payment" action="/paid.html" method="post">
+  <p>Total : 42,00 €</p>
+  <label>Numéro de carte <input id="card" name="cardnumber" autocomplete="cc-number" inputmode="numeric"></label>
+  <button id="pay" type="submit">Payer maintenant</button>
+  <button id="cancel" type="button">Annuler</button>
+</form>
+<a id="terms" href="#terms">Conditions générales</a>
+<p id="log">Nothing done</p>
+<script>
+  // The page stays where it is: what was done is written in the log line.
+  document.getElementById("payment").addEventListener("submit", function (event) {
+    event.preventDefault();
+    document.getElementById("log").textContent = "Payment submitted";
+  });
+  document.getElementById("cancel").addEventListener("click", function () {
+    document.getElementById("log").textContent = "Payment cancelled";
+  });
+</script>
+</body>
+</html>

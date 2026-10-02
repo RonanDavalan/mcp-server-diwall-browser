@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Login page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  form > * { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<form id="login" action="/signed-in.html" method="post">
+  <label>Identifiant <input id="login-name" name="login" type="text"></label>
+  <label>Mot de passe <input id="password" name="password" type="password"></label>
+  <button id="sign-in" type="submit">Se connecter</button>
+</form>
+<script>
+  document.getElementById("login").addEventListener("submit", function (event) { event.preventDefault(); });
+</script>
+</body>
+</html>

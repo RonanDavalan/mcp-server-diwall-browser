@@ -70,8 +70,12 @@ class LaunchedBrowser:
         shutil.rmtree(self.profile_dir, ignore_errors=True)
 
 
-def launch_browser(timeout: float = 30.0) -> LaunchedBrowser | None:
-    """Start a headless browser on a free port and a fresh profile; None if none is installed."""
+def launch_browser(timeout: float = 30.0, *, home: str | None = None) -> LaunchedBrowser | None:
+    """Start a headless browser on a free port and a fresh profile; None if none is installed.
+
+    ``home`` replaces the home directory the browser sees, so that what it
+    saves by its own defaults (downloads) stays in a temporary directory.
+    """
     executable = find_browser()
     if executable is None:
         return None
@@ -90,8 +94,9 @@ def launch_browser(timeout: float = 30.0) -> LaunchedBrowser | None:
     if os.geteuid() == 0:
         arguments.append("--no-sandbox")
     arguments.append("about:blank")
+    environment = None if home is None else {**os.environ, "HOME": home}
     process = subprocess.Popen(
-        arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=environment
     )
     launched = LaunchedBrowser(executable, process, port, profile_dir, {})
     deadline = time.monotonic() + timeout

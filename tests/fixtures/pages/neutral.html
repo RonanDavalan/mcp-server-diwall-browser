@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Comment page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  form > * { display: block; margin: 8px 0; }
+</style>
+</head>
+<body>
+<form id="comment" action="/sent.html" method="post">
+  <label>Pseudonyme <input id="nickname" name="nickname" type="text"></label>
+  <label>Commentaire <textarea id="text" name="comment"></textarea></label>
+  <label>Pays
+    <select id="country" name="country">
+      <option value="fr">France</option>
+      <option value="be">Belgique</option>
+    </select>
+  </label>
+  <button id="send" type="submit">Envoyer</button>
+</form>
+<p id="log">Nothing sent</p>
+<p id="events">No change</p>
+<script>
+  document.getElementById("comment").addEventListener("submit", function (event) {
+    event.preventDefault();
+    document.getElementById("log").textContent = "Sent by " + document.getElementById("nickname").value;
+  });
+  document.getElementById("country").addEventListener("change", function (event) {
+    document.getElementById("events").textContent = "Country changed to " + event.target.value;
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Covered page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  /* A banner drawn over the button, as a cookie banner would be. */
+  #banner { position: fixed; top: 0; left: 0; width: 100%; height: 120px; background: rgba(200, 200, 200, 0.95); }
+</style>
+</head>
+<body>
+<button id="send" type="button" onclick="document.getElementById('log').textContent = 'Button clicked'">Envoyer</button>
+<p id="log" style="margin-top: 140px">Nothing clicked</p>
+<div id="banner" onclick="document.getElementById('log').textContent = 'Banner clicked'"></div>
+</body>
+</html>

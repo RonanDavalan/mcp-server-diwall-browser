@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import json
 import logging
 import os
@@ -15,6 +14,8 @@ from typing import Any
 
 import pytest
 from conftest import FAKE_PASSWORD, FAKE_USERNAME, ROOT_LINE, FakeMount, VolumePaths, mounted_volume, write_credential
+from fixtures.action_support import FakeChannel, FakeClock
+from fixtures.action_support import make_profile as shared_profile
 from fixtures.fake_cdp import NO_REPLY, FakeBrowser, FakeCdp
 from fixtures.page_model import WHITE, El, Page, button, div, field_input, link, text
 
@@ -27,8 +28,7 @@ from mcp_server_diwall_browser.evidence import DownloadManager, EvidenceWriter
 from mcp_server_diwall_browser.gate import NOT_ARMED, Pacer
 from mcp_server_diwall_browser.journal import Journal
 from mcp_server_diwall_browser.mount import Volume
-from mcp_server_diwall_browser.operator_profile import BrowserSettings, Declarations, Limits, Profile
-from mcp_server_diwall_browser.origin import parse_origin
+from mcp_server_diwall_browser.operator_profile import Limits, Profile
 from mcp_server_diwall_browser.output import ToolError, ToolOutput, tool
 from mcp_server_diwall_browser.perception import Perception, Snapshot
 
@@ -121,40 +121,6 @@ def obscured_page() -> Page:
 # --- the bench ------------------------------------------------------------------------------------
 
 
-class FakeChannel:
-    """A confirmation channel that answers what the test says and counts the questions."""
-
-    def __init__(self, decision: ConfirmationDecision = ConfirmationDecision.GRANTED, *, available: bool = True) -> None:
-        self.decision = decision
-        self.is_available = available
-        self.texts: list[str] = []
-        self.on_ask: Callable[[], Any] | None = None
-
-    def available(self) -> bool:
-        return self.is_available
-
-    async def ask(self, text_: str) -> ConfirmationDecision:
-        self.texts.append(text_)
-        if self.on_ask is not None:
-            outcome = self.on_ask()
-            if inspect.isawaitable(outcome):
-                await outcome
-        return self.decision
-
-
-class FakeClock:
-    def __init__(self) -> None:
-        self.now = 1000.0
-        self.sleeps: list[float] = []
-
-    def __call__(self) -> float:
-        return self.now
-
-    async def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
-        self.now += seconds
-
-
 def make_profile(
     tmp_path: Path,
     *,
@@ -162,18 +128,7 @@ def make_profile(
     confirm: tuple[str, ...] = (),
     limits: Limits | None = None,
 ) -> Profile:
-    return Profile(
-        source=tmp_path / "profile.json",
-        schema_version=1,
-        secrets_dir=Path("~/Vaults/Main"),
-        secrets_crypt_dir=None,
-        allowed_origins=tuple(parse_origin(o) for o in allowed),
-        confirm_each_change=tuple(parse_origin(o) for o in confirm),
-        local_model_origins=(),
-        declarations=Declarations(),
-        browser=BrowserSettings(family="chromium", profile_dir="~/Vaults/Main/browser-profile"),
-        limits=limits or Limits(),
-    )
+    return shared_profile(tmp_path, allowed=allowed, confirm=confirm, limits=limits)
 
 
 @dataclass
