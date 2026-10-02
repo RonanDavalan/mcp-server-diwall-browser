@@ -153,3 +153,21 @@ set aside.
   the old way fails it); `test_a_volume_of_the_wrong_kind_keeps_its_own_code`.
 - Set aside: reusing `mount_unreadable` or `encrypted_dir_undetermined`, which describe the state
   of the volume, not one path in it.
+
+### camelCase names are cut into words before the sensitive-field comparison
+
+- Decided: `sensitive_field` cuts camelCase names (`userPin` into `user pin`, `BICCode` into
+  `bic code`) before comparing words, and `codedeverification` joins the compact substrings.
+  The cases `userPin`, `pinCode`, `otpCode` and `Code de vérification`, which were listed as
+  misses, are now positive rows of the field table, with `smsOTP`, `userPWD`, `BICCode` and
+  `accountIBAN`. The remaining misses (`codepin`, `numcarte`, `N° de carte`) stay listed.
+- Why: a secret that reaches a tool output goes to a third party, while an ordinary field masked
+  by mistake only costs one value; the misses were on the dangerous side.
+- Control: the field table (`test_field_table_row`, `test_field_table_holds_for_the_real_predicate`),
+  `test_camel_case_check_catches_a_predicate_that_does_not_cut_words` (the predicate without the
+  cut fails the table), `test_false_positive_rate_on_one_hundred_common_field_names` still at zero,
+  and `test_tricky_names_are_not_masked` (`pinterest`, `spinner`, `shipping` and their camelCase
+  forms, `passportNumber`, `bypassCache`, `opinion`, `bicycle`, `nirvana`, …).
+- Set aside: matching sensitive words as substrings of whole names, which would mask `spinner`,
+  `shipping` and `opinion`; adding `carte` as a word, which would mask `carte_cadeau`-like fields
+  without a measured need.

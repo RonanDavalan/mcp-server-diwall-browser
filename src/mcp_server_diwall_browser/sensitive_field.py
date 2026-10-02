@@ -49,6 +49,7 @@ SENSITIVE_SUBSTRINGS = (
     "onetimecode",
     "verificationcode",
     "codeverification",
+    "codedeverification",
     "socialsecurity",
     "securitesociale",
 )
@@ -134,8 +135,25 @@ def is_sensitive(
     return SensitiveVerdict(sensitive=True, reason=reasons[0], card=card)
 
 
+def _split_camel_case(text: str) -> str:
+    """Cut ``userPin`` into ``user Pin`` and ``APIKey`` into ``API Key``.
+
+    Without it a word such as ``pin`` hidden in a camelCase name is never a
+    word of its own, and the field goes unmasked.
+    """
+    pieces = []
+    for index, char in enumerate(text):
+        if index and char.isupper():
+            previous = text[index - 1]
+            following = text[index + 1] if index + 1 < len(text) else ""
+            if previous.islower() or previous.isdigit() or (previous.isupper() and following.islower()):
+                pieces.append(" ")
+        pieces.append(char)
+    return "".join(pieces)
+
+
 def _normalize(text: str) -> tuple[set[str], str]:
-    decomposed = unicodedata.normalize("NFKD", text.lower())
+    decomposed = unicodedata.normalize("NFKD", _split_camel_case(text).lower())
     plain = "".join(c for c in decomposed if not unicodedata.combining(c))
     words = [w for w in _WORD_SPLIT_RE.split(plain) if w]
     return set(words), "".join(words)

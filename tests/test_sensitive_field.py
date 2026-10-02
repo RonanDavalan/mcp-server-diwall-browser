@@ -36,6 +36,15 @@ FIELD_TABLE: list[tuple[dict[str, str], bool, bool, str | None]] = [
     ({"name": "codeVerification"}, True, False, "compact_substring"),
     ({"aria_label": "Numéro de sécurité sociale"}, True, False, "compact_substring"),
     ({"name": "one_time_code"}, True, False, "compact_substring"),
+    # Words hidden in camelCase names, and the French verification code.
+    ({"name": "userPin"}, True, False, "name_token"),
+    ({"name": "pinCode"}, True, False, "name_token"),
+    ({"name": "otpCode"}, True, False, "name_token"),
+    ({"element_id": "smsOTP"}, True, False, "name_token"),
+    ({"name": "userPWD"}, True, False, "name_token"),
+    ({"placeholder": "Code de vérification"}, True, False, "compact_substring"),
+    ({"name": "BICCode"}, True, True, "name_token"),
+    ({"name": "accountIBAN"}, True, True, "name_token"),
     # Sensitive and card or bank identifiers.
     ({"autocomplete": "cc-number"}, True, True, "autocomplete"),
     ({"autocomplete": "cc-csc"}, True, True, "autocomplete"),
@@ -140,10 +149,9 @@ def test_known_substring_false_positives_stay_flagged(name: str) -> None:
 # Fields the fixed word lists do not catch. They are listed so that the gap is
 # visible and any change to it is deliberate.
 KNOWN_MISSES = [
-    {"placeholder": "Code de vérification"},
-    {"name": "userPin"},
-    {"name": "pinCode"},
-    {"name": "otpCode"},
+    {"name": "codepin"},
+    {"name": "numcarte"},
+    {"placeholder": "N° de carte"},
 ]
 
 
@@ -177,3 +185,24 @@ def test_false_positive_rate_on_one_hundred_common_field_names() -> None:
     assert len(set(COMMON_FIELD_NAMES)) == 100
     # Frozen measurement: any change in this list is a deliberate decision.
     assert false_positives_on_common_fields() == []
+
+
+# Names that hold a sensitive word inside another word, or that camelCase
+# cutting could split badly: none of them is a sensitive field.
+TRICKY_FIELD_NAMES = [
+    "pinterest", "pinterestUrl", "spinner", "spinnerColor", "shipping", "shippingAddress",
+    "passport", "passportNumber", "bypassCache", "compassHeading", "happiness", "topicSpinner",
+    "Pinterest", "SHIPPING_METHOD", "pingInterval", "opinion", "bicycle", "nirvana",
+]
+
+
+def test_tricky_names_are_not_masked() -> None:
+    assert [name for name in TRICKY_FIELD_NAMES if is_sensitive(name=name, element_id=name).sensitive] == []
+
+
+def test_camel_case_check_catches_a_predicate_that_does_not_cut_words(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mcp_server_diwall_browser import sensitive_field
+
+    assert field_table_holds(is_sensitive)
+    monkeypatch.setattr(sensitive_field, "_split_camel_case", lambda text: text)
+    assert not field_table_holds(is_sensitive)
