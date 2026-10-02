@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import ast
+import io
 import os
 import re
 import shutil
+import tokenize
 from collections.abc import Callable
 from pathlib import Path
 
@@ -586,3 +588,78 @@ def test_detection_check_catches_a_second_predicate(addition: str) -> None:
 def test_detection_check_catches_a_module_that_never_asks_the_predicate() -> None:
     source = (PACKAGE_DIR / PERCEPTION_MODULE).read_text().replace("is_sensitive(", "is_plain(")
     assert "no call to is_sensitive" in second_detection(source)
+
+
+# --- the repository is written in English ---------------------------------------------------
+
+REPOSITORY = PACKAGE_DIR.parent.parent
+FRENCH_LETTERS = re.compile(r"[éèêëàâçùûîïôœæÉÈÊËÀÂÇÙÛÎÏÔŒÆ«»]")
+FRENCH_WORDS = frozenset({"le", "la", "les", "des", "une", "est", "pour", "dans", "avec", "pas", "qui", "sur", "aux", "du", "cette", "sont"})
+_CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+
+
+def _looks_french(text: str) -> bool:
+    words = set(re.findall(r"[a-z]+", text.lower()))
+    return bool(FRENCH_LETTERS.search(text)) or len(words & FRENCH_WORDS) >= 2
+
+
+def _comments_and_docstrings(source: str) -> list[tuple[int, str]]:
+    found = [
+        (token.start[0], token.string)
+        for token in tokenize.generate_tokens(io.StringIO(source).readline)
+        if token.type == tokenize.COMMENT
+    ]
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            docstring = ast.get_docstring(node, clean=False)
+            if docstring:
+                found.append((getattr(node, "lineno", 1), docstring))
+    return found
+
+
+def french_prose(root: Path) -> list[str]:
+    """Comments, docstrings and documentation prose written in French.
+
+    Quoted code and test data (between backticks, or in string literals)
+    may hold French: page text, operator messages, the confirmation text.
+    """
+    hits = []
+    for path in sorted(root.rglob("*.py")):
+        if ".venv" in path.parts:
+            continue
+        for line, text in _comments_and_docstrings(path.read_text()):
+            if _looks_french(text):
+                hits.append(f"{path.relative_to(root)}:{line}")
+    for path in [root / "README.md", *sorted((root / "docs").rglob("*.md"))]:
+        if not path.exists():
+            continue
+        prose = _CODE_SPAN_RE.sub(" ", path.read_text())
+        for number, line in enumerate(prose.splitlines(), start=1):
+            if _looks_french(line):
+                hits.append(f"{path.relative_to(root)}:{number}")
+    return hits
+
+
+def test_comments_docstrings_and_documentation_are_in_english() -> None:
+    assert french_prose(REPOSITORY) == []
+
+
+@pytest.mark.parametrize(
+    ("relative", "text"),
+    [
+        ("src/mcp_server_diwall_browser/gate.py", "# Vérifie la liste rouge avant le clic\nX = 1\n"),
+        ("src/mcp_server_diwall_browser/gate.py", '"""Le module qui garde la porte pour les actions."""\n'),
+        ("docs/guide.md", "# Guide\n\nLe serveur est lancé par l'opérateur.\n"),
+    ],
+)
+def test_language_check_catches_french_prose(tmp_path: Path, relative: str, text: str) -> None:
+    copy = tmp_path / "repo"
+    (copy / "src").mkdir(parents=True)
+    shutil.copytree(PACKAGE_DIR, copy / "src" / "mcp_server_diwall_browser")
+    shutil.copytree(REPOSITORY / "docs", copy / "docs")
+    shutil.copy(REPOSITORY / "README.md", copy / "README.md")
+    assert french_prose(copy) == []
+    target = copy / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text)
+    assert french_prose(copy) != []

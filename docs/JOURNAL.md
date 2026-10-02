@@ -204,3 +204,19 @@ set aside.
   `test_redlist_key_is_refused_before_any_other_validation`.
 - Set aside: validating the schema first to give a richer message; it reads content that may
   have been written by someone else.
+
+### Everything in the repository is in English except operator messages
+
+- Decided: comments, docstrings, the README, `docs/`, commit messages and test names are in
+  English. In French: the `message` field of results meant for the operator, the text of the
+  confirmation window, and the operator-facing notices (`server.notices`, whose example in the
+  specification of the tab registry is French) and the notice drawn in a frame mask
+  (`cadre non montré au modèle`, specified in French). The rule that a file never mixes two
+  languages applies to comments and docstrings, not to these strings.
+- Why: the operator's rule, restated; measured, no comment or docstring of `src/` or `tests/` was
+  in French, nor any prose line of the README or the journal outside quoted code.
+- Control: `test_comments_docstrings_and_documentation_are_in_english` (comments and docstrings of
+  every Python file, and the prose of `README.md` and `docs/` with code spans removed), with
+  `test_language_check_catches_french_prose` (a French comment, a French docstring, a French
+  documentation line, each on a copy, make it fail).
+- Set aside: translating the notices into English, which the specification wrote in French.
