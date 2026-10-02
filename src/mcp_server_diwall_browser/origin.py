@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ipaddress
 import re
+import unicodedata
 from dataclasses import dataclass
 
 DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
@@ -204,6 +205,25 @@ def _split_hostport(hostport: str) -> tuple[str, str | None]:
     return host, (port if colon else None)
 
 
+def _ascii_host(host: str) -> str:
+    """The punycode form of a non-Latin host, only when it is unambiguous.
+
+    Python converts with IDNA 2003, browsers with IDNA 2008. They disagree
+    on a few characters (``ß``, ``ς``, the joiners) and Python silently maps
+    others: ``faß.test`` becomes ``fass.test``, another domain than the one
+    the browser opens. A name that does not come back unchanged from the
+    conversion is refused, so a disagreement can only refuse, never allow.
+    """
+    try:
+        converted = host.encode("idna").decode("ascii").lower()
+        returned = converted.encode("ascii").decode("idna")
+    except UnicodeError as exc:
+        raise OriginError("invalid_host") from exc
+    if returned != unicodedata.normalize("NFC", host):
+        raise OriginError("invalid_host")
+    return converted
+
+
 def _normalize_host(host: str, *, bracketed: bool) -> str:
     if bracketed:
         # A zone identifier names a local interface, never a web origin.
@@ -220,12 +240,7 @@ def _normalize_host(host: str, *, bracketed: bool) -> str:
     if not host:
         raise OriginError("empty_host")
     if not host.isascii():
-        try:
-            host = host.encode("idna").decode("ascii").lower()
-        except UnicodeError as exc:
-            raise OriginError("invalid_host") from exc
-        if host.endswith("."):
-            host = host[:-1]
+        host = _ascii_host(host)
 
     labels = host.split(".")
     # A host whose last label is a number is an IPv4 address to a browser,

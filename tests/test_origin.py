@@ -177,3 +177,62 @@ def test_about_blank_is_blank_but_has_no_origin() -> None:
 def test_hand_built_origin_cannot_hold_a_value_the_parser_refuses(fields: tuple[str, str, int]) -> None:
     with pytest.raises(OriginError):
         Origin(*fields)
+
+
+# --- non-Latin host names -------------------------------------------------------------------
+
+# Hosts on which IDNA 2003 (Python) and IDNA 2008 (browsers) disagree, or that
+# the conversion maps silently: each must be refused, never turned into
+# another domain.
+DIVERGENT_HOSTS = [
+    "https://faß.test",
+    "https://straße.example.test",
+    "https://ς.test",
+    "https://a\u200db.test",
+    "https://a\u200cb.test",
+    "https://\uff45xample.test",
+    "https://xn--fa-hia.test",
+]
+
+UNAMBIGUOUS_HOSTS = [
+    ("https://café.test", "https://xn--caf-dma.test"),
+    ("https://cafe\u0301.test", "https://xn--caf-dma.test"),
+    ("https://MÜNCHEN.test", "https://xn--mnchen-3ya.test"),
+    ("https://bücher.example.test", "https://xn--bcher-kva.example.test"),
+]
+
+HostParser = Callable[[str], Origin]
+
+
+def divergent_hosts_are_refused(parse: HostParser) -> bool:
+    for url in DIVERGENT_HOSTS:
+        try:
+            parse(url)
+        except OriginError as error:
+            if error.reason != "invalid_host":
+                return False
+        else:
+            return False
+    return all(parse(url).canonical == canonical for url, canonical in UNAMBIGUOUS_HOSTS)
+
+
+def idna_2003_only(url: str) -> Origin:
+    # Defective: converts with IDNA 2003 and keeps whatever comes out.
+    host = url.split("://", 1)[1]
+    try:
+        converted = host.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        raise OriginError("invalid_host") from None
+    return Origin("https", converted, 443)
+
+
+def test_a_host_the_two_idna_versions_read_differently_is_refused() -> None:
+    assert divergent_hosts_are_refused(parse_origin)
+    with pytest.raises(OriginError) as caught:
+        parse_origin("https://faß.test")
+    assert caught.value.reason == "invalid_host"
+
+
+def test_host_check_catches_a_parser_that_trusts_idna_2003() -> None:
+    assert not divergent_hosts_are_refused(idna_2003_only)
+    assert idna_2003_only("https://faß.test").canonical == "https://fass.test"

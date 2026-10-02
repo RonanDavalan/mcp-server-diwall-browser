@@ -171,3 +171,20 @@ set aside.
 - Set aside: matching sensitive words as substrings of whole names, which would mask `spinner`,
   `shipping` and `opinion`; adding `carte` as a word, which would mask `carte_cadeau`-like fields
   without a measured need.
+
+### A non-Latin host that the two IDNA versions could read differently is refused
+
+- Decided: a non-ASCII host is accepted only if its IDNA 2003 conversion comes back unchanged
+  (after NFC); otherwise `invalid_host`. The README tells the operator to write non-Latin hosts
+  in punycode in the profile.
+- Why: measured before the change, the parser was not closed on these names. `faß.test` became
+  `fass.test` (the browser, under IDNA 2008, opens `xn--fa-hia.test`), `ς.test` became the sigma
+  form `xn--4xa.test`, and a zero-width joiner was dropped (`a‍b.test` became `ab.test`): a profile
+  allowing `faß.test` allowed another domain. The IDNA 2008 punycode `xn--fa-hia.test` was already
+  refused. The safer option for a security component was taken over keeping the behaviour.
+- Control: `test_a_host_the_two_idna_versions_read_differently_is_refused` (refusal of `faß.test`,
+  `straße.example.test`, `ς.test`, the joiners, a full-width letter and `xn--fa-hia.test`;
+  acceptance of `café.test`, its decomposed spelling, `MÜNCHEN.test`, `bücher.example.test`),
+  with `test_host_check_catches_a_parser_that_trusts_idna_2003`.
+- Set aside: an IDNA 2008 implementation (not in the standard library, and the dependency list is
+  closed); mapping `ß` to `ss` like IDNA 2003 (it designates another domain).
