@@ -97,6 +97,8 @@ SINGLE_DEFINITIONS = {
     "check_profile_dir": "browser.py",
     "check_navigable": "browser.py",
     "TabRegistry": "browser.py",
+    "Perception": "perception.py",
+    "capture_masked_png": "perception.py",
 }
 
 # Standard library helpers that parse an address; only origin.py may parse one.
@@ -516,3 +518,71 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "perception.py").write_text(source)
     assert transport_uses_outside_cdp(copy) == ["perception.py"]
+
+
+# --- perception asks the one predicate whether a field is sensitive (INV-2) ---------------------
+
+PERCEPTION_MODULE = "perception.py"
+# Spellings that would mean a second detection of sensitive fields; they are
+# looked for anywhere in the file, comments included.
+DETECTION_SPELLINGS = ("password", "passwd", "autocomplete", "cc-", "one-time-code", "current-password", "new-password")
+
+
+def _string_literals(source: str) -> list[str]:
+    tree = ast.parse(source)
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
+            first = node.body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant):
+                docstrings.add(id(first.value))
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings
+    ]
+
+
+def second_detection(source: str) -> list[str]:
+    """Detection knowledge found in the perception source: words of the predicate, or a call to anything but it."""
+    from mcp_server_diwall_browser import sensitive_field
+
+    found = [f"spelling {word!r}" for word in DETECTION_SPELLINGS if word in source.lower()]
+    words = sensitive_field.SENSITIVE_WORDS
+    substrings = (*sensitive_field.SENSITIVE_SUBSTRINGS, *sensitive_field.SENSITIVE_AUTOCOMPLETE)
+    for literal in _string_literals(source):
+        lowered = literal.lower()
+        tokens = set(re.split(r"[^a-z0-9]+", lowered))
+        found += [f"literal {literal!r}: word {w!r}" for w in sorted(words & tokens)]
+        found += [f"literal {literal!r}: {s!r}" for s in substrings if s in lowered]
+    calls = {
+        node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+    }
+    if "is_sensitive" not in calls:
+        found.append("no call to is_sensitive")
+    return found
+
+
+def test_perception_decides_sensitivity_through_the_predicate_only() -> None:
+    assert second_detection((PACKAGE_DIR / PERCEPTION_MODULE).read_text()) == []
+
+
+@pytest.mark.parametrize(
+    "addition",
+    [
+        "\ndef _also_sensitive(node):\n    return node.attributes.get('type') == 'password'\n",
+        "\ndef _card(node):\n    return 'cc-number' in node.attributes.get('autocomplete', '')\n",
+        "\n_WORDS = ('otp', 'pin')\n",
+        "\n# a comment that says password\n",
+    ],
+)
+def test_detection_check_catches_a_second_predicate(addition: str) -> None:
+    source = (PACKAGE_DIR / PERCEPTION_MODULE).read_text() + addition
+    assert second_detection(source)
+
+
+def test_detection_check_catches_a_module_that_never_asks_the_predicate() -> None:
+    source = (PACKAGE_DIR / PERCEPTION_MODULE).read_text().replace("is_sensitive(", "is_plain(")
+    assert "no call to is_sensitive" in second_detection(source)

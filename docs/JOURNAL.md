@@ -79,3 +79,56 @@ Remaining:
   read as an empty table only when the kernel refuses `AF_INET6` sockets.
 - `ALLOWED_METHODS` was rebuilt from the needs named in the P2 prompt: the operator compares it
   with section 5 of the common base.
+
+## 2026-10-02 — Perception: snapshot, marks, tree, image, masks (P3)
+
+Done:
+
+- `perception.py`: one observation reads the main document twice
+  (`Accessibility.getFullAXTree`, `DOMSnapshot.captureSnapshot` of `documents[0]` only), merged
+  by backend node id. A node is shown only if the tree does not ignore it and its box passes
+  the five visibility conditions (box, visibility, effective opacity over element ancestors,
+  2 px, on the page); a hidden node takes its subtree with it and counts once in
+  `omitted_not_visible`. Elements by role (or clickable `generic`), numbered in document order,
+  150 at most (viewport first); `ElementRef` for the gate, a cleaned public view for the model.
+  Every `input`, `textarea` and `select` goes through `sensitive_field.is_sensitive` (via
+  `ATTRIBUTE_ARGUMENTS`); a sensitive value is emptied before leaving the module; nothing under a
+  field is read. Text tree of 400 lines at most. Frames are never read and are masked.
+- Image: masks drawn on the full capture, reduction to 1600 px (`LANCZOS`), masks laid again,
+  marks on a separate layer erased over the masks. Fail closed (no image, `capture_unavailable`)
+  when a mask fails, a shown sensitive field has no usable box, or a mask box moved between the
+  snapshot and the capture. `capture_masked_png` for the evidence.
+- Origin gate before any read and second reading of origin and loader after; one retry, then
+  `page_changed_during_capture`. Reads give up at once when a dialog opens (`browser.read`).
+- `wait_for` (`load`, `text`, `element`) by light readings every 300 ms; snapshot store of three
+  per tab (`snapshot_stale`).
+- `browser.py`: `read`, `DialogBlocking`, `wait_loaded`, `Tab.dialog_url`, `Tab.loading`.
+- Test pages `visibility`, `visibility-limit`, `sensitive`, `hostile`, `iframe`, `long`,
+  `crowded`, `fields`, `drift`, `dialog`; `page_model.py` (simulated pages), a hand-written
+  snapshot in `snapshots/login.json`, `raw_cdp.py` for the test-side scripts; INV-2 test
+  (no detection spelling in `perception.py`).
+
+Proof:
+
+```
+.venv/bin/python -m pytest -q                                          # 671 passed, 30 skipped
+PATH=<dir with a chromium link>:$PATH .venv/bin/python -m pytest -q    # 701 passed
+```
+
+Measured against Chromium 141.0.7390.37:
+
+- An element with `display: none` has no node at all in the accessibility tree; an
+  `aria-hidden` one is there, ignored (`ariaHiddenElement`). A text node carries its parent's
+  computed style. Layout bounds are in document coordinates.
+- A password field shows bullets in the tree and its value in clear in `inputValue`.
+- While a JavaScript dialog is open, every call on the page session waits, `Page.getFrameTree`
+  included.
+- `Autofill.trigger` fills a card field in headless mode; there is no protocol trigger for the
+  password manager.
+- `long.html`: 100 marks, 304 tree lines. A full observation of `basic.html` takes 70 ms (median
+  of 10); its 2400×1200 capture weighs 23 033 bytes, 19 929 once reduced to 1600×800.
+
+Remaining:
+
+- Colour contrast and clipping by `overflow` or `clip-path` are not computed (known limit,
+  frozen by `test_known_limits_colour_and_clipping_are_not_computed`).
