@@ -361,13 +361,37 @@ async def test_call_internal_refuses_malformed_arguments(
     assert fake.received == []
 
 
-def test_production_script_table_is_empty_and_read_only() -> None:
-    assert dict(INTERNAL_SCRIPTS) == {}
+def test_production_script_table_holds_the_action_scripts_and_is_read_only() -> None:
+    assert set(INTERNAL_SCRIPTS) == {"contains", "select_text", "set_select_option", "active_element", "is_connected"}
+    assert {name: script.kind for name, script in INTERNAL_SCRIPTS.items()} == {
+        "contains": "call_function_on",
+        "select_text": "call_function_on",
+        "set_select_option": "call_function_on",
+        "active_element": "evaluate",
+        "is_connected": "call_function_on",
+    }
+    assert INTERNAL_SCRIPTS["active_element"].by_value is False
     with pytest.raises(TypeError):
         INTERNAL_SCRIPTS["x"] = TITLE  # type: ignore[index]
     connection = CdpConnection()
     with pytest.raises(UnknownScriptError):
         asyncio.run(connection.call_internal("title", session_id="S1"))
+
+
+async def test_a_script_that_returns_an_element_asks_for_a_reference(fake: FakeCdp) -> None:
+    connection = await connected(fake)
+    fake.on("Runtime.evaluate", {"result": {"type": "object", "subtype": "node", "objectId": "O7"}})
+    fake.on("Runtime.callFunctionOn", {"result": {"type": "boolean", "value": True}})
+    try:
+        await connection.call_internal("active_element", session_id="S1")
+        await connection.call_internal("set_select_option", session_id="S1", object_id="O7", arguments=[{"value": "France"}])
+    finally:
+        await connection.close()
+    evaluate, function_call = fake.received
+    assert evaluate["params"] == {"expression": "document.activeElement", "returnByValue": False}
+    assert function_call["params"]["arguments"] == [{"value": "France"}]
+    assert function_call["params"]["functionDeclaration"] == INTERNAL_SCRIPTS["set_select_option"].text
+    assert function_call["params"]["returnByValue"] is True
 
 
 def test_the_script_table_takes_only_internal_scripts() -> None:

@@ -105,6 +105,9 @@ class InternalScript:
 
     kind: ScriptKind
     text: str
+    # False when the result is an object the next call refers to (an element),
+    # True when it is a plain value.
+    by_value: bool = True
 
     def __post_init__(self) -> None:
         if self.kind not in ("evaluate", "call_function_on"):
@@ -115,7 +118,28 @@ class InternalScript:
 
 # Name -> script. Read-only at run time; scripts are added by editing this
 # literal, and every text is a plain string with no value formatted in.
-INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType({})
+INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType(
+    {
+        "contains": InternalScript(
+            "call_function_on",
+            "function(other) { return this === other || this.contains(other); }",
+        ),
+        "select_text": InternalScript(
+            "call_function_on",
+            "function() { if (typeof this.select === 'function') { this.select(); return true; } return false; }",
+        ),
+        "set_select_option": InternalScript(
+            "call_function_on",
+            "function(wanted) { const options = Array.from(this.options || []); "
+            "const index = options.findIndex(o => o.text.trim() === wanted || o.value === wanted); "
+            "if (index < 0) { return false; } this.selectedIndex = index; "
+            "this.dispatchEvent(new Event('input', { bubbles: true })); "
+            "this.dispatchEvent(new Event('change', { bubbles: true })); return true; }",
+        ),
+        "active_element": InternalScript("evaluate", "document.activeElement", by_value=False),
+        "is_connected": InternalScript("call_function_on", "function() { return this.isConnected; }"),
+    }
+)
 
 
 class CdpError(Exception):
@@ -316,7 +340,7 @@ class CdpConnection:
         if script.kind == "evaluate":
             if object_id is not None or arguments:
                 raise DisallowedMethodError("an evaluated script takes no object and no arguments")
-            params: dict[str, Any] = {"expression": script.text, "returnByValue": True}
+            params: dict[str, Any] = {"expression": script.text, "returnByValue": script.by_value}
             method = "Runtime.evaluate"
         else:
             if not isinstance(object_id, str) or not object_id:
@@ -325,7 +349,7 @@ class CdpConnection:
                 "functionDeclaration": script.text,
                 "objectId": object_id,
                 "arguments": _protocol_arguments(arguments),
-                "returnByValue": True,
+                "returnByValue": script.by_value,
             }
             method = "Runtime.callFunctionOn"
         return await self.send(method, params, session_id=session_id, timeout=timeout, _script=script)
