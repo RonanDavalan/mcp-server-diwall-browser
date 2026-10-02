@@ -15,6 +15,7 @@ import pytest
 from conftest import mounted_volume, write_credential
 
 from mcp_server_diwall_browser import credentials, hardening
+from mcp_server_diwall_browser.evidence import EvidenceWriter
 from mcp_server_diwall_browser.journal import Journal
 from mcp_server_diwall_browser.mount import Volume
 from mcp_server_diwall_browser.origin import Origin, parse_origin
@@ -334,6 +335,121 @@ def test_file_check_catches_a_plain_append_writer(tmp_path: Path) -> None:
     assert not journal_files_are_private_and_unfollowed(plain_open_writer, tmp_path)
 
 
+# --- evidence and downloaded files are private and never follow a link ----------------------
+
+PNG = b"\x89PNG\r\n\x1a\n-test"
+
+
+def evidence_writer(volume: Volume, data: bytes) -> Path:
+    return EvidenceWriter(volume, today=lambda: "2026-01-02").before("op-1", data)
+
+
+def plain_evidence_writer(volume: Volume, data: bytes) -> Path:
+    # Defective: a plain write that follows links and takes the umask mode.
+    directory = volume.require_mounted() / "evidence" / "2026-01-02" / "op-1"
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "before.png"
+    with open(path, "wb") as handle:
+        handle.write(data)
+    return path
+
+
+EvidenceWriterFn = Callable[[Volume, bytes], Path]
+
+
+def evidence_files_are_private_and_unfollowed(writer: EvidenceWriterFn, tmp_path: Path) -> bool:
+    (tmp_path / "first").mkdir()
+    paths, _fake, volume = mounted_volume(tmp_path / "first")
+    old_umask = os.umask(0)
+    try:
+        try:
+            path = writer(volume, PNG)
+        except Exception:  # noqa: BLE001
+            return False
+    finally:
+        os.umask(old_umask)
+    if path.stat().st_mode & 0o077 or any(
+        parent.stat().st_mode & 0o777 != 0o700 for parent in (path.parent, path.parent.parent, paths.project / "evidence")
+    ):
+        return False
+
+    (tmp_path / "second").mkdir()
+    paths, _fake, volume = mounted_volume(tmp_path / "second")
+    directory = paths.project / "evidence" / "2026-01-02" / "op-1"
+    directory.mkdir(parents=True, mode=0o700)
+    for parent in (paths.project / "evidence", directory.parent, directory):
+        os.chmod(parent, 0o700)
+    decoy = paths.project / "decoy"
+    decoy.write_bytes(b"")
+    os.chmod(decoy, 0o600)
+    (directory / "before.png").symlink_to(decoy)
+    try:
+        writer(volume, PNG)
+    except (ToolError, OSError):
+        pass
+    return decoy.read_bytes() == b""
+
+
+def test_evidence_files_are_private_and_never_follow_a_link(tmp_path: Path) -> None:
+    assert evidence_files_are_private_and_unfollowed(evidence_writer, tmp_path)
+
+
+def test_evidence_check_catches_a_plain_writer(tmp_path: Path) -> None:
+    assert not evidence_files_are_private_and_unfollowed(plain_evidence_writer, tmp_path)
+
+
+Settler = Callable[[Volume, str, str], Path]
+
+
+def volume_settler(volume: Volume, source: str, wanted: str) -> Path:
+    return volume.settle_file("downloads", "op-1", source=source, wanted=wanted)
+
+
+def plain_settler(volume: Volume, source: str, wanted: str) -> Path:
+    # Defective: renames whatever the name points to and keeps the browser's mode.
+    directory = volume.require_mounted() / "downloads" / "op-1"
+    target = directory / wanted
+    os.rename(directory / source, target)
+    return target
+
+
+def downloads_are_private_and_unfollowed(settler: Settler, tmp_path: Path) -> bool:
+    (tmp_path / "first").mkdir()
+    paths, _fake, volume = mounted_volume(tmp_path / "first")
+    directory = volume.ensure_dir("downloads", "op-1")
+    # The browser writes the file with its own mode.
+    fd = os.open(directory / "guid-1", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
+    os.close(fd)
+    os.chmod(directory / "guid-1", 0o644)
+    try:
+        path = settler(volume, "guid-1", "invoice.pdf")
+    except Exception:  # noqa: BLE001
+        return False
+    if path.stat().st_mode & 0o077 or directory.stat().st_mode & 0o777 != 0o700:
+        return False
+
+    (tmp_path / "second").mkdir()
+    paths, _fake, volume = mounted_volume(tmp_path / "second")
+    directory = volume.ensure_dir("downloads", "op-1")
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(b"operator file")
+    os.chmod(outside, 0o644)
+    (directory / "guid-2").symlink_to(outside)
+    try:
+        settler(volume, "guid-2", "invoice.pdf")
+    except (ToolError, OSError):
+        pass
+    return outside.stat().st_mode & 0o777 == 0o644 and not (directory / "invoice.pdf").exists()
+
+
+def test_downloaded_files_are_private_and_never_follow_a_link(tmp_path: Path) -> None:
+    assert downloads_are_private_and_unfollowed(volume_settler, tmp_path)
+
+
+def test_download_check_catches_a_plain_rename(tmp_path: Path) -> None:
+    assert not downloads_are_private_and_unfollowed(plain_settler, tmp_path)
+
+
 # --- page scripts come from the fixed table only, never formatted ----------------------------
 
 CDP_MODULE = "cdp.py"
@@ -374,11 +490,23 @@ def _call_name(func: ast.expr) -> str | None:
     return None
 
 
-def formatted_script_strings(source: str) -> list[str]:
+def _bound_names(target: ast.expr) -> list[str]:
+    """Names an assignment binds; an attribute or an item of an object binds none."""
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, (ast.Tuple, ast.List)):
+        return [name for element in target.elts for name in _bound_names(element)]
+    if isinstance(target, ast.Starred):
+        return _bound_names(target.value)
+    return []
+
+
+def formatted_script_strings(source: str, calls: frozenset[str] = SCRIPT_CALLS) -> list[str]:
     """Strings formed with a value by f-string, .format( or % that reach a script call.
 
-    The arguments of call_internal, send and InternalScript are searched,
-    and so are the values assigned to a name those arguments use.
+    The arguments of ``calls`` (by default call_internal, send and
+    InternalScript) are searched, and so are the values assigned to a name
+    those arguments use.
     """
     tree = ast.parse(source)
     assigned: dict[str, list[ast.AST]] = {}
@@ -389,12 +517,11 @@ def formatted_script_strings(source: str) -> list[str]:
         elif isinstance(node, (ast.AnnAssign, ast.AugAssign)) and node.value is not None:
             targets = [node.target]
         for target in targets:
-            for name in ast.walk(target):
-                if isinstance(name, ast.Name):
-                    assigned.setdefault(name.id, []).append(node.value)  # type: ignore[union-attr]
+            for name in _bound_names(target):
+                assigned.setdefault(name, []).append(node.value)  # type: ignore[union-attr]
     found = []
     for node in ast.walk(tree):
-        if not (isinstance(node, ast.Call) and _call_name(node.func) in SCRIPT_CALLS):
+        if not (isinstance(node, ast.Call) and _call_name(node.func) in calls):
             continue
         pending: list[ast.AST] = [*node.args, *(keyword.value for keyword in node.keywords)]
         seen: set[str] = set()
@@ -491,6 +618,39 @@ def test_script_check_catches_a_formatted_or_foreign_script(tmp_path: Path, modu
 )
 def test_script_check_leaves_plain_scripts_and_protocol_arguments_alone(source: str) -> None:
     assert formatted_script_strings(source) == []
+
+
+# The calls by which the actions reach the page: page reads, gestures and the script table.
+ACTION_CALLS = SCRIPT_CALLS | {"read", "_read", "run_script", "_script", "_gesture"}
+ACTIONS_MODULE = "actions.py"
+
+
+def script_strings_in_actions(source: str) -> list[str]:
+    """In the actions: no script parameter, no script method, no string formed for a page call."""
+    found = [needle for needle in SCRIPT_FIELD_STRINGS if needle in source]
+    found.extend(f"method {text}" for text in _string_literals(source) if text.startswith("Runtime."))
+    found.extend(formatted_script_strings(source, ACTION_CALLS))
+    return found
+
+
+def test_the_actions_form_no_script_string() -> None:
+    assert script_strings_in_actions((PACKAGE_DIR / ACTIONS_MODULE).read_text()) == []
+
+
+@pytest.mark.parametrize(
+    "addition",
+    [
+        "async def bad(self, tab, mark):\n"
+        "    return await self._read(tab, 'Runtime.evaluate', {'expression': f'document.getElementById({mark})'})\n",
+        "async def bad(self, tab, name):\n    return await self._script(tab, f'select_{name}')\n",
+        "async def bad(self, tab, key):\n    return await self._context.registry.run_script(tab, 'focus_%s' % key)\n",
+        "async def bad(self, run, tab, text):\n"
+        "    await self._gesture(run, tab, [('Input.insertText', {'text': '{}'.format(text)})])\n",
+    ],
+)
+def test_actions_script_check_catches_a_formed_script(addition: str) -> None:
+    source = (PACKAGE_DIR / ACTIONS_MODULE).read_text() + "\n\n" + addition
+    assert script_strings_in_actions(source) != []
 
 
 # --- the WebSocket and the unchecked transport stay inside cdp.py ----------------------------
