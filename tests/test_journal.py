@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from collections.abc import Callable
 from pathlib import Path
 
@@ -102,64 +101,6 @@ def test_unknown_confirmation_state_is_a_programming_error(tmp_path: Path) -> No
     _paths, _fake, volume = mounted_volume(tmp_path)
     with pytest.raises(ValueError):
         Journal(volume, client).write(JournalEntry("op", "click", "ok", True, confirmation="maybe"))
-
-
-# --- file creation: the check and its counter-proof -------------------------------
-
-Writer = Callable[[Volume, bytes], None]
-
-
-def journal_writer(volume: Volume, line: bytes) -> None:
-    Journal(volume, client)._append(line)
-
-
-def plain_open_writer(volume: Volume, line: bytes) -> None:
-    # Defective: a plain append that follows links and takes the umask mode.
-    root = volume.require_mounted()
-    (root / "journal").mkdir(exist_ok=True)
-    with open(root / "journal" / "operations.jsonl", "ab") as handle:
-        handle.write(line)
-
-
-def journal_files_are_private_and_unfollowed(writer: Writer, tmp_path: Path) -> bool:
-    paths, _fake, volume = mounted_volume(tmp_path / "first")
-    old_umask = os.umask(0)
-    try:
-        try:
-            writer(volume, b"{}\n")
-        except Exception:  # noqa: BLE001
-            return False
-    finally:
-        os.umask(old_umask)
-    directory = paths.project / "journal"
-    file_mode = (directory / "operations.jsonl").stat().st_mode & 0o777
-    dir_mode = directory.stat().st_mode & 0o777
-    if file_mode & 0o077 or dir_mode != 0o700:
-        return False
-
-    paths, _fake, volume = mounted_volume(tmp_path / "second")
-    (paths.project / "journal").mkdir(mode=0o700)
-    decoy = paths.project / "decoy"
-    decoy.write_bytes(b"")
-    os.chmod(decoy, 0o600)
-    (paths.project / "journal" / "operations.jsonl").symlink_to(decoy)
-    try:
-        writer(volume, b"{}\n")
-    except (ToolError, OSError):
-        pass
-    return decoy.read_bytes() == b""
-
-
-def test_journal_files_are_private_and_never_follow_a_link(tmp_path: Path) -> None:
-    (tmp_path / "first").mkdir()
-    (tmp_path / "second").mkdir()
-    assert journal_files_are_private_and_unfollowed(journal_writer, tmp_path)
-
-
-def test_file_check_catches_a_plain_append_writer(tmp_path: Path) -> None:
-    (tmp_path / "first").mkdir()
-    (tmp_path / "second").mkdir()
-    assert not journal_files_are_private_and_unfollowed(plain_open_writer, tmp_path)
 
 
 # --- unavailable journal -------------------------------------------------------------

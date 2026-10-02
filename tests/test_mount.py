@@ -281,13 +281,13 @@ def test_path_parts_must_be_plain_names(tmp_path: Path, part: str) -> None:
 
 def test_ensure_dir_creates_private_levels_and_refuses_a_shared_one(tmp_path: Path) -> None:
     paths, _fake, volume = mounted_volume(tmp_path)
-    created = volume.ensure_dir("evidence", "2026-01-01", "op")
-    assert created == paths.project / "evidence" / "2026-01-01" / "op"
+    created = volume.ensure_dir("evidence", "2000-01-01", "op")
+    assert created == paths.project / "evidence" / "2000-01-01" / "op"
     for level in (paths.project / "evidence", created.parent, created):
         assert level.stat().st_mode & 0o777 == 0o700
     os.chmod(paths.project / "evidence", 0o755)
     with pytest.raises(ToolError):
-        volume.ensure_dir("evidence", "2026-01-01")
+        volume.ensure_dir("evidence", "2000-01-01")
 
 
 def test_write_new_creates_a_private_file_and_never_overwrites(tmp_path: Path) -> None:
@@ -358,7 +358,7 @@ def test_read_file_checks_kind_owner_mode_and_size(tmp_path: Path) -> None:
         ("../../etc/passwd", "_.._etc_passwd"),
         ("..", "unnamed"),
         ("", "unnamed"),
-        ("facture été 2026.pdf", "facture__t__2026.pdf"),
+        ("facture été.pdf", "facture__t_.pdf"),
         (".hidden", "hidden"),
         ("a/b\\c\x00d", "a_b_c_d"),
         ("x" * 100, "x" * 64),
