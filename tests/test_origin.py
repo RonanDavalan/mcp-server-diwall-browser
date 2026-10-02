@@ -8,6 +8,7 @@ import pytest
 from mcp_server_diwall_browser.origin import (
     Origin,
     OriginError,
+    form_target_origin,
     is_blank,
     origin_allowed,
     origin_of_url,
@@ -324,3 +325,45 @@ def test_split_host_port(hostport: str, expected: tuple[str, str | None]) -> Non
 def test_split_host_port_refuses_what_a_browser_could_read_otherwise(hostport: str) -> None:
     with pytest.raises(OriginError):
         split_host_port(hostport)
+
+
+# --- where a form sends ------------------------------------------------------------------------------
+
+PAGE = "https://shop.example.test/cart/checkout?step=3"
+FORM_TARGETS: list[tuple[str | None, str | None]] = [
+    (None, "https://shop.example.test"),
+    ("", "https://shop.example.test"),
+    ("pay", "https://shop.example.test"),
+    ("/pay?x=1", "https://shop.example.test"),
+    ("?step=4", "https://shop.example.test"),
+    ("https://pay.example.test/session", "https://pay.example.test"),
+    ("HTTPS://PAY.EXAMPLE.TEST:443/", "https://pay.example.test"),
+    ("//bank.example.test/3ds", "https://bank.example.test"),
+    ("http://shop.example.test/pay", "http://shop.example.test"),
+    ("javascript:submit()", None),
+    ("https://user:pw@pay.example.test/", None),
+]
+
+TargetReader = Callable[[str, str | None], Origin | None]
+
+
+def form_target_table_holds(read: TargetReader) -> bool:
+    for action, expected in FORM_TARGETS:
+        found = read(PAGE, action)
+        if (None if found is None else found.canonical) != expected:
+            return False
+    return True
+
+
+def page_origin_always(page_url: str, action: str | None) -> Origin | None:
+    # Defective: assumes a form always sends to the page's origin.
+    return origin_of_url(page_url)
+
+
+def test_the_target_of_a_form_is_read_against_the_page() -> None:
+    assert form_target_table_holds(form_target_origin)
+    assert form_target_origin("about:blank", "/pay") is None
+
+
+def test_form_target_check_catches_a_reader_that_ignores_the_action() -> None:
+    assert not form_target_table_holds(page_origin_always)

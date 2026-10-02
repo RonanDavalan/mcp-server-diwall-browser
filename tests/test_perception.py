@@ -967,3 +967,58 @@ def test_tree_nodes_without_a_dom_identifier_are_skipped_without_error() -> None
 
 def test_identifier_check_catches_a_builder_that_trusts_every_node() -> None:
     assert not nodes_without_identifier_are_handled(builder_that_trusts_every_node)
+
+
+# --- texts around an element, for the gate -----------------------------------------------------------
+
+
+def test_the_gate_texts_of_an_element() -> None:
+    page = Page(
+        "Checkout",
+        [
+            El("H2", role="heading", name="Étape 3 : paiement", box=(10, 10, 300, 30), properties={"level": 2}, children=[text("Étape 3 : paiement", (10, 10, 200, 20))]),
+            El(
+                "FORM",
+                role="form",
+                name="Commande",
+                attrs={"aria-label": "Commande"},
+                box=(0, 50, 600, 300),
+                children=[
+                    El(
+                        "FIELDSET",
+                        role="group",
+                        name="Coordonnées",
+                        box=(0, 50, 600, 200),
+                        children=[El("LEGEND", box=(5, 52, 200, 18), children=[text("Coordonnées bancaires", (5, 52, 200, 16))]), field_input("Titulaire", (10, 80, 200, 20))],
+                    ),
+                    El("INPUT", attrs={"type": "submit", "value": "Valider la commande"}, role="button", name="Continuer", box=(10, 260, 120, 24), clickable=True),
+                    button("Aide", (140, 260, 60, 24), attrs={"title": "Supprimer le panier"}),
+                ],
+            ),
+        ],
+    )
+    holder, submit, helper = built(page).elements
+    assert holder.form_name == "Commande Coordonnées bancaires"
+    assert submit.gate_texts == ("Continuer", "Valider la commande", "", "Commande", "Étape 3 : paiement")
+    assert helper.title == "Supprimer le panier" and helper.heading == "Étape 3 : paiement"
+    assert "button_value" not in helper.public and "title" not in helper.public
+
+
+async def test_the_latest_snapshot_of_a_tab(fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    tab = await showing(fake_browser, registry, login_page())
+    percept = perceiver(registry)
+    assert percept.latest_snapshot(tab.tab_id) is None
+    first = await percept.observe(tab, image=False)
+    second = await percept.observe(tab, image=False)
+    latest = percept.latest_snapshot(tab.tab_id)
+    assert latest is not None and latest.snapshot_id == second.server["snapshot_id"] != first.server["snapshot_id"]
+
+
+def test_identities_of_simulated_nodes_survive_an_insertion() -> None:
+    first, second = button("First", (10, 10, 80, 20)), button("Second", (10, 40, 80, 20))
+    page = Page("Ids", [first, second])
+    page.prepare()
+    before = second.backend_id
+    page.body.insert(1, button("Inserted", (10, 40, 80, 20)))
+    page.prepare()
+    assert second.backend_id == before and page.body[1].backend_id not in (first.backend_id, before)

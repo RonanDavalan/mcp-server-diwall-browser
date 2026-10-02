@@ -165,6 +165,29 @@ def origin_allowed(origin: Origin | None, allowed: Iterable[Origin]) -> bool:
     return isinstance(origin, Origin) and any(origin == item for item in allowed)
 
 
+def form_target_origin(page_url: str, action: str | None) -> Origin | None:
+    """The origin a form sends to: its ``action`` read against the page address.
+
+    ``None`` when it cannot be read or is not a web origin (a script address
+    for one); an empty or relative action sends to the page's own origin.
+    """
+    try:
+        page: Origin | None = origin_of_url(page_url)
+    except OriginError:
+        page = None
+    target = (action or "").strip()
+    if not target:
+        return page
+    try:
+        if target.startswith("//"):
+            return None if page is None else origin_of_url(f"{page.scheme}:{target}")
+        if _SCHEME_RE.fullmatch(target):
+            return origin_of_url(target)
+    except OriginError:
+        return None
+    return page
+
+
 def split_host_port(hostport: str) -> tuple[str, str | None]:
     """Host (an IPv6 address keeps its brackets) and port text of an authority."""
     return _split_hostport(hostport)

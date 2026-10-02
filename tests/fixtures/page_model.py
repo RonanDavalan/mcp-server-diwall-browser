@@ -120,10 +120,22 @@ class Page:
     # --- identities ------------------------------------------------------------
 
     def _number(self, counter: itertools.count[int]) -> None:
+        # Like a browser, a node keeps its identity for its whole life: only
+        # nodes that have none yet get one, so an insertion does not shift
+        # the identity of the nodes after it.
         for element in self._elements():
-            element.backend_id = next(counter)
+            if element.backend_id == 0:
+                element.backend_id = next(counter)
             if element.content is not None:
                 element.content._number(counter)
+
+    def _all_ids(self) -> list[int]:
+        ids = []
+        for element in self._elements():
+            ids.append(element.backend_id)
+            if element.content is not None:
+                ids.extend(element.content._all_ids())
+        return ids
 
     def _elements(self) -> list[El]:
         result: list[El] = []
@@ -138,8 +150,22 @@ class Page:
         return result
 
     def prepare(self) -> Page:
-        self._number(itertools.count(10))
+        self._number(itertools.count(max([9, *self._all_ids()]) + 1))
         return self
+
+    def find(self, backend_id: int) -> El | None:
+        self.prepare()
+        for element in self._elements():
+            if element.backend_id == backend_id:
+                return element
+        return None
+
+    def parent_of(self, backend_id: int) -> El | None:
+        self.prepare()
+        for element in self._elements():
+            if any(child.backend_id == backend_id for child in element.children):
+                return element
+        return None
 
     # --- DOMSnapshot.captureSnapshot --------------------------------------------
 

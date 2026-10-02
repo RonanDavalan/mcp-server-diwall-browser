@@ -24,7 +24,7 @@ import os
 import time
 import unicodedata
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from PIL import Image, ImageDraw, ImageFile, ImageFont
@@ -146,6 +146,16 @@ class ElementRef:
     origin: Origin
     # What the model receives for this mark (cleaned, value withheld if sensitive).
     public: dict[str, Any] = field(repr=False, compare=False)
+    # Page texts around the element, read by the gate only (never sent as such).
+    button_value: str = field(default="", repr=False)
+    title: str = field(default="", repr=False)
+    form_name: str = field(default="", repr=False)
+    heading: str = field(default="", repr=False)
+
+    @property
+    def gate_texts(self) -> tuple[str, ...]:
+        """The texts that may say what an action does: name, button value, title, form, section."""
+        return (self.name, self.button_value, self.title, self.form_name, self.heading)
 
 
 @dataclass(frozen=True)
@@ -226,6 +236,7 @@ class Dom:
             raise SnapshotFormatError(type(exc).__name__) from None
         self.by_backend = {node.backend_id: node for node in self.nodes}
         self._opacity: dict[int, float] = {}
+        self._children: dict[int, list[int]] | None = None
 
     @staticmethod
     def _read_nodes(strings: list[str], nodes: dict[str, Any], layout: dict[str, Any]) -> list[DomNode]:
@@ -327,6 +338,27 @@ class Dom:
             if ancestor.tag == tag and ancestor.node_type == 1:
                 return ancestor
         return None
+
+    def children(self, node: DomNode) -> list[DomNode]:
+        if self._children is None:
+            self._children = {}
+            for item in self.nodes:
+                self._children.setdefault(item.parent, []).append(item.index)
+        return [self.nodes[index] for index in self._children.get(node.index, [])]
+
+    def text_content(self, node: DomNode, limit: int) -> str:
+        """The text of the nodes under ``node``, in document order, bounded."""
+        pieces: list[str] = []
+        stack = [node]
+        size = 0
+        while stack and size <= limit:
+            current = stack.pop()
+            if current.node_type == 3:
+                pieces.append(current.text)
+                size += len(current.text)
+            elif current.tag not in NEVER_RENDERED_TAGS:
+                stack.extend(reversed(self.children(current)))
+        return bounded_text(" ".join(pieces), limit)
 
     def inside_field(self, node: DomNode) -> bool:
         return any(ancestor.tag in FIELD_TAGS for ancestor in self.ancestors(node))
@@ -548,7 +580,10 @@ def build(
         key=lambda item: item.dom.index,
     )
     kept, counters["marks_truncated"] = _keep(candidates, MAX_MARKS, key=lambda item: item.dom.index)
-    elements = [_element(mark, item, dom, fields, origin, counters) for mark, item in enumerate(kept, start=1)]
+    elements = [
+        _with_gate_texts(_element(mark, item, dom, fields, origin, counters), item, dom, walk)
+        for mark, item in enumerate(kept, start=1)
+    ]
     counters["marks"] = len(elements)
     page_has_card_field = any(
         fields[item.dom.index].card for item in walk.shown if item.dom.index in fields
@@ -671,6 +706,41 @@ def _element(
         origin=origin,
         public=public,
     )
+
+
+def _with_gate_texts(element: ElementRef, item: _Shown, dom: Dom, walk: _Walk) -> ElementRef:
+    """Add the texts around the element that the gate reads to decide whether to arm."""
+    node = item.dom
+    button_value = ""
+    if node.tag == "button" or (node.tag == "input" and (element.input_type or "") in ("submit", "button", "image", "reset")):
+        button_value = bounded_text(node.attributes.get("value", ""), NAME_LIMIT)
+    form_name = ""
+    form = dom.enclosing(node, "form")
+    if form is not None:
+        form_name = _ax_name_of(walk.ax, form.backend_id) or bounded_text(form.attributes.get("aria-label", ""), NAME_LIMIT)
+    fieldset = dom.enclosing(node, "fieldset")
+    if fieldset is not None:
+        legend = next((child for child in dom.children(fieldset) if child.tag == "legend"), None)
+        if legend is not None:
+            form_name = bounded_text(f"{form_name} {dom.text_content(legend, NAME_LIMIT)}", NAME_LIMIT)
+    heading = ""
+    for shown in walk.shown:
+        if shown.role == "heading" and shown.dom.index < node.index:
+            heading = shown.name
+    return replace(
+        element,
+        button_value=button_value,
+        title=bounded_text(node.attributes.get("title", ""), NAME_LIMIT),
+        form_name=form_name,
+        heading=heading,
+    )
+
+
+def _ax_name_of(ax: dict[str, dict[str, Any]], backend_id: int) -> str:
+    for node in ax.values():
+        if node.get("backendDOMNodeId") == backend_id and not node.get("ignored"):
+            return bounded_text(_ax_value(node, "name"), NAME_LIMIT)
+    return ""
 
 
 def _raw_value(item: _Shown, node: DomNode, input_type: str | None) -> str:
@@ -917,6 +987,11 @@ class Perception:
                 continue
             return self._observation(tab, reading, image=image)
         raise ToolError("page_changed_during_capture", _CHANGED_MESSAGE)
+
+    def latest_snapshot(self, tab_id: str) -> Snapshot | None:
+        """The last snapshot of the tab, if any; it may describe a page that has moved since."""
+        kept = self._snapshots.get(tab_id)
+        return kept[-1] if kept else None
 
     def snapshot(self, tab_id: str, snapshot_id: str) -> Snapshot:
         """One of the last snapshots of the tab, or ``snapshot_stale``."""
