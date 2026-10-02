@@ -116,6 +116,9 @@ class Page:
     viewport: BoxT = (0, 0, 800, 600)
     content_size: tuple[float, float] = (800, 600)
     background: tuple[int, int, int] = WHITE
+    # Highest identity ever given: a browser never gives a removed node's
+    # identity to a new one.
+    issued: int = field(default=9, repr=False, compare=False)
 
     # --- identities ------------------------------------------------------------
 
@@ -150,7 +153,9 @@ class Page:
         return result
 
     def prepare(self) -> Page:
-        self._number(itertools.count(max([9, *self._all_ids()]) + 1))
+        counter = itertools.count(max([self.issued, *self._all_ids()]) + 1)
+        self._number(counter)
+        self.issued = max([self.issued, *self._all_ids()])
         return self
 
     def find(self, backend_id: int) -> El | None:

@@ -22,7 +22,7 @@ import re
 import secrets
 import socket
 import sys
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -630,6 +630,35 @@ class TabRegistry:
         self, tab: Tab, method: str, params: dict[str, Any] | None = None, *, timeout: float = DEFAULT_TIMEOUT_S
     ) -> dict[str, Any]:
         """One call on an owned tab that gives up as soon as a dialog blocks the page."""
+        return await self._until_dialog(tab, lambda: self._tab_call(tab, method, params, timeout=timeout), timeout)
+
+    async def run_script(
+        self,
+        tab: Tab,
+        name: str,
+        *,
+        object_id: str | None = None,
+        arguments: list[dict[str, Any]] | None = None,
+        timeout: float = DEFAULT_TIMEOUT_S,
+    ) -> dict[str, Any]:
+        """An internal script on an owned tab, given up as soon as a dialog blocks the page."""
+
+        async def call() -> dict[str, Any]:
+            try:
+                return await self._connection.call_internal(
+                    name, session_id=tab.session_id, object_id=object_id, arguments=arguments, timeout=timeout
+                )
+            except CdpError as exc:
+                if exc.code == SESSION_NOT_FOUND:
+                    self._forget(tab)
+                    raise ToolError("tab_not_owned", _NOT_OWNED_MESSAGE) from None
+                raise
+
+        return await self._until_dialog(tab, call, timeout)
+
+    async def _until_dialog(
+        self, tab: Tab, start: Callable[[], Awaitable[dict[str, Any]]], timeout: float
+    ) -> dict[str, Any]:
         self._require_owned(tab)
         if tab.dialog is not None:
             raise DialogBlocking()
@@ -638,7 +667,7 @@ class TabRegistry:
             lambda method_, params_, session: session == session_id and method_ == "Page.javascriptDialogOpening",
             timeout=timeout,
         )
-        call = asyncio.ensure_future(self._tab_call(tab, method, params, timeout=timeout))
+        call = asyncio.ensure_future(start())
         dialog_task = asyncio.ensure_future(_awaited(dialog))
         try:
             done, _ = await asyncio.wait({call, dialog_task}, return_when=asyncio.FIRST_COMPLETED)

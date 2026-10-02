@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from fixtures.fake_cdp import NO_REPLY, FakeBrowser, FakeCdp, FakeCdpError, settle, until
+from fixtures.page_model import Page, button
 
 from mcp_server_diwall_browser import browser
 from mcp_server_diwall_browser.browser import (
@@ -998,3 +999,38 @@ async def test_a_read_gives_up_and_the_dialog_can_still_be_answered(fake: FakeCd
     await until(lambda: not fake_browser.dialogs)
     registry.ensure_no_dialog(tab)
     assert (await asyncio.wait_for(registry.main_frame_info(tab), 1.0)).origin is not None
+
+
+async def test_an_internal_script_runs_and_gives_up_when_a_dialog_opens(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    tab = await registry.open_tab("https://example.test/")
+    fake_browser.show(tab.target_id, Page("Script", [button("OK", (10, 10, 80, 20))]))
+    assert (await registry.run_script(tab, "active_element"))["result"]["objectId"] == "node-body"
+
+    started = asyncio.Event()
+
+    def pending(params: dict[str, Any], session_id: str | None) -> Any:
+        started.set()
+        return NO_REPLY
+
+    fake.on("Runtime.evaluate", handler=pending)
+    script = asyncio.ensure_future(registry.run_script(tab, "active_element"))
+    await asyncio.wait_for(started.wait(), 1.0)
+    await fake_browser.open_dialog(tab.target_id, "Continuer ?")
+    with pytest.raises(browser.DialogBlocking):
+        await asyncio.wait_for(script, 1.0)
+    sent = fake.methods().count("Runtime.evaluate")
+    with pytest.raises(browser.DialogBlocking):
+        await registry.run_script(tab, "active_element")
+    assert fake.methods().count("Runtime.evaluate") == sent
+
+
+async def test_an_internal_script_on_a_closed_tab_reports_the_tab(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    tab = await registry.open_tab("https://example.test/")
+
+    def gone(params: dict[str, Any], session_id: str | None) -> Any:
+        raise FakeCdpError(-32001, "Session with given id not found.")
+
+    fake.on("Runtime.evaluate", handler=gone)
+    with pytest.raises(ToolError) as caught:
+        await registry.run_script(tab, "active_element")
+    assert caught.value.code == "tab_not_owned" and tab.closed
