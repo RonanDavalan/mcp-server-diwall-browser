@@ -289,3 +289,18 @@ set aside.
   sets), with `test_list_check_catches_one_more_method` (each of the four unused methods, and
   `Target.getTargets`) and `test_list_check_catches_one_method_less`.
 - Set aside: adding the 29 methods of the initial list at once.
+
+### The origin label helper keeps its public name; reads that stop on a dialog stay a keyword
+
+- Decided: `browser.origin_label` stays public (the perception uses it to name a refused origin),
+  and `main_frame_info(tab, *, stop_on_dialog=False)` keeps its keyword. Both changes were made by
+  the perception against the rule of adding only; they are kept because the private name was
+  used by a second module, and the keyword defaults to the former behaviour, so every caller
+  written before it reads the same. Any later change to these modules is an addition.
+- Why: neither identifier is fixed by the specification (they are not a module, a tool, a
+  parameter of a tool, an error code nor a profile key); renaming back would make the
+  perception import a private name.
+- Control: `test_the_origin_label_helper_is_only_used_by_its_public_name` (no module or test uses
+  `_origin_label`), with `test_rename_check_catches_the_old_name`; the browser and perception
+  tests that call `main_frame_info` with and without the keyword.
+- Set aside: a second, private copy of the helper in the perception (two copies of one rule).

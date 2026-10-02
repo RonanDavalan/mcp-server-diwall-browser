@@ -706,3 +706,34 @@ def test_http_stack_check_catches_an_import(tmp_path: Path, source: str) -> None
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "server.py").write_text(source)
     assert http_stack_imports(copy) != []
+
+
+# --- a renamed helper is used under its public name only ---------------------------------------
+
+RENAMED = {"_origin_label": "origin_label"}
+
+
+def old_names_in_use(root: Path) -> list[str]:
+    found = []
+    for path in sorted(root.rglob("*.py")):
+        if path.name == "test_invariants.py" or ".venv" in path.parts:
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            name = node.attr if isinstance(node, ast.Attribute) else getattr(node, "id", None)
+            if isinstance(node, ast.alias):
+                name = node.name
+            if name in RENAMED:
+                found.append(f"{path.relative_to(root)}:{getattr(node, 'lineno', 0)}: {name}")
+    return found
+
+
+def test_the_origin_label_helper_is_only_used_by_its_public_name() -> None:
+    assert old_names_in_use(REPOSITORY / "src") == []
+    assert old_names_in_use(REPOSITORY / "tests") == []
+
+
+def test_rename_check_catches_the_old_name(tmp_path: Path) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "perception_old.py").write_text("from .browser import _origin_label\n")
+    assert old_names_in_use(copy) != []
