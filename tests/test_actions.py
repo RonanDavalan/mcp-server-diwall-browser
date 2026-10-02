@@ -851,6 +851,36 @@ async def test_enter_in_a_comment_form_gives_the_focus_then_submits(bench: Bench
     assert bench.browser.download_behaviors[-1]["behavior"] == "allowAndName"
 
 
+class FocusFirst(Actions):
+    """Defective: gives the focus before the identity check, as the page would see it."""
+
+    async def verify_element(self, tab: Tab, snapshot: Snapshot, ref: Any) -> Any:
+        await self._read(tab, "DOM.focus", {"backendNodeId": ref.backend_node_id})
+        return await super().verify_element(tab, snapshot, ref)
+
+
+async def check_enter_focuses_only_a_verified_element(bench: Bench) -> None:
+    # The focus itself runs the page's handlers: it goes only to a verified element.
+    page = neutral_page()
+    tab, snapshot = await bench.show(page)
+    field = page.find(backend_of(snapshot, "Pseudonyme"))
+    assert field is not None
+    field.name = "Numéro de carte"
+    await refused("element_stale", bench.actions.press_key(tab.tab_id, "Enter", snapshot_id=snapshot.snapshot_id, mark=mark_of(snapshot, "Pseudonyme")))
+    assert "DOM.focus" not in bench.cdp.methods(), "a changed element received the focus"
+    assert bench.browser.keys == []
+
+
+async def test_enter_on_a_changed_element_gives_it_no_focus(bench: Bench) -> None:
+    await check_enter_focuses_only_a_verified_element(bench)
+
+
+async def test_counter_proof_a_focus_before_the_check_reaches_the_changed_element(bench: Bench) -> None:
+    bench.use(FocusFirst)
+    with pytest.raises(AssertionError, match="received the focus"):
+        await check_enter_focuses_only_a_verified_element(bench)
+
+
 # --- choosing an option ---------------------------------------------------------------------------------
 
 
