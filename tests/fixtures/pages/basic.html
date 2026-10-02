@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Basic test page</title>
+<style>
+  body { font-family: sans-serif; margin: 16px; }
+  .field { display: block; margin: 8px 0; }
+  #clickable-div { width: 160px; padding: 8px; border: 1px solid #888; cursor: pointer; }
+  #hidden-button { display: none; }
+  #transparent-button { opacity: 0; }
+  iframe { width: 320px; height: 80px; border: 1px solid #888; }
+</style>
+</head>
+<body>
+<h1>Basic test page</h1>
+<form id="login" onsubmit="return false">
+  <label class="field">Username <input id="username" name="username" type="text" autocomplete="username"></label>
+  <label class="field">Password <input id="password" name="password" type="password" autocomplete="current-password"></label>
+  <button id="submit-button" type="submit">Sign in</button>
+</form>
+<div id="clickable-div">Clickable div</div>
+<button id="hidden-button" type="button">Hidden button</button>
+<button id="transparent-button" type="button">Transparent button</button>
+<iframe id="inner-frame" title="Inner frame" srcdoc="<!doctype html><p>Inner document</p><button type='button'>Inner button</button>"></iframe>
+<script>
+  document.getElementById("clickable-div").addEventListener("click", function () {
+    this.textContent = "Clicked";
+  });
+</script>
+</body>
+</html>
