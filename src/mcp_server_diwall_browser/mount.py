@@ -327,6 +327,39 @@ class Volume:
             raise
         return fd
 
+    def settle_file(self, *parts: str, source: str, wanted: str) -> Path:
+        """Make ``source`` of a volume directory private and give it the name ``wanted``.
+
+        For a file another process wrote under a name of its own (a browser
+        download): the file is opened without following a link, must be a
+        regular file of the server's user, becomes mode 600, and takes
+        ``wanted`` (a plain name) with a numeric suffix if that name is taken.
+        """
+        if wanted != safe_name(wanted):
+            raise ValueError("the new name must be a plain safe name")
+        root = self.require_mounted()
+        directory = self._resolve_exact(root, parts)
+        current = self._resolve_exact(root, (*parts, source))
+        flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
+        fd = os.open(current, flags)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != self.euid:
+                raise ToolError(PATH_REFUSED, _DIR_MODE_MESSAGE, extra_server={"mount_reason": "not_regular_file"})
+            os.fchmod(fd, 0o600)
+        finally:
+            os.close(fd)
+        stem, dot, extension = wanted.rpartition(".")
+        if not stem:
+            stem, dot, extension = wanted, "", ""
+        target = directory / wanted
+        number = 0
+        while os.path.lexists(target):
+            number += 1
+            target = directory / f"{stem}-{number}{dot}{extension}"
+        os.rename(current, self._resolve_exact(root, (*parts, target.name)))
+        return target
+
     def write_new(self, *parts: str, data: bytes, mode: int = 0o600) -> Path:
         """Create a file that must not exist yet and write ``data`` into it."""
         if mode & 0o077:

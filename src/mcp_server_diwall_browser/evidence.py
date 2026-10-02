@@ -1,0 +1,122 @@
+"""Evidence of irreversible actions and downloaded files, inside the encrypted volume only.
+
+Why this module exists:
+    A capture of an authenticated page or a downloaded document written
+    while the volume is closed lands in clear text on the disk. Evidence and
+    downloads therefore go through the volume facade, which checks the mount
+    on every write and has no fallback; a download is named by the browser
+    with an identifier, then renamed from the page's suggestion reduced to
+    safe characters, so no text of the page ever becomes a path.
+"""
+
+from __future__ import annotations
+
+import datetime
+import logging
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+
+from .cdp import CdpConnection
+from .mount import Volume, safe_name
+from .output import ToolError
+
+EVIDENCE_DIR = "evidence"
+DOWNLOADS_DIR = "downloads"
+BEFORE = "before"
+AFTER = "after"
+MANUAL_PREFIX = "manual-"
+
+_log = logging.getLogger(__name__)
+
+
+def _today() -> str:
+    return datetime.date.today().isoformat()
+
+
+class EvidenceWriter:
+    """Writes captures under ``evidence/<YYYY-MM-DD>/<operation_id>/``; never purges any."""
+
+    def __init__(self, volume: Volume, *, today: Callable[[], str] = _today) -> None:
+        self._volume = volume
+        self._today = today
+
+    def write(self, operation_id: str, name: str, png: bytes) -> Path:
+        parts = (EVIDENCE_DIR, self._today(), safe_name(operation_id))
+        self._volume.ensure_dir(*parts)
+        return self._volume.write_new(*parts, f"{safe_name(name)}.png", data=png)
+
+    def before(self, operation_id: str, png: bytes) -> Path:
+        return self.write(operation_id, BEFORE, png)
+
+    def after(self, operation_id: str, png: bytes) -> Path:
+        return self.write(operation_id, AFTER, png)
+
+    def manual(self, operation_id: str, label: str, png: bytes) -> Path:
+        return self.write(operation_id, MANUAL_PREFIX + safe_name(label), png)
+
+
+class DownloadManager:
+    """Sends downloads into the volume, or forbids them when it is closed."""
+
+    def __init__(self, volume: Volume, connection: CdpConnection) -> None:
+        self._volume = volume
+        self._connection = connection
+        self._directory: tuple[str, ...] | None = None
+        self._pending: dict[str, tuple[tuple[str, ...], str]] = {}
+        self._notices: list[str] = []
+        connection.add_event_handler(self._on_event)
+
+    async def prepare(self, operation_id: str) -> str:
+        """Before a gesture that may start a download: where it would go, or ``deny``."""
+        parts = (DOWNLOADS_DIR, safe_name(operation_id))
+        try:
+            directory = self._volume.ensure_dir(*parts)
+        except ToolError:
+            self._directory = None
+            await self._connection.send("Browser.setDownloadBehavior", {"behavior": "deny"})
+            return "deny"
+        self._directory = parts
+        await self._connection.send(
+            "Browser.setDownloadBehavior",
+            {"behavior": "allowAndName", "downloadPath": str(directory), "eventsEnabled": True},
+        )
+        return "allowAndName"
+
+    async def restore_default(self) -> None:
+        """Give the browser back its own download behaviour, when the server stops."""
+        await self._connection.send("Browser.setDownloadBehavior", {"behavior": "default"})
+
+    def drain_notices(self) -> list[str]:
+        notices, self._notices = self._notices, []
+        return notices
+
+    def _on_event(self, method: str, params: dict[str, Any], session_id: str | None) -> None:
+        if session_id is not None:
+            return
+        if method == "Browser.downloadWillBegin":
+            guid = params.get("guid")
+            if isinstance(guid, str) and self._directory is not None:
+                suggested = params.get("suggestedFilename")
+                self._pending[guid] = (self._directory, suggested if isinstance(suggested, str) else "")
+        elif method == "Browser.downloadProgress":
+            guid = params.get("guid")
+            state = params.get("state")
+            if not isinstance(guid, str) or guid not in self._pending or state not in ("completed", "canceled"):
+                return
+            directory, suggested = self._pending.pop(guid)
+            if state == "canceled":
+                self._notices.append("un téléchargement a été annulé")
+                return
+            self._settle(directory, guid, suggested)
+
+    def _settle(self, directory: tuple[str, ...], guid: str, suggested: str) -> None:
+        wanted = safe_name(suggested)
+        try:
+            final = self._volume.settle_file(*directory, source=safe_name(guid), wanted=wanted)
+        except (ToolError, OSError, ValueError) as exc:
+            _log.warning("a downloaded file could not be settled (%s)", type(exc).__name__)
+            self._notices.append("un fichier téléchargé n'a pas pu être rangé dans le répertoire chiffré")
+            return
+        # Only the reduced name is said; the file itself is page data, never opened.
+        self._notices.append(f"fichier téléchargé dans le répertoire chiffré : {final.name}")
