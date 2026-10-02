@@ -336,3 +336,23 @@ set aside.
   `test_identifier_check_catches_a_builder_that_trusts_every_node`.
 - Set aside: requesting the tree frame by frame to get identifiers everywhere (frames are not
   read at all).
+
+### An open dialog stops every action but answering it, at once
+
+- Decided: while a dialog is open in a tab, `TabRegistry.ensure_no_dialog` refuses any action at
+  once with `element_obscured` (the dialog covers the whole page) and `action_expected` set to
+  `handle_dialog`, with a message asking to handle the dialog first; every page call of the
+  identity check and of the gestures goes through `TabRegistry.read`, which gives up as soon as a
+  dialog opens. Answering the dialog needs no page read: its origin comes from the address in the
+  opening event (`Tab.dialog_url`), its message from the same event.
+- Why: measured on Chromium 141, while a JavaScript dialog is open every call on the page session
+  waits, `Page.getFrameTree` included; only `Page.handleJavaScriptDialog` answers. An action that
+  read the page as usual would wait for the whole call delay and fail as an unreachable browser.
+  No new error code: `element_obscured` is the existing code of an element covered by something
+  else.
+- Control: `test_an_action_while_a_dialog_is_open_is_refused_at_once` on a fake that leaves every
+  page call but the dialog answer unanswered, with `test_dialog_check_catches_a_direct_frame_read`
+  (a version that reads the frame tree directly times out);
+  `test_a_read_gives_up_and_the_dialog_can_still_be_answered`.
+- Set aside: a new error code; `snapshot_stale`, which tells the model to observe again, while
+  observing is exactly what cannot be done until the dialog is answered.

@@ -460,6 +460,21 @@ class DialogBlocking(Exception):
     """
 
 
+_DIALOG_FIRST_MESSAGE = (
+    "une boîte de dialogue est ouverte dans cet onglet : la traiter (handle_dialog) avant toute autre action"
+)
+HANDLE_DIALOG = "handle_dialog"
+
+
+def dialog_refusal() -> ToolError:
+    """The refusal of any action but handling the dialog while one is open.
+
+    The dialog covers the whole page as long as it is open: the code is the
+    one of an element covered by something else.
+    """
+    return ToolError("element_obscured", _DIALOG_FIRST_MESSAGE, action_expected=HANDLE_DIALOG)
+
+
 def _navigation_timeout(timeout_s: object) -> float:
     if isinstance(timeout_s, bool) or not isinstance(timeout_s, (int, float)) or not timeout_s >= 0:
         raise ValueError("timeout_s is a non-negative number of seconds")
@@ -674,6 +689,12 @@ class TabRegistry:
             return False
         finally:
             waiter.cancel()
+
+    def ensure_no_dialog(self, tab: Tab) -> None:
+        """Refuse at once when a dialog blocks the page, instead of waiting for a call."""
+        self._require_owned(tab)
+        if tab.dialog is not None:
+            raise dialog_refusal()
 
     async def handle_dialog(self, tab: Tab, accept: bool) -> None:
         """Accept or dismiss the open dialog. Whether to do so is decided by the caller."""

@@ -56,6 +56,8 @@ class FakeCdp:
         self.received: list[dict[str, Any]] = []
         self.handlers: dict[str, Handler] = {}
         self.version_payload: dict[str, Any] | None = None
+        # When it returns True for (method, session), the call is never answered.
+        self.block: Callable[[str, str | None], bool] | None = None
         self.connections: set[ServerConnection] = set()
         self.port = 0
         self._server: Server | None = None
@@ -147,6 +149,8 @@ class FakeCdp:
         if session_id is not None:
             response["sessionId"] = session_id
         events: list[tuple[str, dict[str, Any], str | None]] = []
+        if self.block is not None and self.block(method, session_id):
+            return
         if handler is None:
             response["error"] = {"code": -32601, "message": f"'{method}' wasn't found"}
         else:
@@ -189,7 +193,9 @@ class FakeBrowser:
         cdp.on("Target.setDiscoverTargets", {})
         cdp.on("Page.enable", {})
         cdp.on("Inspector.enable", {})
-        cdp.on("Page.handleJavaScriptDialog", {})
+        self.dialogs: dict[str, str] = {}
+        self.accepted: list[bool] = []
+        cdp.on("Page.handleJavaScriptDialog", handler=self._handle_dialog)
         cdp.on("Target.createTarget", handler=self._create_target)
         cdp.on("Target.attachToTarget", handler=self._attach)
         cdp.on("Target.closeTarget", handler=self._close_target)
@@ -213,6 +219,25 @@ class FakeBrowser:
 
     def set_url(self, target_id: str, url: str) -> None:
         self.targets[target_id]["url"] = url
+
+    async def open_dialog(self, target_id: str, message: str, kind: str = "confirm") -> None:
+        """Open a page dialog: as measured, every call of that page then waits, but the answer to the dialog."""
+        session_id = self.session_of(target_id)
+        self.dialogs[session_id] = message
+
+        def blocked(method: str, session: str | None) -> bool:
+            return session in self.dialogs and method != "Page.handleJavaScriptDialog"
+
+        self.cdp.block = blocked
+        url = self.targets[target_id]["url"]
+        await self.cdp.emit("Page.javascriptDialogOpening", {"url": url, "message": message, "type": kind, "hasBrowserHandler": True, "defaultPrompt": ""}, session_id=session_id)
+
+    def _handle_dialog(self, params: dict[str, Any], session_id: str | None) -> Any:
+        self.accepted.append(bool(params.get("accept")))
+        if session_id not in self.dialogs:
+            return {}  # a dialog announced by a bare event, without the blocking
+        del self.dialogs[session_id]
+        return Reply({}, [("Page.javascriptDialogClosed", {"result": bool(params.get("accept")), "userInput": ""}, session_id)])
 
     def show(self, target_id: str, page: Any, url: str | None = None) -> None:
         """Put a simulated page (fixtures.page_model.Page) in the target."""

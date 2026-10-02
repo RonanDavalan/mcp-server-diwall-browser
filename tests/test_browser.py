@@ -948,3 +948,53 @@ async def test_tab_repr_never_shows_protocol_identifiers(fake: FakeCdp, fake_bro
     text = repr(tab)
     assert tab.target_id not in text and tab.session_id not in text and "page text" not in text
     assert tab.tab_id in text
+
+
+# --- an open dialog blocks every call of the page -------------------------------------------------
+
+Guard = Callable[[TabRegistry, Tab], Any]
+
+
+async def refused_at_once_while_a_dialog_is_open(fake_browser: FakeBrowser, registry: TabRegistry, guard: Guard) -> bool:
+    tab = await registry.open_tab("https://example.test/")
+    await fake_browser.open_dialog(tab.target_id, "Supprimer définitivement ?")
+    await until(lambda: tab.dialog is not None)
+    try:
+        await asyncio.wait_for(guard(registry, tab), 1.0)
+    except ToolError as exc:
+        return exc.code == "element_obscured" and exc.action_expected == "handle_dialog"
+    except TimeoutError:
+        return False
+    return False
+
+
+async def guarded(registry: TabRegistry, tab: Tab) -> None:
+    registry.ensure_no_dialog(tab)
+    await registry.main_frame_info(tab, stop_on_dialog=True)
+
+
+async def reads_the_frame_directly(registry: TabRegistry, tab: Tab) -> None:
+    # Defective: asks the page for its frame tree as if no dialog were open.
+    await registry.main_frame_info(tab)
+
+
+async def test_an_action_while_a_dialog_is_open_is_refused_at_once(fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    assert await refused_at_once_while_a_dialog_is_open(fake_browser, registry, guarded)
+
+
+async def test_dialog_check_catches_a_direct_frame_read(fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    assert not await refused_at_once_while_a_dialog_is_open(fake_browser, registry, reads_the_frame_directly)
+
+
+async def test_a_read_gives_up_and_the_dialog_can_still_be_answered(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    tab = await registry.open_tab("https://example.test/")
+    await fake_browser.open_dialog(tab.target_id, "Continue?")
+    await until(lambda: tab.dialog is not None)
+    assert tab.dialog_url == "https://example.test/"
+    with pytest.raises(browser.DialogBlocking):
+        await asyncio.wait_for(registry.read(tab, "Page.getFrameTree"), 1.0)
+    await asyncio.wait_for(registry.handle_dialog(tab, accept=False), 1.0)
+    assert fake_browser.accepted == [False] and tab.dialog is None
+    await until(lambda: not fake_browser.dialogs)
+    registry.ensure_no_dialog(tab)
+    assert (await asyncio.wait_for(registry.main_frame_info(tab), 1.0)).origin is not None
