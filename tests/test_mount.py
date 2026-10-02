@@ -1,0 +1,368 @@
+from __future__ import annotations
+
+import os
+from collections.abc import Callable
+from pathlib import Path
+
+import pytest
+from conftest import (
+    FAKE_EUID,
+    MOUNT_DEV,
+    OTHER_DEV,
+    ROOT_LINE,
+    fake_mountinfo,
+    make_volume,
+    mounted_volume,
+    mountinfo_line,
+)
+
+from mcp_server_diwall_browser.mount import (
+    MountChecker,
+    MountInfoError,
+    MountState,
+    Volume,
+    parse_mountinfo,
+    safe_name,
+)
+from mcp_server_diwall_browser.output import ToolError
+
+REAL_LINE = (
+    "412 28 0:56 / ~/Vaults/Main rw,nosuid,nodev,relatime shared:230 - fuse.gocryptfs "
+    "~/.local/share/plasma-vault/Main.enc "
+    "rw,nosuid,nodev,relatime,user_id=1000,group_id=1000,max_read=1048576"
+)
+
+
+def test_parse_mountinfo_reads_mount_point_type_and_super_options() -> None:
+    [entry] = parse_mountinfo(REAL_LINE + "\n")
+    assert entry.mount_point == "~/Vaults/Main"
+    assert entry.fs_type == "fuse.gocryptfs"
+    assert "user_id=1000" in entry.super_options
+    assert "allow_other" not in entry.super_options
+
+
+def test_parse_mountinfo_decodes_octal_escapes() -> None:
+    line = REAL_LINE.replace("~/Vaults/Main", "~/My\\040Vault\\011x\\012y\\134z")
+    [entry] = parse_mountinfo(line)
+    assert entry.mount_point == "~/My Vault\tx\ny\\z"
+
+
+def test_parse_mountinfo_accepts_lines_without_optional_fields() -> None:
+    [entry] = parse_mountinfo("36 35 98:0 /mnt1 /mnt2 rw,noatime - ext3 /dev/root rw,errors=continue")
+    assert entry.mount_point == "/mnt2"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "412 28 0:56 / /mnt rw shared:1 fuse.gocryptfs src rw",
+        "412 28 0:56 / /mnt rw - fuse.gocryptfs src",
+        "412 28 0:56 / /mnt rw - fuse.gocryptfs src rw extra",
+        "412 28 - fuse.gocryptfs src rw",
+        ROOT_LINE + "\n\n" + REAL_LINE,
+    ],
+)
+def test_malformed_mountinfo_line_raises(text: str) -> None:
+    with pytest.raises(MountInfoError):
+        parse_mountinfo(text)
+
+
+def test_mounted_volume_is_recognized(tmp_path: Path) -> None:
+    _paths, fake, _volume = mounted_volume(tmp_path)
+    verdict = fake.checker.check(tmp_path / "vol")
+    assert verdict.state is MountState.MOUNTED
+    assert verdict.error_code is None
+
+
+def test_mount_point_with_a_space_is_recognized(tmp_path: Path) -> None:
+    base = tmp_path / "with space"
+    base.mkdir()
+    paths = make_volume(base)
+    fake = fake_mountinfo(paths.mount_point)
+    assert "\\040" in fake.text
+    assert fake.checker.check(paths.mount_point).state is MountState.MOUNTED
+
+
+# --- prefix: the check and its counter-proof --------------------------------------
+
+Detector = Callable[[str, str], bool]
+
+
+def real_detector(mountinfo_text: str, secrets_dir: str) -> bool:
+    return any(entry.mount_point == secrets_dir for entry in parse_mountinfo(mountinfo_text))
+
+
+def substring_detector(mountinfo_text: str, secrets_dir: str) -> bool:
+    # Defective: looks for the path anywhere in the table.
+    return secrets_dir in mountinfo_text
+
+
+def prefix_is_not_taken_for_the_mount(detect: Detector) -> bool:
+    text = REAL_LINE.replace("~/Vaults/Main ", "~/Vaults/Main-old ")
+    return detect(text, "~/Vaults/Main") is False and detect(REAL_LINE, "~/Vaults/Main") is True
+
+
+def test_mount_point_name_prefix_is_not_taken_for_the_mount() -> None:
+    assert prefix_is_not_taken_for_the_mount(real_detector)
+
+
+def test_prefix_check_catches_a_substring_detector() -> None:
+    assert not prefix_is_not_taken_for_the_mount(substring_detector)
+
+
+def test_checker_does_not_take_a_prefix_mount_for_the_volume(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, lines=[ROOT_LINE, mountinfo_line(f"{paths.mount_point}-old")])
+    verdict = fake.checker.check(paths.mount_point)
+    assert verdict.state is not MountState.MOUNTED
+    assert verdict.state is MountState.CLOSED_OR_ABSENT
+
+
+# --- refusals ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "reason"),
+    [
+        ({"fs_type": "tmpfs"}, "fs_type"),
+        ({"fs_type": "fuse.sshfs"}, "fs_type"),
+        ({"extra_options": "allow_other"}, "allow_other"),
+        ({"user_id": FAKE_EUID + 1}, "user_id"),
+    ],
+)
+def test_mount_that_is_not_a_private_gocryptfs_volume_is_refused(
+    tmp_path: Path, kwargs: dict[str, object], reason: str
+) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, **kwargs)  # type: ignore[arg-type]
+    verdict = fake.checker.check(paths.mount_point)
+    assert verdict.state is MountState.NOT_GOCRYPTFS
+    assert verdict.error_code == "mount_not_gocryptfs"
+    assert verdict.reason == reason
+
+
+def test_stacked_mount_uses_the_last_entry(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    lines = [ROOT_LINE, mountinfo_line(paths.mount_point), mountinfo_line(paths.mount_point, "tmpfs", mount_id=500)]
+    fake = fake_mountinfo(paths.mount_point, lines=lines)
+    verdict = fake.checker.check(paths.mount_point)
+    assert verdict.state is MountState.NOT_GOCRYPTFS
+
+
+@pytest.mark.parametrize("path_kind", ["missing", "directory"])
+def test_unreadable_mountinfo_is_never_mounted(tmp_path: Path, path_kind: str) -> None:
+    paths = make_volume(tmp_path)
+    target = tmp_path / "absent" if path_kind == "missing" else tmp_path
+    checker = MountChecker(mountinfo_path=os.fspath(target), euid=FAKE_EUID)
+    verdict = checker.check(paths.mount_point, tmp_path)
+    assert verdict.state is MountState.UNREADABLE
+    assert verdict.error_code == "mount_unreadable"
+
+
+def test_malformed_line_makes_the_table_unreadable(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, lines=[ROOT_LINE, mountinfo_line(paths.mount_point), "garbage line"])
+    assert fake.checker.check(paths.mount_point).state is MountState.UNREADABLE
+
+
+def test_empty_table_is_unreadable(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point)
+    fake.rewrite("")
+    assert fake.checker.check(paths.mount_point).state is MountState.UNREADABLE
+
+
+def test_project_root_on_another_device_is_a_device_mismatch(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point)
+    fake.stat_fn.overrides[os.path.realpath(paths.project)] = OTHER_DEV
+    verdict = fake.checker.check(paths.mount_point)
+    assert verdict.state is MountState.NOT_GOCRYPTFS
+    assert verdict.reason == "device_mismatch"
+
+
+def test_mount_point_on_the_parent_device_is_a_device_mismatch(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point)
+    fake.stat_fn.overrides[os.path.realpath(tmp_path)] = MOUNT_DEV
+    verdict = fake.checker.check(paths.mount_point)
+    assert verdict.reason == "device_mismatch"
+
+
+def test_missing_project_root_is_mounted_but_refused(tmp_path: Path) -> None:
+    mount_point = tmp_path / "vol"
+    mount_point.mkdir(mode=0o700)
+    fake = fake_mountinfo(mount_point)
+    verdict = fake.checker.check(mount_point)
+    assert verdict.state is MountState.MOUNTED
+    assert verdict.error_code == "project_root_missing"
+    with pytest.raises(ToolError) as caught:
+        Volume(fake.checker, mount_point).require_mounted()
+    assert caught.value.code == "project_root_missing"
+    assert not (mount_point / "mcp-server-diwall-browser").exists()
+
+
+def test_closed_volume_states(tmp_path: Path) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, lines=[ROOT_LINE])
+    crypt = tmp_path / "Main.enc"
+    crypt.mkdir()
+
+    never = fake.checker.check(paths.mount_point, crypt)
+    assert (never.state, never.error_code) == (MountState.NEVER_INITIALIZED, "encrypted_dir_undetermined")
+
+    (crypt / "gocryptfs.conf").write_text("{}")
+    closed = fake.checker.check(paths.mount_point, crypt)
+    assert (closed.state, closed.error_code) == (MountState.CLOSED, "encrypted_dir_closed")
+
+    absent = fake.checker.check(paths.mount_point)
+    assert (absent.state, absent.error_code) == (MountState.CLOSED_OR_ABSENT, "encrypted_dir_undetermined")
+
+
+@pytest.mark.parametrize("with_crypt_dir", [True, False])
+def test_closed_volume_is_a_waiting_state_that_names_no_file(tmp_path: Path, with_crypt_dir: bool) -> None:
+    paths = make_volume(tmp_path)
+    fake = fake_mountinfo(paths.mount_point, lines=[ROOT_LINE])
+    crypt = tmp_path / "Main.enc"
+    crypt.mkdir()
+    (crypt / "gocryptfs.conf").write_text("{}")
+    volume = Volume(fake.checker, paths.mount_point, crypt if with_crypt_dir else None)
+    with pytest.raises(ToolError) as caught:
+        volume.require_mounted()
+    assert caught.value.action_expected == "operator_opens_directory"
+    for forbidden in ("gocryptfs.conf", "credentials", "password", "username", ".json", str(tmp_path)):
+        assert forbidden not in caught.value.message
+
+
+def test_unmount_during_the_session_is_seen_on_the_next_access(tmp_path: Path) -> None:
+    paths, fake, volume = mounted_volume(tmp_path)
+    assert volume.require_mounted() == paths.project
+    volume.ensure_dir("journal")
+    fake.rewrite(ROOT_LINE + "\n")
+    with pytest.raises(ToolError) as caught:
+        volume.write_new("journal", "after.txt", data=b"x")
+    assert caught.value.code == "encrypted_dir_undetermined"
+    assert not (paths.project / "journal" / "after.txt").exists()
+    fake.rewrite(ROOT_LINE + "\n" + mountinfo_line(paths.mount_point) + "\n")
+    volume.write_new("journal", "after.txt", data=b"x")
+
+
+# --- paths inside the volume --------------------------------------------------------
+
+
+def test_symlink_inside_the_volume_to_a_directory_outside_is_refused(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (paths.project / "evidence").symlink_to(outside)
+    with pytest.raises(ToolError) as caught:
+        volume.resolve_inside("evidence", "capture.png")
+    assert caught.value.code == "mount_not_gocryptfs"
+    with pytest.raises(ToolError):
+        volume.write_new("evidence", "capture.png", data=b"x")
+    assert list(outside.iterdir()) == []
+
+
+def test_path_inside_the_project_on_another_device_is_refused(tmp_path: Path) -> None:
+    paths, fake, volume = mounted_volume(tmp_path)
+    nested = paths.project / "downloads"
+    nested.mkdir(mode=0o700)
+    fake.stat_fn.overrides[os.path.realpath(nested)] = OTHER_DEV
+    with pytest.raises(ToolError):
+        volume.resolve_inside("downloads", "file.pdf")
+
+
+@pytest.mark.parametrize("part", ["..", ".", "", "a/b", "x\x00"])
+def test_path_parts_must_be_plain_names(tmp_path: Path, part: str) -> None:
+    _paths, _fake, volume = mounted_volume(tmp_path)
+    with pytest.raises(ValueError):
+        volume.resolve_inside(part)
+
+
+def test_ensure_dir_creates_private_levels_and_refuses_a_shared_one(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    created = volume.ensure_dir("evidence", "2026-01-01", "op")
+    assert created == paths.project / "evidence" / "2026-01-01" / "op"
+    for level in (paths.project / "evidence", created.parent, created):
+        assert level.stat().st_mode & 0o777 == 0o700
+    os.chmod(paths.project / "evidence", 0o755)
+    with pytest.raises(ToolError):
+        volume.ensure_dir("evidence", "2026-01-01")
+
+
+def test_write_new_creates_a_private_file_and_never_overwrites(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    volume.ensure_dir("downloads")
+    old_umask = os.umask(0)
+    try:
+        written = volume.write_new("downloads", "a.bin", data=b"abc")
+    finally:
+        os.umask(old_umask)
+    assert written.read_bytes() == b"abc"
+    assert written.stat().st_mode & 0o777 == 0o600
+    with pytest.raises(FileExistsError):
+        volume.write_new("downloads", "a.bin", data=b"other")
+    with pytest.raises(ValueError):
+        volume.write_new("downloads", "b.bin", data=b"x", mode=0o644)
+
+
+def test_open_append_refuses_a_symlink_in_place_of_the_file(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    volume.ensure_dir("journal")
+    decoy = paths.project / "decoy.txt"
+    decoy.write_text("")
+    os.chmod(decoy, 0o600)
+    (paths.project / "journal" / "operations.jsonl").symlink_to(decoy)
+    with pytest.raises(ToolError) as caught:
+        volume.open_append("journal", "operations.jsonl")
+    assert caught.value.extra_server["mount_reason"] == "symlink"
+    assert decoy.read_text() == ""
+
+
+def test_write_new_refuses_a_symlinked_directory_inside_the_volume(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    real_dir = volume.ensure_dir("elsewhere")
+    (paths.project / "evidence").symlink_to(real_dir)
+    with pytest.raises(ToolError):
+        volume.write_new("evidence", "capture.png", data=b"x")
+    with pytest.raises(ToolError):
+        volume.ensure_dir("evidence", "day")
+    assert list(real_dir.iterdir()) == []
+
+
+def test_read_file_checks_kind_owner_mode_and_size(tmp_path: Path) -> None:
+    from mcp_server_diwall_browser.mount import VolumeFileError
+
+    paths, _fake, volume = mounted_volume(tmp_path)
+    target = paths.project / "data.txt"
+    target.write_bytes(b"12345")
+    os.chmod(target, 0o600)
+    assert volume.read_file("data.txt", max_bytes=5).data == b"12345"
+    with pytest.raises(VolumeFileError) as too_large:
+        volume.read_file("data.txt", max_bytes=4)
+    assert too_large.value.reason == "too_large"
+    os.chmod(target, 0o640)
+    with pytest.raises(VolumeFileError) as bad_mode:
+        volume.read_file("data.txt", max_bytes=5)
+    assert bad_mode.value.reason == "bad_mode"
+    (paths.project / "fifo").unlink(missing_ok=True)
+    os.mkfifo(paths.project / "fifo", 0o600)
+    with pytest.raises(VolumeFileError) as fifo:
+        volume.read_file("fifo", max_bytes=5)
+    assert fifo.value.reason == "not_regular_file"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("../../etc/passwd", "_.._etc_passwd"),
+        ("..", "unnamed"),
+        ("", "unnamed"),
+        ("facture été 2026.pdf", "facture__t__2026.pdf"),
+        (".hidden", "hidden"),
+        ("a/b\\c\x00d", "a_b_c_d"),
+        ("x" * 100, "x" * 64),
+    ],
+)
+def test_safe_name(text: str, expected: str) -> None:
+    assert safe_name(text) == expected
