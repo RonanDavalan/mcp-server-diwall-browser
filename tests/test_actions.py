@@ -848,7 +848,7 @@ async def test_enter_in_a_comment_form_gives_the_focus_then_submits(bench: Bench
     assert down == {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "text": "\r", "unmodifiedText": "\r"}
     assert up["type"] == "keyUp"
     assert bench.channel.texts == [] and outcome.gate["red_list"] is False
-    assert bench.browser.download_behaviors[-1]["behavior"] == "allowAndName"
+    assert [b["behavior"] for b in bench.browser.download_behaviors] == ["allowAndName", "deny"]
 
 
 class FocusFirst(Actions):
@@ -1193,8 +1193,9 @@ async def test_a_window_opened_by_the_click_is_adopted_and_said(bench: Bench) ->
 async def test_a_click_prepares_downloads_into_the_volume(bench: Bench) -> None:
     tab, snapshot = await bench.show(neutral_page())
     await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
-    [behaviour] = bench.browser.download_behaviors
+    behaviour, closing = bench.browser.download_behaviors
     assert behaviour["behavior"] == "allowAndName" and behaviour["eventsEnabled"] is True
+    assert closing == {"behavior": "deny"}
     directory = Path(behaviour["downloadPath"])
     assert directory.is_absolute() and directory.parent == bench.paths.project / "downloads"
     assert stat.S_IMODE(directory.stat().st_mode) == 0o700
@@ -1204,8 +1205,36 @@ async def test_a_click_with_the_volume_closed_forbids_downloads(bench: Bench) ->
     tab, snapshot = await bench.show(neutral_page())
     bench.close_volume()
     await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
-    assert bench.browser.download_behaviors == [{"behavior": "deny"}]
+    assert bench.browser.download_behaviors == [{"behavior": "deny"}, {"behavior": "deny"}]
     assert not (bench.paths.project / "downloads").exists()
+
+
+async def test_downloads_are_forbidden_again_when_the_action_ends(bench: Bench) -> None:
+    # A page can start a download whenever it likes. If the volume is closed
+    # after the action, a setting left open would send the file where the
+    # browser creates the directory itself: outside the volume, in clear.
+    tab, snapshot = await bench.show(neutral_page())
+    await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
+    assert bench.browser.download_behaviors[-1] == {"behavior": "deny"}
+
+
+async def test_downloads_are_forbidden_again_when_the_gesture_is_refused(bench: Bench) -> None:
+    # The setting is given before the gesture; a refusal in the gesture must close it too.
+    tab, snapshot = await bench.show(obscured_page())
+    with pytest.raises(ToolError) as caught:
+        await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
+    assert caught.value.code == "element_obscured"
+    assert [b["behavior"] for b in bench.browser.download_behaviors] == ["allowAndName", "deny"]
+
+
+async def test_counter_proof_a_setting_left_open_is_seen_by_the_checks(bench: Bench, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def keep_open(self: DownloadManager) -> None:
+        return None
+
+    monkeypatch.setattr(DownloadManager, "forbid", keep_open)
+    tab, snapshot = await bench.show(neutral_page())
+    await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
+    assert bench.browser.download_behaviors[-1]["behavior"] == "allowAndName"
 
 
 async def test_a_file_downloaded_by_the_click_is_said_by_its_safe_name(bench: Bench) -> None:

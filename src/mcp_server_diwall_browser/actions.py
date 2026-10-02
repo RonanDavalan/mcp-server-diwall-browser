@@ -50,6 +50,9 @@ MAX_SCROLL = 5000
 SCROLL_TO_ATTEMPTS = 20
 SETTLE_START_S = 0.5
 SETTLE_LOAD_S = 10.0
+# A load the gesture started may turn into a download; one begins this long, at
+# most, after the load ends. A download that begins later is refused.
+SETTLE_DOWNLOAD_START_S = 0.5
 FORM_TEXT_LIMIT = 4000
 
 _STALE_SNAPSHOT = "la page a changé depuis l'observation : observer à nouveau avant d'agir"
@@ -88,6 +91,7 @@ class ActionContext:
     downloads: DownloadManager
     settle_start_s: float = SETTLE_START_S
     settle_load_s: float = SETTLE_LOAD_S
+    settle_download_start_s: float = SETTLE_DOWNLOAD_START_S
 
 
 @dataclass(frozen=True)
@@ -133,8 +137,11 @@ class Actions:
         if run.gate["confirmation"] == "granted":
             verified = await self.verify_element(tab, snapshot, ref)
         await self._with_gate(run, context.downloads.prepare(run.operation_id))
-        await self._with_gate(run, self._click_at(run, tab, ref))
-        return await self._finish(run, tab, mark=mark)
+        try:
+            await self._with_gate(run, self._click_at(run, tab, ref))
+            return await self._finish(run, tab, mark=mark)
+        finally:
+            await context.downloads.forbid()
 
     async def _click_at(self, run: _Run, tab: Tab, ref: ElementRef) -> None:
         backend = ref.backend_node_id
@@ -265,8 +272,11 @@ class Actions:
             verified = await self.verify_element(tab, snapshot, ref)
             await self._focus_into(tab, ref, verified.object_id, select=False)
         await self._with_gate(run, context.downloads.prepare(run.operation_id))
-        await self._with_gate(run, self._key(run, tab, key))
-        return await self._finish(run, tab, mark=mark)
+        try:
+            await self._with_gate(run, self._key(run, tab, key))
+            return await self._finish(run, tab, mark=mark)
+        finally:
+            await context.downloads.forbid()
 
     async def _key(self, run: _Run, tab: Tab, key: str) -> None:
         code, virtual = KEYS[key]
@@ -539,7 +549,9 @@ class Actions:
     ) -> ActionOutcome:
         context = self._context
         if settle and not run.dialog_opened:
-            await self._settle(run, tab)
+            started_a_load = await self._settle(run, tab)
+            if started_a_load:
+                await context.downloads.wait_begin(context.settle_download_start_s)
         if run.gate["red_list"] and run.gate["confirmation"] == "granted":
             try:
                 png = await context.perception.capture_masked_png(tab)
@@ -559,15 +571,17 @@ class Actions:
             server["mark"] = mark
         return ActionOutcome(server=server, typed_marker=typed_marker, gate=dict(run.gate))
 
-    async def _settle(self, run: _Run, tab: Tab) -> None:
-        """Wait for a load the gesture started; never for a quiet network."""
+    async def _settle(self, run: _Run, tab: Tab) -> bool:
+        """Wait for a load the gesture started, never for a quiet network; say whether one started."""
         context = self._context
         deadline = time.monotonic() + context.settle_start_s
         while not tab.loading and time.monotonic() < deadline and tab.dialog is None:
             await asyncio.sleep(0.05)
-        if tab.loading and tab.dialog is None and not tab.closed:
+        started = tab.loading
+        if started and tab.dialog is None and not tab.closed:
             if not await context.registry.wait_loaded(tab, timeout_s=context.settle_load_s):
                 run.notices.append("la page chargée par l'action n'avait pas fini de charger à l'échéance")
+        return started
 
     async def _with_gate(self, run: _Run, awaitable: Any) -> Any:
         """Run a step after the journal line; a refusal carries the gate state for the final line."""

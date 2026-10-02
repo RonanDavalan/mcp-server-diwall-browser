@@ -11,13 +11,14 @@ Why this module exists:
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from .cdp import CdpConnection
+from .cdp import CdpConnection, CdpError
 from .mount import Volume, safe_name
 from .output import ToolError
 
@@ -65,11 +66,13 @@ class DownloadManager:
         self._directory: tuple[str, ...] | None = None
         self._pending: dict[str, tuple[tuple[str, ...], str]] = {}
         self._notices: list[str] = []
+        self._begun = asyncio.Event()
         connection.add_event_handler(self._on_event)
 
     async def prepare(self, operation_id: str) -> str:
         """Before a gesture that may start a download: where it would go, or ``deny``."""
         parts = (DOWNLOADS_DIR, safe_name(operation_id))
+        self._begun.clear()
         try:
             directory = self._volume.ensure_dir(*parts)
         except ToolError:
@@ -82,6 +85,32 @@ class DownloadManager:
             {"behavior": "allowAndName", "downloadPath": str(directory), "eventsEnabled": True},
         )
         return "allowAndName"
+
+    async def wait_begin(self, timeout_s: float) -> bool:
+        """Wait for a download to begin after the last ``prepare``; a download starts a moment after the gesture."""
+        try:
+            await asyncio.wait_for(self._begun.wait(), timeout_s)
+        except TimeoutError:
+            return False
+        return True
+
+    async def forbid(self) -> None:
+        """Close the window a gesture opened: no download starts between two actions.
+
+        A page can start a download whenever it likes. The setting given
+        before a gesture names a directory of the volume; left open, it would
+        keep sending files there after the volume is closed, and the browser
+        creates a missing directory itself, parents included, which is outside
+        the volume and in clear. A download already begun is not cancelled
+        (measured): it is tracked by its identifier and settled when it ends.
+        If the call fails the connection is gone, and the setting ends with
+        the connection.
+        """
+        self._directory = None
+        try:
+            await self._connection.send("Browser.setDownloadBehavior", {"behavior": "deny"})
+        except (ToolError, CdpError) as exc:
+            _log.warning("the download setting could not be closed (%s)", type(exc).__name__)
 
     async def restore_default(self) -> None:
         """Give the browser back its own download behaviour, when the server stops."""
@@ -99,6 +128,7 @@ class DownloadManager:
             if isinstance(guid, str) and self._directory is not None:
                 suggested = params.get("suggestedFilename")
                 self._pending[guid] = (self._directory, suggested if isinstance(suggested, str) else "")
+                self._begun.set()
         elif method == "Browser.downloadProgress":
             guid = params.get("guid")
             state = params.get("state")

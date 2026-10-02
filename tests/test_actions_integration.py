@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import stat
 import time
 from collections.abc import AsyncIterator, Iterator
@@ -16,7 +17,7 @@ import pytest
 from conftest import FAKE_PASSWORD, FakeMount, VolumePaths, mounted_volume, write_credential
 from fixtures.action_support import FakeChannel, FakeClock, make_profile
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
-from fixtures.page_server import PageServer
+from fixtures.page_server import SLOW_FILE_PAUSE_S, SLOW_FILE_SIZE, PageServer
 from fixtures.raw_cdp import RawSession
 
 from mcp_server_diwall_browser.actions import ActionContext, Actions
@@ -357,6 +358,77 @@ async def test_a_downloaded_file_lands_in_the_volume_under_a_safe_name(rig: Rig)
     assert stat.S_IMODE(saved.stat().st_mode) == 0o600 and stat.S_IMODE(saved.parent.stat().st_mode) == 0o700
     notices = outcome.server["notices"] + rig.context.downloads.drain_notices()
     assert f"fichier téléchargé dans le répertoire chiffré : {saved.name}" in notices
+
+
+async def test_a_download_begun_by_the_click_ends_in_the_volume_after_the_setting_is_closed(rig: Rig) -> None:
+    # Measured fact frozen here: closing the setting with ``deny`` once the
+    # action ends does not cancel a download that already began, but a
+    # download that has not begun yet is refused, so the action waits a
+    # moment for the one a load may turn into.
+    tab, snapshot = await rig.open("download-slow.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger l'archive"))
+    downloads = rig.paths.project / "downloads"
+
+    async def complete() -> bool:
+        return any(path.is_file() and path.stat().st_size == SLOW_FILE_SIZE for path in downloads.rglob("*"))
+
+    await until_true(complete, timeout=10)
+
+
+async def test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused(rig: Rig) -> None:
+    # The download of a load begins a moment after the load ends: closing the
+    # setting at once refuses it. The wait for it to begin is what lets it in.
+    rig.context.settle_download_start_s = 0.0
+    tab, snapshot = await rig.open("download-slow.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger l'archive"))
+    await asyncio.sleep(SLOW_FILE_PAUSE_S + 1.0)
+    downloads = rig.paths.project / "downloads"
+    assert not any(path.is_file() for path in downloads.rglob("*"))
+
+
+async def test_a_page_download_between_two_actions_goes_nowhere(rig: Rig, browser_home: Path) -> None:
+    tab, snapshot = await rig.open("download.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger la facture"))
+    downloads = rig.paths.project / "downloads"
+
+    async def saved() -> bool:
+        return len([p for p in downloads.rglob("*") if p.is_file()]) == 1
+
+    await until_true(saved)
+    # The volume closes after the action: its directories are not there any more.
+    shutil.rmtree(downloads)
+    default_dir = browser_home / "Downloads"
+    before = set(default_dir.iterdir()) if default_dir.exists() else set()
+    async with rig.raw(tab) as raw:
+        await raw.evaluate("document.getElementById('invoice').click()", gesture=True)
+    await asyncio.sleep(1.5)
+    assert not downloads.exists(), "the browser created the download directory outside the volume"
+    assert (set(default_dir.iterdir()) if default_dir.exists() else set()) == before
+
+
+async def test_counter_proof_a_setting_left_open_writes_outside_the_volume(
+    rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def keep_open(self: DownloadManager) -> None:
+        return None
+
+    monkeypatch.setattr(DownloadManager, "forbid", keep_open)
+    tab, snapshot = await rig.open("download.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger la facture"))
+    downloads = rig.paths.project / "downloads"
+
+    async def saved() -> bool:
+        return len([p for p in downloads.rglob("*") if p.is_file()]) == 1
+
+    await until_true(saved)
+    shutil.rmtree(downloads)
+    async with rig.raw(tab) as raw:
+        await raw.evaluate("document.getElementById('invoice').click()", gesture=True)
+
+    async def recreated() -> bool:
+        return downloads.exists() and any(p.is_file() for p in downloads.rglob("*"))
+
+    await until_true(recreated)
 
 
 async def test_the_download_setting_ends_with_the_connection_that_set_it(

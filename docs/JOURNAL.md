@@ -517,6 +517,36 @@ set aside.
   `test_a_click_prepares_downloads_into_the_volume`, `test_a_click_with_the_volume_closed_forbids_downloads`.
 - Set aside: setting the behaviour once at attachment, which a reconnection silently undoes.
 
+### The download setting is closed when the action ends
+
+- Decided: `DownloadManager.forbid` sends `Browser.setDownloadBehavior` with `deny` in a `finally`
+  at the end of every click and every Enter, refused or not, and forgets the directory. When the
+  gesture started a load, the action first waits at most `settle_download_start_s` (0.5 s) for a
+  download to begin, because the download a load turns into begins a moment after the load ends.
+  A download already begun is left to end: it is tracked by its identifier and settled by the
+  next action's notices as before. The server still has to call `forbid` once at attachment
+  (server wiring).
+- Why: the setting given before a gesture names a directory of the volume and stayed active
+  after it. A page can start a download without any gesture; with the volume closed in between,
+  the browser creates the missing directory, parents included, under the mount point (measured
+  earlier), so a file of the page would be written outside the volume, in clear. Measured on
+  Chrome 154 and Chromium 141 behaviour of the real browser tests: `deny` sent once a download
+  has begun does not cancel it (it ends in the volume); `deny` sent before the download has begun
+  refuses it, so a download that begins after the grace window is refused (closed on failure).
+- Control: `test_downloads_are_forbidden_again_when_the_action_ends`,
+  `test_downloads_are_forbidden_again_when_the_gesture_is_refused`,
+  `test_a_page_download_between_two_actions_goes_nowhere` (real browser: the volume directories
+  are removed after the action, a page download then creates nothing anywhere),
+  `test_a_download_begun_by_the_click_ends_in_the_volume_after_the_setting_is_closed` (real
+  browser, a download that takes 1.5 s). Counter-proofs: `test_counter_proof_a_setting_left_open_is_seen_by_the_checks`,
+  `test_counter_proof_a_setting_left_open_writes_outside_the_volume` (real browser: the directory
+  is recreated and a file lands in it), `test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused`.
+- Set aside: waiting for every running download to end before closing (not needed, `deny` does
+  not cancel a begun download); closing the setting only on success (a refused gesture leaves it
+  open); a timer that closes it later (a window in which a page download still lands).
+- Limit: a download that a page starts more than the grace window after a gesture, for example
+  after a script fetches the file first, is refused. The operator downloads it by hand.
+
 ### The simulated page never gives the identity of a removed node to a new one
 
 - Decided: the page model of the tests keeps the highest identity it gave and numbers new nodes

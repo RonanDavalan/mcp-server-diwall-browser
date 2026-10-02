@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import functools
 import threading
+import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import TracebackType
@@ -17,9 +18,33 @@ from typing import Any
 PAGES_DIR = Path(__file__).resolve().parent / "pages"
 
 
+SLOW_FILE = "/slow.bin"
+SLOW_FILE_SIZE = 20000
+SLOW_FILE_PAUSE_S = 1.5
+
+
 class _QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - signature of the base class
         pass
+
+    def do_GET(self) -> None:  # noqa: N802 - name fixed by the base class
+        if self.path != SLOW_FILE:
+            super().do_GET()
+            return
+        # A download that is still running a moment after the click that started it.
+        half = SLOW_FILE_SIZE // 2
+        self.send_response(200)
+        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Disposition", 'attachment; filename="slow.bin"')
+        self.send_header("Content-Length", str(SLOW_FILE_SIZE))
+        self.end_headers()
+        try:
+            self.wfile.write(b"a" * half)
+            self.wfile.flush()
+            time.sleep(SLOW_FILE_PAUSE_S)
+            self.wfile.write(b"b" * (SLOW_FILE_SIZE - half))
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
 
 class PageServer:

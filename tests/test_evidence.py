@@ -161,6 +161,32 @@ async def download(fake: FakeCdp, directory: Path, guid: str, suggested: str, st
     await settle()
 
 
+async def test_waiting_for_a_download_to_begin_sees_the_one_that_begins(tmp_path: Path, fake: FakeCdp, connection: CdpConnection) -> None:
+    _paths, _mount, volume = mounted_volume(tmp_path)
+    manager = DownloadManager(volume, connection)
+    await manager.prepare("op1")
+    await fake.emit("Browser.downloadWillBegin", {"frameId": "F", "guid": "g1", "url": "https://example.test/f", "suggestedFilename": "a.txt"})
+    assert await manager.wait_begin(1.0) is True
+
+
+async def test_waiting_for_a_download_to_begin_gives_up_when_none_does(tmp_path: Path, fake: FakeCdp, connection: CdpConnection) -> None:
+    _paths, _mount, volume = mounted_volume(tmp_path)
+    manager = DownloadManager(volume, connection)
+    await manager.prepare("op1")
+    assert await manager.wait_begin(0.05) is False
+
+
+async def test_forbidding_clears_the_directory_and_sends_deny(tmp_path: Path, fake: FakeCdp, connection: CdpConnection) -> None:
+    _paths, _mount, volume = mounted_volume(tmp_path)
+    manager = DownloadManager(volume, connection)
+    await manager.prepare("op1")
+    await manager.forbid()
+    assert fake.received[-1]["params"] == {"behavior": "deny"}
+    await fake.emit("Browser.downloadWillBegin", {"frameId": "F", "guid": "late", "url": "https://example.test/f", "suggestedFilename": "a.txt"})
+    await settle()
+    assert await manager.wait_begin(0.05) is False, "a download that begins after the setting is closed is not tracked"
+
+
 SUGGESTED = [
     ("report.pdf", "report.pdf"),
     ("../../x.txt", "_.._x.txt"),
