@@ -334,7 +334,7 @@ def test_file_check_catches_a_plain_append_writer(tmp_path: Path) -> None:
     assert not journal_files_are_private_and_unfollowed(plain_open_writer, tmp_path)
 
 
-# --- page scripts come from the fixed table only (INV-2, extended) -----------------------
+# --- page scripts come from the fixed table only, never formatted ----------------------------
 
 CDP_MODULE = "cdp.py"
 # The parameters that carry script text; only the CDP client may write them.
@@ -525,7 +525,7 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
     assert transport_uses_outside_cdp(copy) == ["perception.py"]
 
 
-# --- perception asks the one predicate whether a field is sensitive (INV-2) ---------------------
+# --- perception asks the one predicate whether a field is sensitive ----------------------------
 
 PERCEPTION_MODULE = "perception.py"
 # Spellings that would mean a second detection of sensitive fields; they are
@@ -740,3 +740,51 @@ def test_rename_check_catches_the_old_name(tmp_path: Path) -> None:
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "perception_old.py").write_text("from .browser import _origin_label\n")
     assert old_names_in_use(copy) != []
+
+
+# --- no specification label or project history in the code ------------------------------------
+
+LABEL_RE = re.compile(r"\b(?:SEC|COF|PER)-\d+|\bINV-\d+|\b[PR]-\d+\b|\bD\d{1,2}\b|\bP[1-6]\b")
+HISTORY_WORDS = frozenset({"chantier", "jalon", "axe", "tranche", "volet", "lot"})
+
+
+def labels_in_code(root: Path) -> list[str]:
+    """Labels of the specification or words of project history in comments, docstrings and test names."""
+    hits = []
+    for path in sorted(root.rglob("*.py")):
+        if ".venv" in path.parts:
+            continue
+        source = path.read_text()
+        texts = _comments_and_docstrings(source)
+        texts += [
+            (node.lineno, node.name)
+            for node in ast.walk(ast.parse(source))
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_")
+        ]
+        for line, text in texts:
+            words = set(re.findall(r"[a-z0-9]+", text.lower()))
+            sessions = {f"p{number}" for number in range(1, 7)}
+            if LABEL_RE.search(text) or words & HISTORY_WORDS or (text.startswith("test_") and words & sessions):
+                hits.append(f"{path.relative_to(root)}:{line}")
+    return hits
+
+
+def test_no_specification_label_in_comments_docstrings_or_test_names() -> None:
+    assert labels_in_code(REPOSITORY / "src") == []
+    assert labels_in_code(REPOSITORY / "tests") == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "# required by SEC-12\nX = 1\n",
+        '"""Implements INV-4."""\n',
+        "def test_gate_for_p4():\n    pass\n",
+        "# first jalon of the gate\nX = 1\n",
+    ],
+)
+def test_label_check_catches_a_label(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "gate.py").write_text(source)
+    assert labels_in_code(copy) != []

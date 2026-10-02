@@ -374,3 +374,15 @@ set aside.
   `test_text_check_catches_a_cleaner_that_keeps_format_characters`. A malformed bracket in the
   announced address is now `debug_endpoint_undetermined` (it was reported as not loopback).
 - Set aside: leaving the copies with a cross-reference comment.
+
+### No specification label in the code
+
+- Decided: two section comments of the invariant tests named an invariant by its specification
+  label; they now describe the check. A test keeps labels of the specification, session numbers
+  and words of project history out of comments, docstrings and test names. The earlier entries of
+  this journal that carry such labels are left as they are, the journal being append-only.
+- Why: the operator's conventions keep those labels out of the code; they belong to the reports.
+- Control: `test_no_specification_label_in_comments_docstrings_or_test_names`, with
+  `test_label_check_catches_a_label` (a requirement label in a comment, an invariant label in a
+  docstring, a session number in a test name, a history word in a comment).
+- Set aside: rewriting past journal entries.
