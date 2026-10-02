@@ -340,3 +340,52 @@ def test_content_of_a_profile_with_wrong_rights_never_appears_in_the_error(tmp_p
 
 def test_rights_check_catches_a_loader_that_reads_the_content_first(tmp_path: Path) -> None:
     assert not content_never_quoted_on_wrong_rights(content_first_loader, tmp_path)
+
+
+# --- duplicate keys and size ------------------------------------------------------------------
+
+DUPLICATED = (
+    '{"schema_version": 1, "secrets_dir": "~/Vaults/Main", '
+    '"allowed_origins": ["https://example.invalid"], "allowed_origins": ["https://other.example.invalid"], '
+    '"browser": {"family": "chromium", "profile_dir": "~/Vaults/Main/browser-profile"}}'
+)
+
+
+def duplicate_key_refused(tmp_path: Path) -> bool:
+    write_profile(tmp_path, _raw=DUPLICATED)
+    try:
+        load_profile(env_for(tmp_path))
+    except ToolError as exc:
+        return exc.code == "profile_invalid" and exc.extra_server.get("reason") == "not_json"
+    return False
+
+
+def test_a_duplicated_key_in_the_profile_is_refused(tmp_path: Path) -> None:
+    assert duplicate_key_refused(tmp_path)
+
+
+def test_duplicate_check_catches_a_parser_where_the_last_value_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(operator_profile, "_no_duplicates", dict)
+    assert not duplicate_key_refused(tmp_path)
+
+
+PROFILE_CAP = operator_profile.MAX_PROFILE_BYTES
+
+
+def oversized_profile_refused(tmp_path: Path) -> bool:
+    padding = " " * (PROFILE_CAP + 1)
+    write_profile(tmp_path, _raw=json.dumps(default_profile()) + padding)
+    try:
+        load_profile(env_for(tmp_path))
+    except ToolError as exc:
+        return exc.extra_server.get("reason") == "too_large"
+    return False
+
+
+def test_a_profile_larger_than_the_cap_is_refused(tmp_path: Path) -> None:
+    assert oversized_profile_refused(tmp_path)
+
+
+def test_size_check_catches_a_loader_without_a_cap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(operator_profile, "MAX_PROFILE_BYTES", 10 * 1024 * 1024)
+    assert not oversized_profile_refused(tmp_path)

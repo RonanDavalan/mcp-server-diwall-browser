@@ -220,3 +220,27 @@ set aside.
   `test_language_check_catches_french_prose` (a French comment, a French docstring, a French
   documentation line, each on a copy, make it fail).
 - Set aside: translating the notices into English, which the specification wrote in French.
+
+### Four protections added beyond the first specification are kept
+
+- Decided: kept, each with a test and its counter-proof:
+  - duplicate JSON keys are refused in the profile and in credential files (which value would win
+    is a parser detail the operator cannot see): `test_a_duplicated_key_in_the_profile_is_refused`
+    and `test_a_duplicated_key_in_a_credential_file_is_refused`, against a parser where the last
+    value wins (`test_duplicate_check_catches_a_parser_where_the_last_value_wins`,
+    `test_duplicate_check_catches_a_credential_parser_where_the_last_value_wins`);
+  - the profile is capped at 256 KiB (a file that should hold a few lines is read whole in memory
+    on every check): `test_a_profile_larger_than_the_cap_is_refused`, against a loader without the
+    cap (`test_size_check_catches_a_loader_without_a_cap`);
+  - `Origin.__post_init__` refuses a hand-built origin the parser would refuse (an origin built in
+    code must not bypass the parser): `test_hand_built_origins_are_checked`, against a class
+    without the checks (`test_origin_check_catches_a_class_without_validation`);
+  - `output.current_operation_id()` gives the tool's operation identifier to the journal, so a
+    journal line and a tool result can be matched: `test_the_operation_identifier_inside_a_tool_is_the_one_returned`,
+    against a decorator that hands out two identifiers
+    (`test_operation_identifier_check_catches_two_identifiers`).
+- Why: each closes a hole or carries a fact another module needs; removing one would weaken a
+  check, which the operator's rules forbid.
+- Set aside: merging the two identical duplicate-key hooks of `operator_profile` and
+  `credentials` into one; they read different files with different refusals, and both are now
+  pinned by a test.

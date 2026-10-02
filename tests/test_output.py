@@ -316,3 +316,43 @@ def test_operating_log_goes_to_stderr_only_and_is_redacted(monkeypatch: pytest.M
     assert "value <redacted>" in stderr.getvalue()
     assert SECRET not in stderr.getvalue()
     assert root.handlers == saved[0]
+
+
+# --- the operation identifier seen inside a tool -------------------------------------------------
+
+Decorator = Callable[[str], Callable[..., Any]]
+
+
+async def operation_id_is_shared(decorate: Decorator) -> bool:
+    seen: list[str | None] = []
+
+    @decorate("observe")
+    async def observe() -> ToolOutput:
+        seen.append(output.current_operation_id())
+        return ToolOutput()
+
+    result, _image = await observe()
+    return seen == [result["server"]["operation_id"]] and output.current_operation_id() is None
+
+
+def two_identifiers(name: str) -> Callable[..., Any]:
+    # Defective: the journal side and the result side get different identifiers.
+    def decorate(func: Callable[..., Any]) -> Callable[..., Any]:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            token = output._current_operation_id.set(output.new_operation_id())
+            try:
+                return await output._run(func, name, output.new_operation_id(), args, kwargs)
+            finally:
+                output._current_operation_id.reset(token)
+
+        return wrapper
+
+    return decorate
+
+
+async def test_the_operation_identifier_inside_a_tool_is_the_one_returned() -> None:
+    assert await operation_id_is_shared(tool)
+
+
+async def test_operation_identifier_check_catches_two_identifiers() -> None:
+    assert not await operation_id_is_shared(two_identifiers)

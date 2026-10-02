@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import pytest
 
@@ -177,6 +178,43 @@ def test_about_blank_is_blank_but_has_no_origin() -> None:
 def test_hand_built_origin_cannot_hold_a_value_the_parser_refuses(fields: tuple[str, str, int]) -> None:
     with pytest.raises(OriginError):
         Origin(*fields)
+
+
+HAND_BUILT = [
+    ("ftp", "example.test", 21),
+    ("https", "EXAMPLE.test", 443),
+    ("https", "example.test", 0),
+    ("https", "example.test", True),
+    ("https", "", 443),
+    ("https", "0x7f.1", 443),
+]
+
+
+def hand_built_origins_refused(origin_class: Callable[..., object]) -> bool:
+    for fields in HAND_BUILT:
+        try:
+            origin_class(*fields)
+        except OriginError:
+            continue
+        return False
+    return True
+
+
+@dataclass(frozen=True)
+class _UncheckedOrigin:
+    """Defective: the same fields, without the checks of the real class."""
+
+    scheme: str
+    host: str
+    port: int
+
+
+def test_hand_built_origins_are_checked() -> None:
+    assert hand_built_origins_refused(Origin)
+
+
+def test_origin_check_catches_a_class_without_validation() -> None:
+    assert not hand_built_origins_refused(_UncheckedOrigin)
 
 
 # --- non-Latin host names -------------------------------------------------------------------

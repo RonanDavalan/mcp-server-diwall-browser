@@ -416,3 +416,32 @@ def test_file_check_scenario_passes_a_loader_without_checks(
 ) -> None:
     monkeypatch.setattr(credentials, "_load", load_without_checks)
     assert not scenario_is_refused(scenario, tmp_path)
+
+
+# --- duplicate keys ------------------------------------------------------------------------------
+
+
+def duplicated_credential_refused(tmp_path: Path) -> bool:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    raw = (
+        '{"allowed_origins": ["https://example.invalid"], "username": "alice-test-user", '
+        '"password": "first-fake-value", "password": "second-fake-value"}'
+    )
+    path = paths.credentials / "service.json"
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        handle.write(raw)
+    try:
+        resolve(volume, SITE, "password")
+    except ToolError as exc:
+        return exc.code == "credential_invalid" and exc.extra_server.get("reason") == "not_json"
+    return False
+
+
+def test_a_duplicated_key_in_a_credential_file_is_refused(tmp_path: Path) -> None:
+    assert duplicated_credential_refused(tmp_path)
+
+
+def test_duplicate_check_catches_a_credential_parser_where_the_last_value_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(credentials, "_no_duplicates", dict)
+    assert not duplicated_credential_refused(tmp_path)
