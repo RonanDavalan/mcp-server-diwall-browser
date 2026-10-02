@@ -663,3 +663,46 @@ def test_language_check_catches_french_prose(tmp_path: Path, relative: str, text
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text)
     assert french_prose(copy) != []
+
+
+# --- no HTTP server stack in the package ------------------------------------------------------
+
+# The server speaks over standard input and output and opens no port; the MCP
+# library brings an HTTP stack with it, which the package never imports.
+HTTP_STACK = frozenset({"starlette", "uvicorn", "sse_starlette"})
+
+
+def http_stack_imports(package: Path) -> list[str]:
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        for node in ast.walk(ast.parse(path.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names = [node.module]
+            elif isinstance(node, ast.Call) and _call_name(node.func) in ("import_module", "__import__"):
+                names = [arg.value for arg in node.args[:1] if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
+            found += [f"{relative}:{node.lineno}: {name}" for name in names if name.split(".")[0] in HTTP_STACK]
+    return found
+
+
+def test_no_module_imports_an_http_server_stack() -> None:
+    assert http_stack_imports(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from starlette.applications import Starlette\n",
+        "import uvicorn\n",
+        "import sse_starlette.sse as sse\n",
+        "import importlib\nserver = importlib.import_module('uvicorn')\n",
+    ],
+)
+def test_http_stack_check_catches_an_import(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "server.py").write_text(source)
+    assert http_stack_imports(copy) != []

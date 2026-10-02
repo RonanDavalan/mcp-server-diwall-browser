@@ -244,3 +244,14 @@ set aside.
 - Set aside: merging the two identical duplicate-key hooks of `operator_profile` and
   `credentials` into one; they read different files with different refusals, and both are now
   pinned by a test.
+
+### The HTTP stack that comes with the MCP library is never imported by the package
+
+- Decided: the `mcp` dependency stays (its interface is the decided SDK), and no module of the
+  package imports `starlette`, `uvicorn` or `sse_starlette`, directly or through
+  `importlib.import_module` or `__import__`.
+- Why: the server speaks over standard input and output and opens no listening port; importing
+  the HTTP stack is the first step towards serving over it.
+- Control: `test_no_module_imports_an_http_server_stack`, with
+  `test_http_stack_check_catches_an_import` (four forms of import, each on a copy).
+- Set aside: removing the dependency, which would mean leaving the decided SDK.
