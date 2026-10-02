@@ -911,3 +911,59 @@ def test_redacted_count_check_catches_a_count_of_every_sensitive_field(monkeypat
 
     monkeypatch.setattr(perception, "_element", counts_every_sensitive_field)
     assert not redacted_count_is_two()
+
+
+# --- tree nodes without a DOM identifier, and frames of tree nodes ------------------------------
+
+PERCEPTION_SOURCE = Path(perception.__file__).read_text()
+
+
+def reads_a_frame_of_a_tree_node(source: str) -> bool:
+    # Measured: only the root of the accessibility tree carries frameId.
+    return "frameId" in source
+
+
+def test_the_perception_never_reads_the_frame_of_a_tree_node() -> None:
+    assert not reads_a_frame_of_a_tree_node(PERCEPTION_SOURCE)
+
+
+def test_frame_check_catches_a_reading_of_frame_id() -> None:
+    assert reads_a_frame_of_a_tree_node(PERCEPTION_SOURCE + "\nFRAME = lambda node: node.get('frameId')\n")
+
+
+def page_with_nodes_lacking_dom_identifiers() -> dict[str, Any]:
+    page = Page("Identifiers", [button("Kept", (10, 10, 100, 20)), El("P", role="paragraph", box=(10, 40, 300, 20), children=[text("Text run", (10, 40, 100, 16))])])
+    ax = page.ax_tree()
+    for node in ax["nodes"]:
+        if node.get("role", {}).get("value") in ("StaticText", "paragraph"):
+            node.pop("backendDOMNodeId", None)
+    ax["nodes"].append({"nodeId": "-99", "ignored": False, "role": {"type": "role", "value": "generic"}, "childIds": [], "parentId": "6"})
+    next(node for node in ax["nodes"] if node["nodeId"] == "6")["childIds"].append("-99")
+    return {"page": page, "ax": ax}
+
+
+Builder = Callable[..., perception.Built]
+
+
+def nodes_without_identifier_are_handled(builder: Builder) -> bool:
+    case = page_with_nodes_lacking_dom_identifiers()
+    try:
+        result = builder(case["ax"], Dom(case["page"].dom_snapshot()), VIEWPORT, parse_origin(ORIGIN))
+    except Exception:  # noqa: BLE001 - any exception is the failure looked for
+        return False
+    return names(result) == ["Kept"]
+
+
+def builder_that_trusts_every_node(ax: dict[str, Any], dom: Dom, viewport: Box, origin: Any) -> perception.Built:
+    # Defective: assumes every tree node names its DOM node.
+    for node in ax["nodes"]:
+        dom.by_backend[node["backendDOMNodeId"]]
+    return build(ax, dom, viewport, origin)
+
+
+def test_tree_nodes_without_a_dom_identifier_are_skipped_without_error() -> None:
+    assert nodes_without_identifier_are_handled(build)
+
+
+def test_identifier_check_catches_a_builder_that_trusts_every_node() -> None:
+    assert not nodes_without_identifier_are_handled(builder_that_trusts_every_node)

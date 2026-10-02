@@ -319,3 +319,20 @@ set aside.
   `test_redacted_count_check_catches_a_count_of_every_sensitive_field`; the browser test
   `test_a_password_filled_by_the_page_never_leaves` (1 on `sensitive.html`).
 - Set aside: counting every sensitive field (3 on `sensitive.html`).
+
+### Tree nodes are read as measured: frame on the root only, DOM identifier sometimes absent
+
+- Decided: no code change. Measured on Chromium 141, `Accessibility.getFullAXTree` puts `frameId`
+  on the `RootWebArea` node only, and `InlineTextBox` nodes have no `backendDOMNodeId`. The
+  perception never reads `frameId` from a tree node (the `frameId` read by the browser module
+  comes from page events, not from the tree), and reads `backendDOMNodeId` with a type check, so
+  a node without it is passed over (its children still count).
+- Why: a design that relied on a per-node frame or identifier would break on the measured
+  browser; the fact was written down by the browser tests, and the operator's browser
+  (Chrome 154) may differ.
+- Control: `test_the_perception_never_reads_the_frame_of_a_tree_node`, with
+  `test_frame_check_catches_a_reading_of_frame_id`; `test_tree_nodes_without_a_dom_identifier_are_skipped_without_error`
+  (text runs, a paragraph and a generic node without identifier), with
+  `test_identifier_check_catches_a_builder_that_trusts_every_node`.
+- Set aside: requesting the tree frame by frame to get identifiers everywhere (frames are not
+  read at all).
