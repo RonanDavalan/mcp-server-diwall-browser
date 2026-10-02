@@ -62,6 +62,8 @@ ALLOWED_METHODS = frozenset(
         # Actions: identity of an element, where it is, the gesture itself,
         # and where downloads go.
         "Accessibility.getPartialAXTree",
+        # The page object of a node: what a constant script of the table runs on.
+        "DOM.resolveNode",
         "DOM.getContentQuads",
         "DOM.scrollIntoViewIfNeeded",
         "Input.dispatchMouseEvent",

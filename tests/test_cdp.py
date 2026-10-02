@@ -231,6 +231,7 @@ EXPECTED_METHODS = frozenset(
         "DOMSnapshot.captureSnapshot",
         "DOM.describeNode",
         "DOM.getNodeForLocation",
+        "DOM.resolveNode",
         "DOM.getContentQuads",
         "DOM.scrollIntoViewIfNeeded",
         "DOM.focus",
@@ -249,10 +250,10 @@ def list_is_exactly_the_expected_one(allowed: frozenset[str]) -> bool:
 
 def test_the_list_of_allowed_methods_is_exactly_the_one_the_code_needs() -> None:
     assert list_is_exactly_the_expected_one(ALLOWED_METHODS)
-    assert len(ALLOWED_METHODS) == 26
+    assert len(ALLOWED_METHODS) == 27
 
 
-@pytest.mark.parametrize("extra", ["Target.activateTarget", "DOM.getDocument", "DOM.resolveNode", "DOM.getBoxModel", "Target.getTargets"])
+@pytest.mark.parametrize("extra", ["Target.activateTarget", "DOM.getDocument", "DOM.getBoxModel", "Target.getTargets"])
 def test_list_check_catches_one_more_method(extra: str) -> None:
     assert not list_is_exactly_the_expected_one(ALLOWED_METHODS | {extra})
 
