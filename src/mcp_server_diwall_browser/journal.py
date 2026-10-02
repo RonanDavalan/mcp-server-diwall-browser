@@ -29,7 +29,8 @@ JOURNAL_FILE = "operations.jsonl"
 INTENT_LIMIT = 500
 CLIENT_FIELD_LIMIT = 64
 TYPED_MARKER = "<typed>"
-CONFIRMATION_STATES = frozenset({"none", "requested", "granted", "denied", "expired"})
+# "unavailable": no window could be opened, so the action was refused.
+CONFIRMATION_STATES = frozenset({"none", "requested", "granted", "denied", "expired", "unavailable"})
 FIELDS = (
     "ts",
     "operation_id",
