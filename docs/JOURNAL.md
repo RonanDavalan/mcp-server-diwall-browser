@@ -547,6 +547,20 @@ set aside.
 - Limit: a download that a page starts more than the grace window after a gesture, for example
   after a script fetches the file first, is refused. The operator downloads it by hand.
 
+### Three requirements without a mechanical check get one
+
+- Decided: `tests/test_dependencies.py` (every dependency pinned to one exact version, the only
+  extra is the development one, the installed versions are the pinned ones);
+  `test_only_the_confirmation_module_starts_a_process` (the server never starts a browser: the one
+  process it starts is the confirmation window); `test_no_module_listens_on_a_port_or_relays_one`
+  (no server module, no `bind` or `listen`, so the debug port is not relayed).
+- Why: a review of the specification labels cited by the first four prompts against the tests
+  found these three held by the absence of code, with nothing that would fail if code appeared.
+- Control: each has a counter-proof that copies the package, adds the forbidden code to one
+  module and sees the check name it.
+- Set aside: forbidding the `socket` import, which `browser.py` (IPv6 support probe) and
+  `journal.py` (host name) use legitimately.
+
 ### The simulated page never gives the identity of a removed node to a new one
 
 - Decided: the page model of the tests keeps the highest identity it gave and numbers new nodes

@@ -685,6 +685,85 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
     assert transport_uses_outside_cdp(copy) == ["perception.py"]
 
 
+# --- the server never starts a browser: the one process it starts is the confirmation window ---
+
+CONFIRM_MODULE = "confirm.py"
+_PROCESS_START_RE = re.compile(
+    r"\b(subprocess|Popen|create_subprocess_exec|create_subprocess_shell|os\.system|os\.exec\w*|os\.spawn\w*|os\.fork|pty)\b"
+)
+
+
+def process_starts_outside_confirm(package: Path) -> list[str]:
+    return [
+        path.relative_to(package).as_posix()
+        for path in sorted(package.rglob("*.py"))
+        if path.relative_to(package).as_posix() != CONFIRM_MODULE and _PROCESS_START_RE.search(path.read_text())
+    ]
+
+
+def test_only_the_confirmation_module_starts_a_process() -> None:
+    assert process_starts_outside_confirm(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import subprocess\nsubprocess.run(['google-chrome', '--remote-debugging-port=9222'])\n",
+        "import asyncio\nasync def f():\n    await asyncio.create_subprocess_exec('chromium')\n",
+        "import os\nos.system('chromium')\n",
+    ],
+)
+def test_process_check_catches_a_module_that_starts_a_browser(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "perception.py").write_text(source)
+    assert process_starts_outside_confirm(copy) == ["perception.py"]
+
+
+# --- the server listens on no port and relays nothing -----------------------------------------
+
+# ``socket`` itself is imported legitimately (the host name, the IPv6 support
+# probe); what is forbidden is a server module or a call that listens or binds.
+_LISTENING_MODULES = {"socketserver", "http.server", "uvicorn", "starlette"}
+_LISTENING_CALLS = {"bind", "listen", "start_server", "start_unix_server", "serve_forever", "create_datagram_endpoint"}
+
+
+def listening_code(package: Path) -> list[str]:
+    found: list[str] = []
+    for path in sorted(package.rglob("*.py")):
+        for node in ast.walk(ast.parse(path.read_text())):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                names = [node.module or ""]
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in _LISTENING_CALLS:
+                names = [node.func.attr]
+            if any(name.split(".")[0] in _LISTENING_MODULES or name in _LISTENING_CALLS or name in _LISTENING_MODULES for name in names):
+                found.append(f"{path.relative_to(package).as_posix()}: {names[0]}")
+    return found
+
+
+def test_no_module_listens_on_a_port_or_relays_one() -> None:
+    assert listening_code(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import socket\ns = socket.socket()\ns.bind(('127.0.0.1', 9333))\n",
+        "from http.server import HTTPServer\n",
+        "import asyncio\nasync def f():\n    await asyncio.start_server(None, '127.0.0.1', 9333)\n",
+        "def f(sock):\n    sock.listen(1)\n",
+    ],
+)
+def test_listening_check_catches_a_server_or_a_relay(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "perception.py").write_text(source)
+    assert [entry.split(":")[0] for entry in listening_code(copy)] == ["perception.py"]
+
+
 # --- perception asks the one predicate whether a field is sensitive ----------------------------
 
 PERCEPTION_MODULE = "perception.py"
