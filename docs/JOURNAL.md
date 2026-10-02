@@ -255,3 +255,19 @@ set aside.
 - Control: `test_no_module_imports_an_http_server_stack`, with
   `test_http_stack_check_catches_an_import` (four forms of import, each on a copy).
 - Set aside: removing the dependency, which would mean leaving the decided SDK.
+
+### Credential file names stay in the error messages (maintained)
+
+- Decided: a refused credential file is named in the operator message (`service.json`,
+  `chmod 600 service.json`, the two names of an ambiguous binding); its keys and values never
+  are.
+- Why: the specification of the credential files asks for it; the name is the label the
+  operator gave to the file they must fix, while the keys and values stay out (unknown keys are
+  refused without being named).
+- Control: `test_old_format_file_is_refused_loudly` in `tests/test_credentials.py`
+  (`"legacy.json" in error.message`), `test_file_readable_by_others_is_refused_with_the_fix`,
+  `test_two_files_bound_to_the_same_origin_are_ambiguous`, and on the other side
+  `test_unknown_key_is_refused_without_naming_it` and
+  `test_not_bound_message_names_only_the_origin_and_the_expected_name`.
+- Set aside: replacing names by numbers, which would leave the operator unable to find the file
+  to fix.
