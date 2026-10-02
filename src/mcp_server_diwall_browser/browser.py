@@ -405,6 +405,10 @@ class Tab:
     main_frame_id: str | None = field(default=None, repr=False)
     # {"type", "message"} of an open dialog; the message is untrusted page data.
     dialog: dict[str, str] | None = field(default=None, repr=False)
+    # Address of the frame that opened the dialog, as the browser reports it.
+    dialog_url: str | None = field(default=None, repr=False)
+    # Whether the main frame is loading, from the browser's loading events.
+    loading: bool = field(default=False, repr=False)
     closed: bool = False
 
 
@@ -446,6 +450,14 @@ def check_navigable(url: object) -> Origin:
         raise ToolError(
             "navigation_failed", f"adresse refusée ({exc.reason})", extra_server={"reason": exc.reason}
         ) from None
+
+
+class DialogBlocking(Exception):
+    """A page read gave up because a dialog blocks the page.
+
+    While a dialog is open the page answers no call at all, not even the
+    frame tree; a read waiting for it would only time out.
+    """
 
 
 def _navigation_timeout(timeout_s: object) -> float:
@@ -508,7 +520,7 @@ class TabRegistry:
                 if exc.code == "tab_not_owned":
                     continue
                 raise
-            infos.append(TabInfo(tab_id=tab.tab_id, origin=_origin_label(frame), adopted=tab.adopted))
+            infos.append(TabInfo(tab_id=tab.tab_id, origin=origin_label(frame), adopted=tab.adopted))
         return infos
 
     async def close_tab(self, tab_id: str) -> None:
@@ -574,14 +586,18 @@ class TabRegistry:
         finally:
             waiter.cancel()
 
-    async def main_frame_info(self, tab: Tab) -> FrameInfo:
+    async def main_frame_info(self, tab: Tab, *, stop_on_dialog: bool = False) -> FrameInfo:
         """Address and origin of the main frame as the browser reports them now.
 
         Read on every call: a redirect or a navigation started by the page
-        moves the origin without the server asking.
+        moves the origin without the server asking. With ``stop_on_dialog``,
+        an open dialog raises ``DialogBlocking`` instead of a long wait.
         """
         self._require_owned(tab)
-        tree = await self._tab_call(tab, "Page.getFrameTree")
+        if stop_on_dialog:
+            tree = await self.read(tab, "Page.getFrameTree")
+        else:
+            tree = await self._tab_call(tab, "Page.getFrameTree")
         frame_tree = tree.get("frameTree")
         frame = frame_tree.get("frame") if isinstance(frame_tree, dict) else None
         if not isinstance(frame, dict):
@@ -603,6 +619,62 @@ class TabRegistry:
             frame_id=frame_id if isinstance(frame_id, str) else "",
         )
 
+    async def read(
+        self, tab: Tab, method: str, params: dict[str, Any] | None = None, *, timeout: float = DEFAULT_TIMEOUT_S
+    ) -> dict[str, Any]:
+        """One call on an owned tab that gives up as soon as a dialog blocks the page."""
+        self._require_owned(tab)
+        if tab.dialog is not None:
+            raise DialogBlocking()
+        session_id = tab.session_id
+        dialog = self._connection.wait_event(
+            lambda method_, params_, session: session == session_id and method_ == "Page.javascriptDialogOpening",
+            timeout=timeout,
+        )
+        call = asyncio.ensure_future(self._tab_call(tab, method, params, timeout=timeout))
+        dialog_task = asyncio.ensure_future(_awaited(dialog))
+        try:
+            done, _ = await asyncio.wait({call, dialog_task}, return_when=asyncio.FIRST_COMPLETED)
+            if call in done:
+                return call.result()
+            if not dialog_task.cancelled() and dialog_task.exception() is None:
+                raise DialogBlocking()
+            return await call
+        finally:
+            dialog.cancel()
+            for task in (call, dialog_task):
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):  # noqa: BLE001 - only the cancellation matters here
+                        pass
+
+    async def wait_loaded(self, tab: Tab, *, timeout_s: float = DEFAULT_NAVIGATION_TIMEOUT_S) -> bool:
+        """True once the main frame is not loading, False at the deadline."""
+        self._require_owned(tab)
+        limit = _navigation_timeout(timeout_s)
+        session_id = tab.session_id
+        frame_id = tab.main_frame_id
+
+        def stopped(method: str, params: dict[str, Any], event_session: str | None) -> bool:
+            return (
+                event_session == session_id
+                and method == "Page.frameStoppedLoading"
+                and params.get("frameId") == frame_id
+            )
+
+        waiter = self._connection.wait_event(stopped, timeout=limit)
+        try:
+            if not tab.loading:
+                return True
+            await waiter
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            waiter.cancel()
+
     async def handle_dialog(self, tab: Tab, accept: bool) -> None:
         """Accept or dismiss the open dialog. Whether to do so is decided by the caller."""
         self._require_owned(tab)
@@ -610,6 +682,7 @@ class TabRegistry:
             raise TypeError("accept is a boolean")
         await self._tab_call(tab, "Page.handleJavaScriptDialog", {"accept": accept})
         tab.dialog = None
+        tab.dialog_url = None
 
     # --- internals ------------------------------------------------------------------
 
@@ -624,6 +697,7 @@ class TabRegistry:
     def _forget(self, tab: Tab) -> None:
         tab.closed = True
         tab.dialog = None
+        tab.dialog_url = None
         if self._tabs.get(tab.tab_id) is tab:
             del self._tabs[tab.tab_id]
 
@@ -692,12 +766,18 @@ class TabRegistry:
         elif method == "Page.javascriptDialogOpening":
             kind = params.get("type")
             message = params.get("message")
+            url = params.get("url")
             tab.dialog = {
                 "type": kind if isinstance(kind, str) else "",
                 "message": message if isinstance(message, str) else "",
             }
+            tab.dialog_url = url if isinstance(url, str) else None
         elif method == "Page.javascriptDialogClosed":
             tab.dialog = None
+            tab.dialog_url = None
+        elif method in ("Page.frameStartedLoading", "Page.frameStoppedLoading"):
+            if params.get("frameId") == tab.main_frame_id:
+                tab.loading = method == "Page.frameStartedLoading"
         return None
 
     def _on_target_created(self, params: dict[str, Any]) -> Any:
@@ -745,7 +825,11 @@ class TabRegistry:
         )
 
 
-def _origin_label(frame: FrameInfo) -> str | None:
+async def _awaited(waiter: Any) -> Any:
+    return await waiter
+
+
+def origin_label(frame: FrameInfo) -> str | None:
     if frame.origin is not None:
         return frame.origin.canonical
     if frame.url == "" or is_blank(frame.url):

@@ -63,6 +63,18 @@ CARD_SUBSTRINGS = (
 
 _WORD_SPLIT_RE = re.compile(r"[^a-z0-9]+")
 
+# HTML attribute -> keyword of is_sensitive. A caller that only has the
+# attributes of an element passes them through this table, so that the
+# names the predicate looks at are written here and nowhere else.
+ATTRIBUTE_ARGUMENTS = {
+    "type": "input_type",
+    "name": "name",
+    "id": "element_id",
+    "autocomplete": "autocomplete",
+    "aria-label": "aria_label",
+    "placeholder": "placeholder",
+}
+
 
 @dataclass(frozen=True)
 class SensitiveVerdict:
