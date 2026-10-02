@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .cdp import DEFAULT_TIMEOUT_S, CdpConnection, CdpError
-from .origin import Origin, OriginError, is_blank, origin_of_url, split_url
+from .origin import Origin, OriginError, is_blank, origin_of_url, split_host_port, split_url
 from .output import ToolError
 
 LOOPBACK_HOST = "127.0.0.1"
@@ -281,24 +281,16 @@ def check_debugger_url(url: object, port: int) -> str:
         raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE) from None
     if parts.scheme != "ws" or not parts.has_authority or parts.userinfo is not None:
         raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE)
-    host, port_text = _split_host_port(parts.hostport)
+    try:
+        host, port_text = split_host_port(parts.hostport)
+    except OriginError:
+        raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE) from None
     if host not in _LOOPBACK_WS_HOSTS:
         raise ToolError("debug_endpoint_not_loopback", _NOT_LOOPBACK_MESSAGE)
     # The loopback check covered this port only; another one is unchecked.
     if port_text != str(port):
         raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE)
     return url
-
-
-def _split_host_port(hostport: str) -> tuple[str, str | None]:
-    if hostport.startswith("["):
-        end = hostport.find("]")
-        if end < 0:
-            return hostport, None
-        host, rest = hostport[: end + 1], hostport[end + 1 :]
-        return host, rest[1:] if rest.startswith(":") else None
-    host, colon, port_text = hostport.partition(":")
-    return host, port_text if colon else None
 
 
 class _BrowserProfile(Protocol):

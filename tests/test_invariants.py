@@ -101,6 +101,9 @@ SINGLE_DEFINITIONS = {
     "TabRegistry": "browser.py",
     "Perception": "perception.py",
     "capture_masked_png": "perception.py",
+    "bounded_text": "output.py",
+    "origin_allowed": "origin.py",
+    "split_host_port": "origin.py",
 }
 
 # Standard library helpers that parse an address; only origin.py may parse one.

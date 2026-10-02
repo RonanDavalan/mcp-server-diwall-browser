@@ -30,8 +30,8 @@ from typing import Any
 from PIL import Image, ImageDraw, ImageFile, ImageFont
 
 from .browser import DialogBlocking, FrameInfo, Tab, TabRegistry, origin_label
-from .origin import Origin, OriginError, origin_of_url
-from .output import TRUNCATION_MARK, ToolError, ToolOutput, redact_text
+from .origin import Origin, OriginError, origin_allowed, origin_of_url
+from .output import ToolError, ToolOutput, bounded_text, redact_text
 from .sensitive_field import ATTRIBUTE_ARGUMENTS, is_sensitive
 
 # Roles that make a visible node an element the model can designate.
@@ -353,23 +353,7 @@ def _ax_property(node: dict[str, Any], name: str) -> Any:
     return None
 
 
-# --- Text cleaning ------------------------------------------------------------------------
-
-
-def clean_text(text: object, limit: int) -> str:
-    """Control and format characters removed, spaces collapsed, length bounded."""
-    if not isinstance(text, str):
-        return ""
-    kept = []
-    for char in text:
-        if char.isspace():
-            kept.append(" ")
-        elif unicodedata.category(char) not in ("Cc", "Cf"):
-            kept.append(char)
-    collapsed = " ".join("".join(kept).split())
-    if len(collapsed) > limit:
-        collapsed = collapsed[: limit - 1] + TRUNCATION_MARK
-    return collapsed
+# --- Names ----------------------------------------------------------------------------------
 
 
 def normalized_name(name: str) -> str:
@@ -468,7 +452,7 @@ def _walk(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> _Walk:
             for child in children:
                 visit(child, depth, line_parent_name)
             return
-        name = clean_text(_ax_value(node, "name"), NAME_LIMIT)
+        name = bounded_text(_ax_value(node, "name"), NAME_LIMIT)
         if dom_node is None or dom_node.box is None:
             # No box of its own (display: contents, for one): its children
             # speak for themselves. If nothing of it shows at all, it was a
@@ -589,7 +573,7 @@ def build(
         sensitive_boxes=sensitive_boxes,
         frame_boxes=frame_boxes,
         unmaskable=_unmaskable(dom, fields, walk.ax),
-        title=redact_text(clean_text(_ax_value(walk.root, "name"), NAME_LIMIT)),
+        title=redact_text(bounded_text(_ax_value(walk.root, "name"), NAME_LIMIT)),
         notices=notices,
     )
 
@@ -599,7 +583,7 @@ def _line(role: str, name: str, node: dict[str, Any], parent_name: str | None) -
         return None
     if role == TEXT_ROLE and (not name or name == parent_name):
         return None
-    text = f"{clean_text(role, 64)} {_quoted(name)}"
+    text = f"{bounded_text(role, 64)} {_quoted(name)}"
     if role == "heading":
         level = _ax_property(node, "level")
         if isinstance(level, (int, float)) and not isinstance(level, bool):
@@ -646,7 +630,7 @@ def _element(
             counters["redacted_fields"] += 1
         value = ""
     else:
-        value = redact_text(clean_text(raw_value, VALUE_LIMIT))
+        value = redact_text(bounded_text(raw_value, VALUE_LIMIT))
     form = dom.enclosing(node, "form")
     form_has_card = form is not None and any(
         fields[index].card for index in fields if dom.enclosing(dom.nodes[index], "form") is form
@@ -658,7 +642,7 @@ def _element(
     in_viewport = item.in_viewport
     public: dict[str, Any] = {
         "mark": mark,
-        "role": redact_text(clean_text(item.role, 64)),
+        "role": redact_text(bounded_text(item.role, 64)),
         "name": redact_text(item.name),
         "value": value,
     }
@@ -983,7 +967,7 @@ class Perception:
         if kind == "text":
             if not isinstance(value, str) or not value:
                 raise ValueError("a text wait needs a non-empty text")
-            wanted = clean_text(value, NAME_LIMIT)
+            wanted = bounded_text(value, NAME_LIMIT)
 
             def met(names: list[tuple[str, str]]) -> bool:
                 return any(wanted in name for _role, name in names)
@@ -991,7 +975,7 @@ class Perception:
         elif kind == "element":
             if not isinstance(value, dict) or not isinstance(value.get("role"), str) or not isinstance(value.get("name"), str):
                 raise ValueError("an element wait needs {'role': ..., 'name': ...}")
-            role, name = value["role"], clean_text(value["name"], NAME_LIMIT)
+            role, name = value["role"], bounded_text(value["name"], NAME_LIMIT)
 
             def met(names: list[tuple[str, str]]) -> bool:
                 return (role, name) in names
@@ -1017,8 +1001,7 @@ class Perception:
     async def _gate(self, tab: Tab) -> tuple[FrameInfo, Origin]:
         """The origin of the main frame, refused unless the operator allowed it."""
         frame = await self._registry.main_frame_info(tab, stop_on_dialog=True)
-        allowed = set(self._allowed_origins())
-        if frame.origin is None or frame.origin not in allowed:
+        if not origin_allowed(frame.origin, self._allowed_origins()):
             raise ToolError("origin_not_allowed", _ORIGIN_MESSAGE, extra_server={"origin": origin_label(frame)})
         return frame, frame.origin
 
@@ -1127,7 +1110,7 @@ class Perception:
             origin: Origin | None = origin_of_url(tab.dialog_url or "")
         except OriginError:
             origin = None
-        allowed = origin is not None and origin in set(self._allowed_origins())
+        allowed = origin_allowed(origin, self._allowed_origins())
         server: dict[str, Any] = {
             "tab_id": tab.tab_id,
             "capture": "unavailable",
@@ -1139,8 +1122,8 @@ class Perception:
             server["origin"] = origin.canonical  # type: ignore[union-attr]
             page_content = {
                 "dialog": {
-                    "type": clean_text(dialog.get("type", ""), 32),
-                    "message": redact_text(clean_text(dialog.get("message", ""), NAME_LIMIT * 5)),
+                    "type": bounded_text(dialog.get("type", ""), 32),
+                    "message": redact_text(bounded_text(dialog.get("message", ""), NAME_LIMIT * 5)),
                 }
             }
         return Observation(server=server, page_content=page_content, image_png=None, snapshot=None)

@@ -356,3 +356,21 @@ set aside.
   `test_a_read_gives_up_and_the_dialog_can_still_be_answered`.
 - Set aside: a new error code; `snapshot_stale`, which tells the model to observe again, while
   observing is exactly what cannot be done until the dialog is answered.
+
+### Three checks written outside their module are moved back to it
+
+- Decided: read again as a third party's code, three pieces of logic of the attachment and the
+  perception were not in their single module. They now are, by additions:
+  `origin.split_host_port` (the browser module had its own copy to read the announced WebSocket
+  address), `origin.origin_allowed` (the perception tested membership of the allowed list inline,
+  and the actions need the same test), `output.bounded_text` (the perception had its own removal
+  of control and format characters and length bound).
+- Why: each security rule exists in one place; two copies drift and one is forgotten.
+- Control: `test_security_definitions_exist_once_in_their_module` now lists the three functions;
+  `test_an_origin_is_allowed_only_when_equal_to_one_of_the_list` with
+  `test_allowance_check_catches_a_prefix_comparison`; `test_split_host_port` and
+  `test_split_host_port_refuses_what_a_browser_could_read_otherwise`;
+  `test_page_text_is_cleaned_and_bounded` with
+  `test_text_check_catches_a_cleaner_that_keeps_format_characters`. A malformed bracket in the
+  announced address is now `debug_endpoint_undetermined` (it was reported as not loopback).
+- Set aside: leaving the copies with a cross-reference comment.

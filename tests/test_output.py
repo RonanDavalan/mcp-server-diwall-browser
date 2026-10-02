@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import unicodedata
 import urllib.parse
 from collections.abc import Callable
 from typing import Any
@@ -356,3 +357,34 @@ async def test_the_operation_identifier_inside_a_tool_is_the_one_returned() -> N
 
 async def test_operation_identifier_check_catches_two_identifiers() -> None:
     assert not await operation_id_is_shared(two_identifiers)
+
+
+# --- page text made fit to show -------------------------------------------------------------------
+
+
+def text_is_fit(bound: Callable[[object, int], str]) -> bool:
+    cases = [
+        ("Pay\u202enow\x00", 200, "Paynow"),
+        ("a\tb\n\nc", 200, "a b c"),
+        ("x" * 300, 200, "x" * 199 + "…"),
+        (None, 200, ""),
+        (42, 200, ""),
+    ]
+    return all(bound(text, limit) == expected for text, limit, expected in cases)
+
+
+def keeps_format_characters(text: object, limit: int) -> str:
+    # Defective: removes control characters only, and lets bidirectional overrides through.
+    if not isinstance(text, str):
+        return ""
+    kept = "".join(" " if c.isspace() else c for c in text if c.isspace() or unicodedata.category(c) != "Cc")
+    collapsed = " ".join(kept.split())
+    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1] + "…"
+
+
+def test_page_text_is_cleaned_and_bounded() -> None:
+    assert text_is_fit(output.bounded_text)
+
+
+def test_text_check_catches_a_cleaner_that_keeps_format_characters() -> None:
+    assert not text_is_fit(keeps_format_characters)

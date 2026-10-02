@@ -294,6 +294,27 @@ def _clean_string(text: str, *, page: bool, url_key: bool) -> str:
     return text
 
 
+def bounded_text(text: object, limit: int) -> str:
+    """Page text made fit to show: control and format characters removed,
+    spaces collapsed, length bounded. Anything but a string gives ``""``.
+
+    Format characters go too: bidirectional overrides can make a text read
+    differently from what it holds.
+    """
+    if not isinstance(text, str):
+        return ""
+    kept = []
+    for char in text:
+        if char.isspace():
+            kept.append(" ")
+        elif unicodedata.category(char) not in ("Cc", "Cf"):
+            kept.append(char)
+    collapsed = " ".join("".join(kept).split())
+    if len(collapsed) > limit:
+        collapsed = collapsed[: limit - 1] + TRUNCATION_MARK
+    return collapsed
+
+
 def _strip_controls(text: str, *, keep_newlines: bool) -> str:
     kept = []
     for char in text:

@@ -9,8 +9,10 @@ from mcp_server_diwall_browser.origin import (
     Origin,
     OriginError,
     is_blank,
+    origin_allowed,
     origin_of_url,
     parse_origin,
+    split_host_port,
 )
 
 # (address, expected canonical origin or the expected refusal reason)
@@ -274,3 +276,51 @@ def test_a_host_the_two_idna_versions_read_differently_is_refused() -> None:
 def test_host_check_catches_a_parser_that_trusts_idna_2003() -> None:
     assert not divergent_hosts_are_refused(idna_2003_only)
     assert idna_2003_only("https://faß.test").canonical == "https://fass.test"
+
+
+# --- allowance of an origin -------------------------------------------------------------------
+
+ALLOWED = [parse_origin("https://example.test"), parse_origin("https://shop.example.test:8443")]
+ALLOWANCE_CASES: list[tuple[Origin | None, list[Origin], bool]] = [
+    (parse_origin("https://example.test"), ALLOWED, True),
+    (parse_origin("https://shop.example.test:8443"), ALLOWED, True),
+    (parse_origin("https://example.test:8443"), ALLOWED, False),
+    (parse_origin("http://example.test"), ALLOWED, False),
+    (parse_origin("https://example.test.evil.test"), ALLOWED, False),
+    (parse_origin("https://evil.example.test"), ALLOWED, False),
+    (None, ALLOWED, False),
+    (parse_origin("https://example.test"), [], False),
+]
+
+Allowance = Callable[[Origin | None, list[Origin]], bool]
+
+
+def allowance_table_holds(allows: Allowance) -> bool:
+    return all(allows(origin, allowed) is expected for origin, allowed, expected in ALLOWANCE_CASES)
+
+
+def prefix_allowance(origin: Origin | None, allowed: list[Origin]) -> bool:
+    # Defective: compares the beginning of the texts.
+    return origin is not None and any(str(origin).startswith(str(item)) for item in allowed)
+
+
+def test_an_origin_is_allowed_only_when_equal_to_one_of_the_list() -> None:
+    assert allowance_table_holds(origin_allowed)
+
+
+def test_allowance_check_catches_a_prefix_comparison() -> None:
+    assert not allowance_table_holds(prefix_allowance)
+
+
+@pytest.mark.parametrize(
+    ("hostport", "expected"),
+    [("127.0.0.1:9222", ("127.0.0.1", "9222")), ("[::1]:9222", ("[::1]", "9222")), ("example.test", ("example.test", None))],
+)
+def test_split_host_port(hostport: str, expected: tuple[str, str | None]) -> None:
+    assert split_host_port(hostport) == expected
+
+
+@pytest.mark.parametrize("hostport", ["[::1:9222", "[::1]x9222", "a[b]:1"])
+def test_split_host_port_refuses_what_a_browser_could_read_otherwise(hostport: str) -> None:
+    with pytest.raises(OriginError):
+        split_host_port(hostport)

@@ -12,6 +12,7 @@ from __future__ import annotations
 import ipaddress
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
@@ -153,6 +154,20 @@ def origin_of_url(url: str) -> Origin:
 
 def is_blank(url: str) -> bool:
     return url == "about:blank"
+
+
+def origin_allowed(origin: Origin | None, allowed: Iterable[Origin]) -> bool:
+    """True only for an origin equal to one of ``allowed``.
+
+    No origin (about:blank, an address that cannot be read) and an empty
+    list allow nothing: the default protects, it never permits.
+    """
+    return isinstance(origin, Origin) and any(origin == item for item in allowed)
+
+
+def split_host_port(hostport: str) -> tuple[str, str | None]:
+    """Host (an IPv6 address keeps its brackets) and port text of an authority."""
+    return _split_hostport(hostport)
 
 
 def _parse(text: str) -> tuple[UrlParts, Origin]:
