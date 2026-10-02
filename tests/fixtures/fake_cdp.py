@@ -195,6 +195,12 @@ class FakeBrowser:
         cdp.on("Target.closeTarget", handler=self._close_target)
         cdp.on("Page.getFrameTree", handler=self._frame_tree)
         cdp.on("Page.navigate", handler=self._navigate)
+        # Perception reads, answered from the simulated page shown in the target.
+        self.after: dict[str, Callable[[str], None]] = {}
+        cdp.on("Accessibility.getFullAXTree", handler=self._page_read(lambda page, params: page.ax_tree()))
+        cdp.on("DOMSnapshot.captureSnapshot", handler=self._page_read(lambda page, params: page.dom_snapshot()))
+        cdp.on("Page.getLayoutMetrics", handler=self._page_read(lambda page, params: page.layout_metrics()))
+        cdp.on("Page.captureScreenshot", handler=self._page_read(lambda page, params: page.screenshot(params.get("clip"))))
 
     def new_target_id(self) -> str:
         return f"TARGET{next(self._target_ids):04d}"
@@ -207,6 +213,27 @@ class FakeBrowser:
 
     def set_url(self, target_id: str, url: str) -> None:
         self.targets[target_id]["url"] = url
+
+    def show(self, target_id: str, page: Any, url: str | None = None) -> None:
+        """Put a simulated page (fixtures.page_model.Page) in the target."""
+        self.targets[target_id]["page"] = page
+        if url is not None:
+            self.targets[target_id]["url"] = url
+
+    def _page_read(self, answer: Callable[[Any, dict[str, Any]], Any]) -> Callable[[dict[str, Any], str | None], Any]:
+        def handler(params: dict[str, Any], session_id: str | None) -> Any:
+            target_id = self._target_of(session_id)
+            page = self.targets[target_id].get("page")
+            if page is None:
+                raise FakeCdpError(-32000, "no simulated page in this target")
+            result = answer(page, params)
+            method = next(name for name, h in self.cdp.handlers.items() if h is handler)
+            hook = self.after.get(method)
+            if hook is not None:
+                hook(target_id)
+            return result
+
+        return handler
 
     async def announce(self, title: str, url: str, *, opener_id: str | None = None) -> str:
         """Emit the creation of a target, as discovery does for every tab of the browser."""

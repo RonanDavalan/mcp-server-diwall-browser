@@ -1,0 +1,63 @@
+{
+  "comment": "Written by hand in the shape Chromium 141 returns; no real data. A login form whose sensitive field is filled.",
+  "url": "https://example.test/login",
+  "layoutMetrics": {
+    "cssVisualViewport": {"offsetX": 0, "offsetY": 0, "pageX": 0, "pageY": 0, "clientWidth": 400, "clientHeight": 200, "scale": 1, "zoom": 1},
+    "cssContentSize": {"x": 0, "y": 0, "width": 400, "height": 200}
+  },
+  "ax": {
+    "nodes": [
+      {"nodeId": "1", "ignored": false, "role": {"type": "internalRole", "value": "RootWebArea"}, "name": {"type": "computedString", "value": "Login"}, "properties": [], "childIds": ["2"], "backendDOMNodeId": 1, "frameId": "FRAME0"},
+      {"nodeId": "2", "ignored": true, "ignoredReasons": [{"name": "uninteresting", "value": {"type": "boolean", "value": true}}], "role": {"type": "role", "value": "none"}, "childIds": ["6"], "parentId": "1", "backendDOMNodeId": 2},
+      {"nodeId": "6", "ignored": true, "ignoredReasons": [{"name": "uninteresting", "value": {"type": "boolean", "value": true}}], "role": {"type": "role", "value": "none"}, "childIds": ["10"], "parentId": "2", "backendDOMNodeId": 6},
+      {"nodeId": "10", "ignored": false, "role": {"type": "role", "value": "generic"}, "name": {"type": "computedString", "value": ""}, "properties": [], "childIds": ["11", "14"], "parentId": "6", "backendDOMNodeId": 10},
+      {"nodeId": "11", "ignored": false, "role": {"type": "internalRole", "value": "LabelText"}, "name": {"type": "computedString", "value": ""}, "properties": [], "childIds": ["12", "13"], "parentId": "10", "backendDOMNodeId": 11},
+      {"nodeId": "12", "ignored": false, "role": {"type": "internalRole", "value": "StaticText"}, "name": {"type": "computedString", "value": "Password "}, "properties": [], "childIds": ["-1"], "parentId": "11", "backendDOMNodeId": 12},
+      {"nodeId": "-1", "ignored": false, "role": {"type": "internalRole", "value": "InlineTextBox"}, "name": {"type": "computedString", "value": "Password "}, "properties": [], "childIds": [], "parentId": "12"},
+      {"nodeId": "13", "ignored": false, "role": {"type": "role", "value": "textbox"}, "name": {"type": "computedString", "value": "Password "}, "value": {"type": "string", "value": "•••••••••••••••••••"}, "properties": [{"name": "focusable", "value": {"type": "booleanOrUndefined", "value": true}}, {"name": "required", "value": {"type": "boolean", "value": true}}], "childIds": ["20"], "parentId": "11", "backendDOMNodeId": 13},
+      {"nodeId": "20", "ignored": false, "role": {"type": "role", "value": "generic"}, "name": {"type": "computedString", "value": ""}, "properties": [{"name": "editable", "value": {"type": "token", "value": "plaintext"}}], "childIds": ["21"], "parentId": "13", "backendDOMNodeId": 20},
+      {"nodeId": "21", "ignored": false, "role": {"type": "internalRole", "value": "StaticText"}, "name": {"type": "computedString", "value": "•••••••••••••••••••"}, "properties": [], "childIds": [], "parentId": "20", "backendDOMNodeId": 21},
+      {"nodeId": "14", "ignored": false, "role": {"type": "role", "value": "button"}, "name": {"type": "computedString", "value": "Sign in"}, "properties": [{"name": "focusable", "value": {"type": "booleanOrUndefined", "value": true}}], "childIds": ["15"], "parentId": "10", "backendDOMNodeId": 14},
+      {"nodeId": "15", "ignored": false, "role": {"type": "internalRole", "value": "StaticText"}, "name": {"type": "computedString", "value": "Sign in"}, "properties": [], "childIds": ["-2"], "parentId": "14", "backendDOMNodeId": 15},
+      {"nodeId": "-2", "ignored": false, "role": {"type": "internalRole", "value": "InlineTextBox"}, "name": {"type": "computedString", "value": "Sign in"}, "properties": [], "childIds": [], "parentId": "15"}
+    ]
+  },
+  "snapshot": {
+    "strings": ["https://example.test/login", "Login", "UTF-8", "FRAME0", "#document", "HTML", "HEAD", "BODY", "FORM", "LABEL", "#text", "Password ", "INPUT", "type", "password", "autocomplete", "current-password", "test-secret-value-1", "BUTTON", "submit", "Sign in", "block", "visible", "1", "16px", "inline-block", "13.3333px"],
+    "documents": [
+      {
+        "documentURL": 0, "title": 1, "baseURL": 0, "contentLanguage": -1, "encodingName": 2, "publicId": -1, "systemId": -1, "frameId": 3,
+        "nodes": {
+          "parentIndex":   [-1, 0, 1, 1, 3, 4, 5, 5, 4, 8],
+          "nodeType":      [9, 1, 1, 1, 1, 1, 3, 1, 1, 3],
+          "shadowRootType": {"index": [], "value": []},
+          "nodeName":      [4, 5, 6, 7, 8, 9, 10, 12, 18, 10],
+          "nodeValue":     [-1, -1, -1, -1, -1, -1, 11, -1, -1, 20],
+          "backendNodeId": [1, 2, 3, 6, 10, 11, 12, 13, 14, 15],
+          "attributes":    [[], [], [], [], [], [], [], [13, 14, 15, 16], [13, 19], []],
+          "textValue": {"index": [], "value": []},
+          "inputValue": {"index": [7], "value": [17]},
+          "inputChecked": {"index": []},
+          "optionSelected": {"index": []},
+          "contentDocumentIndex": {"index": [], "value": []},
+          "pseudoType": {"index": [], "value": []},
+          "pseudoIdentifier": {"index": [], "value": []},
+          "isClickable": {"index": [5, 7, 8]},
+          "currentSourceURL": {"index": [], "value": []},
+          "originURL": {"index": [], "value": []}
+        },
+        "layout": {
+          "nodeIndex": [0, 1, 3, 4, 5, 6, 7, 8, 9],
+          "styles": [[], [21, 22, 23, 24], [21, 22, 23, 24], [21, 22, 23, 24], [21, 22, 23, 24], [21, 22, 23, 24], [25, 22, 23, 24], [25, 22, 23, 26], [25, 22, 23, 26]],
+          "bounds": [[0, 0, 400, 200], [0, 0, 400, 200], [8, 8, 384, 60], [8, 8, 384, 60], [8, 8, 384, 22], [8, 10, 70, 17], [78, 8, 200, 22], [8, 38, 60, 21], [16, 41, 44, 15]],
+          "text": [-1, -1, -1, -1, -1, -1, -1, -1, -1],
+          "stackingContexts": {"index": []},
+          "paintOrders": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+          "offsetRects": [], "scrollRects": [], "clientRects": []
+        },
+        "textBoxes": {"layoutIndex": [], "bounds": [], "start": [], "length": []},
+        "scrollOffsetX": 0, "scrollOffsetY": 0, "contentWidth": 400, "contentHeight": 200
+      }
+    ]
+  }
+}
