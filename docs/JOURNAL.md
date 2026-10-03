@@ -676,6 +676,81 @@ set aside.
 - Control: `test_the_ceilings_hold_through_the_tools`.
 - Set aside: counting twice to count those too.
 
+### The operator's own downloads stay refused while the server is attached
+
+- Decided: the download setting given at attachment stays the browser's, not a tab's. To download
+  a file of their own, the operator stops the server or the MCP client; downloads work again as
+  soon as the server's connection ends. The operator guide says it (dedicated profile, known
+  limits), and so do the architecture (decisions set aside) and the README.
+- Why: leaving the browser's setting open between two actions lets a page write a file outside the
+  encrypted directory.
+- Control: `test_while_the_server_is_attached_the_operators_own_downloads_are_refused_too`
+  (Chromium 141 here, Chrome 154 on the operator's machine).
+- Set aside: a browser context of the server's own, whose tabs would not share the operator's
+  authenticated session. Would reopen it: a browser that accepts the setting for one tab alone,
+  which is not confirmed.
+
+### The version announced when a session opens stays the SDK's
+
+- Decided: the server keeps announcing the SDK's version at initialization (`1.25.0`); its own
+  version is `server_version` in `status`. The operator guide sends the operator to `status`.
+- Why: the announcement can only be changed by writing a private attribute of the SDK, and a tool
+  already gives the version.
+- Control: `test_the_server_version_comes_from_status_not_from_the_announcement` (the real
+  process).
+- Set aside: writing the SDK's private attribute.
+
+### The documentation says that a call refused before reaching the browser is not counted
+
+- Decided: the operator guide states it as it is: "a call refused before reaching the browser does
+  not count against the ceilings" (operator profile, troubleshooting, known limits).
+- Why: the decision on counting stays; the operator must know it to read the counters of `status`.
+- Control: `test_the_ceilings_hold_through_the_tools`.
+- Set aside: none.
+
+### An observation says which document and which view it describes
+
+- Decided: the `server` part of `observe` carries `loader_id`, the document the snapshot was taken
+  from, and `viewport` with `x`, `y`, `width`, `height` and `scale`. `counters` keeps its seven
+  keys.
+- Why: the new checks of each tool's result found that the tool returned neither, although the
+  perception's specification lists them. Without them, the model cannot tell that two observations
+  describe two documents, nor which part of the page the image shows. The specification of the
+  checks names six counters; the seven exist and none is removed.
+- Control: `test_observe_states_exactly_what_the_perception_specifies`, with
+  `test_observe_check_catches_a_result_without_counters`.
+- Set aside: none.
+
+### Names under the reserved suffixes pass the check for real data
+
+- Decided: the check of tracked files for real data allows `example.invalid`, `example.test`, any
+  name under `.test` or `.invalid`, loopback and the documentation networks; an address literal is
+  judged by the private-address check, and a test vector that is no host name passes.
+- Why: these names can never designate a real host, and the tests of the address parser need
+  several of them.
+- Control: `test_no_tracked_file_holds_real_data`, with
+  `test_real_data_check_catches_a_name_a_private_address_or_a_real_host` and
+  `test_real_data_check_leaves_the_example_values_alone`.
+- Set aside: allowing the two example domains only, which the parser's tests do not follow.
+
+### The demo image is the only capture the repository tracks
+
+- Decided: `docs/images/observe-demo.png`, written by `scripts/smoke_test.py --save-image` from the
+  local demo page, is tracked for the README; any other tracked image is refused.
+- Why: the README shows what the model receives; the image comes from a page whose whole content
+  is in the repository, so it holds nothing of the operator's.
+- Control: `test_no_forbidden_file_is_tracked`, with `test_forbidden_file_check_catches_each_kind`.
+- Set aside: a README without an image.
+
+### The lock lists the test tools too
+
+- Decided: `requirements.lock` is the list of the packages installed in the tested environment,
+  test tools included, the package itself excluded.
+- Why: the lock lists everything installed, transitive dependencies included.
+- Control: `test_every_dependency_is_pinned_and_locked_at_the_same_version`, with
+  `test_lock_check_catches_a_loose_pin_and_a_lock_that_differs`.
+- Set aside: a lock of the runtime dependencies only.
+
 ## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
 
 Done:
