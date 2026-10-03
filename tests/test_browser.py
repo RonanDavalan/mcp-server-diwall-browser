@@ -80,7 +80,12 @@ def test_parse_reads_address_port_and_state_of_ipv4_sockets() -> None:
 
 def test_parse_reads_ipv6_sockets() -> None:
     listeners = parse_proc_net_tcp(tcp6_table((V6_LOOPBACK, 9222), (V6_MAPPED_LOOPBACK, 9222), (V6_ANY, 9222)), ipv6=True)
-    assert [str(entry.address) for entry in listeners] == ["::1", "::ffff:127.0.0.1", "::"]
+    # Compared as addresses: Python 3.12 writes the mapped one as ::ffff:7f00:1, 3.13 as ::ffff:127.0.0.1.
+    assert [entry.address for entry in listeners] == [
+        ipaddress.IPv6Address("::1"),
+        ipaddress.IPv6Address("::ffff:127.0.0.1"),
+        ipaddress.IPv6Address("::"),
+    ]
     assert {entry.port for entry in listeners} == {9222}
 
 
