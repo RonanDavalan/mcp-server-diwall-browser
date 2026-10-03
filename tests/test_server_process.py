@@ -117,7 +117,7 @@ async def test_the_detection_sees_a_listening_socket_of_another_program(tmp_path
 async def fake() -> AsyncIterator[FakeCdp]:
     server = FakeCdp()
     await server.start()
-    FakeBrowser(server)
+    server.browser = FakeBrowser(server)  # type: ignore[attr-defined]
     yield server
     await server.stop()
 
@@ -178,6 +178,21 @@ async def test_the_process_speaks_only_the_protocol_opens_no_port_and_has_no_cor
     assert limit == ("0", "0")
     runtime_dir = tmp_path / "run" / "mcp-server-diwall-browser"
     assert not runtime_dir.exists() or runtime_dir.stat().st_mode & 0o777 == 0o700
+
+
+async def test_when_its_input_closes_the_process_gives_downloads_back_and_leaves_tabs_open(tmp_path: Path, fake: FakeCdp) -> None:
+    env = server_environment(tmp_path, fake.port)
+    browser: FakeBrowser = fake.browser  # type: ignore[attr-defined]
+    with open(tmp_path / "stderr.log", "w") as errlog:
+        async with stdio_session([sys.executable, "-m", MODULE], env, errlog) as (session, _unreadable):
+            await session.call_tool("open_tab", {})
+            assert browser.download_behaviors == [{"behavior": "deny"}]
+    for _ in range(100):
+        if browser.download_behaviors[-1] == {"behavior": "default"}:
+            break
+        await asyncio.sleep(0.05)
+    assert browser.download_behaviors == [{"behavior": "deny"}, {"behavior": "default"}]
+    assert "Target.closeTarget" not in fake.methods()
 
 
 async def test_protocol_check_catches_a_process_that_writes_something_else(tmp_path: Path) -> None:

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import inspect
 import json
 import logging
 import shutil
@@ -517,7 +518,8 @@ def registered_tool(state: ServerState, name: str, mutating: bool, module: Any) 
         # A tool that does not go through the single exit point is not registered at all.
         raise TypeError(f"tool {name} does not go through the single exit point")
     arguments_model = module.Arguments
-    base = _ServerTool.from_function(_no_arguments, name=name, description=entry.__doc__ or "", structured_output=False)
+    description = inspect.cleandoc(entry.__doc__ or "")
+    base = _ServerTool.from_function(_no_arguments, name=name, description=description, structured_output=False)
     return base.model_copy(
         update={
             "parameters": arguments_model.model_json_schema(by_alias=True),

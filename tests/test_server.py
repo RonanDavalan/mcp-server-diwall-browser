@@ -699,3 +699,36 @@ async def test_the_sdk_alone_would_ignore_an_unknown_parameter() -> None:
     async with create_connected_server_and_client_session(plain) as session:
         result = await session.call_tool("click", {"mark": 1, "approved": True})
     assert result.isError is False and seen == [{"mark": 1}]
+
+
+# --- the other tools, and what their descriptions say ------------------------------------------------------
+
+
+async def test_navigate_moves_the_tab_and_makes_its_marks_stale(rig: Rig) -> None:
+    async with connected(rig) as client:
+        tab, observed = await open_and_observe(client, URL)
+        moved = await client.call("navigate", tab_id=tab, url=PAY_URL, intent="go to the checkout")
+        stale = await client.call("click", tab_id=tab, snapshot_id=observed["server"]["snapshot_id"], mark=mark_of(observed, "Envoyer"))
+        scheme = await client.call("navigate", tab_id=tab, url="file:///etc/passwd")
+    assert moved["ok"] and moved["server"]["origin"] == ORIGIN and moved["server"]["loaded"] is True
+    assert code_of(stale) == "snapshot_stale" and rig.gestures() == []
+    assert code_of(scheme) == "forbidden_scheme"
+
+
+async def test_save_evidence_gives_a_path_inside_the_volume_never_the_volume_itself(rig: Rig) -> None:
+    async with connected(rig) as client:
+        tab, _observed = await open_and_observe(client, URL)
+        saved = await client.call("save_evidence", tab_id=tab, label="../../reçu")
+    path = saved["server"]["evidence_path"]
+    assert saved["ok"] and path.startswith("evidence/") and not path.startswith("/")
+    assert str(rig.paths.mount_point) not in json.dumps(saved)
+    assert (rig.paths.project / path).is_file()
+
+
+async def test_the_descriptions_say_what_a_dialog_and_a_late_download_mean(rig: Rig) -> None:
+    async with connected(rig) as client:
+        tools = {tool.name: tool.description or "" for tool in (await client.session.list_tools()).tools}
+    for name in ("click", "fill", "select_option", "press_key", "scroll"):
+        assert "element_obscured" in tools[name] and "handle_dialog" in tools[name], name
+    assert "capture_unavailable" in tools["handle_dialog"] and "answer the dialog themselves" in tools["handle_dialog"]
+    assert "half a" in tools["click"] and "second after a load ends" in tools["click"]
