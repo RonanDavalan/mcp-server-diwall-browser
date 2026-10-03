@@ -1123,3 +1123,59 @@ Claude Code, `claude mcp list` showed the server connected and `status` read
 How to check that it holds, when it is looked at: run the same sequence against the same page with
 `scripts/smoke_test.py --save-image` style captures before and after a scroll, and compare each
 box with the element's position read from the accessibility tree in the same observation.
+
+## 2026-10-03 — The mask check on Chrome 154, the download intermittence and the page zoom
+
+The browser available when this was written is Chromium 141.0.7390.37 (preinstalled, Linux). The
+failures reported on Chrome 154.0.8037.97 could not be replayed as such; what could be measured, and
+what could not, is said under each heading.
+
+### The mask check took anti-aliased text for a mask that overflows
+
+What was measured, before changing anything. `docs/demo/index.html` observed through `Perception` at
+three screen scales on Chromium 141, the published image read back, every group of pixels of exactly
+the mask colour `(40, 40, 40)` listed (8-connected groups, whole image; the box is the field's
+`DOM.getContentQuads` box scaled to the image):
+
+| scale | image | box of the password field (image pixels) | mask group | groups apart from it |
+|---|---|---|---|---|
+| 1 | 1280×713 | (98.7, 153.4)–(350.7, 180.4) | 7084 px, bbox (98, 153)–(351, 181), touches the box | 0 |
+| 1.5 | 1600×892 | (123.4, 192.7)–(438.4, 226.9) | 11060 px, bbox (123, 192)–(439, 227), touches the box | 0 |
+| 2 | 1600×891 | (123.4, 193.0)–(438.4, 227.4) | 11060 px, bbox (123, 193)–(439, 228), touches the box | 6 (sizes 2, 1, 1, 1, 1, 1) |
+
+- The mask does not overflow on this browser: it extends at most 0.7 pixel past the box on each side,
+  which is the rounding outward of a box with fractional edges. Nothing in production was changed.
+- The six groups apart from the mask at scale 2 sit at rows 41 to 66, a hundred and more pixels above
+  the field; each is surrounded by `(0, 0, 0)` and `(255, 255, 255)` pixels and by pixels of 37 to 41
+  grey, which is the anti-aliasing of the black heading and paragraph text. So the colour `(40, 40, 40)`
+  does occur in page text by chance on a browser, here outside the 12-pixel window and so not seen
+  by the check.
+- The message of the failure, `the mask goes 12.7 pixels beyond the box`, is exactly what one text
+  pixel of the mask colour gives at the left edge of the window at scale 1: the box starts at
+  x = 98.7, the window at `floor(98.7) − 12 = 86`, and 98.7 − 86 = 12.7. The word "Password" is in
+  the same `<label>` as the field, a few pixels to its left, so its glyphs are inside the window.
+  Reproduced on the real image of scale 1 by painting one pixel `(40, 40, 40)` at (86, 165): the
+  check as it was gives `the mask goes 12.7 pixels beyond the box`; the corrected check gives
+  nothing. This shows the mechanism with the number; it is not a replay of Chrome 154's own pixels,
+  which were not available here (the operator's range of columns 36 to 350 is wider than the field
+  at these coordinates and is consistent with the glyphs of the label, which is an inference, not a
+  measurement).
+
+Decided: `mask_found_apart` (in `tests/test_scale_integration.py`) takes as the mask only the group of
+pixels of the mask colour that is joined, by a side or a corner, to the inside of the box, looked for
+inside the same 12-pixel window. The tolerance (2), the window (12) and the colour are unchanged. A
+failing check still fails on a mask that goes more than the tolerance beyond the box, and on a mask
+that does not cover it.
+
+Why the joined group and not the rows wider than half the box: the group is measured on the four
+sides the same way, so a mask that overflows to the left or right is seen as well as one that
+overflows above or below; a row wider than half the width sees the vertical overflow only.
+
+Rejected: raising the tolerance or narrowing the window, which would let a real overflow through; and
+changing the mask colour, which would only move the chance of a collision.
+
+How to check that it holds: `pytest -q tests/test_mask_check.py` (no browser). The same cases run
+on the real check and on two checks written in the test with a defect. The check as it was first
+written fails the exact-mask-with-page-pixels case; a check that only looks inside the box fails the
+four overflow cases. Both defects were also introduced one at a time in `mask_group` by hand and the
+cases failed. With a browser, `pytest -q tests/test_scale_integration.py` passes at 1, 1.5 and 2.

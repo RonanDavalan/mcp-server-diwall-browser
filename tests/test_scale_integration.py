@@ -126,20 +126,42 @@ def outline_matches(image: Image.Image, box: Rect) -> bool:
     return all(edge_present(image, MARK_COLOUR[:3], vertical=vertical, lines=lines, span=span) for vertical, lines, span in sides)
 
 
+def mask_group(image: Image.Image, window: tuple[int, int, int, int], seeds: tuple[int, int, int, int]) -> list[tuple[int, int]]:
+    """The pixels of the mask colour inside ``window`` that are joined, side or corner, to ``seeds``."""
+    pixels = image.load()
+    assert pixels is not None
+    left, top, right, bottom = window
+    todo = [
+        (x, y)
+        for y in range(max(top, seeds[1]), min(bottom, seeds[3]))
+        for x in range(max(left, seeds[0]), min(right, seeds[2]))
+        if pixels[x, y] == MASK_COLOUR
+    ]
+    joined = set(todo)
+    while todo:
+        x, y = todo.pop()
+        for near in ((x - 1, y - 1), (x, y - 1), (x + 1, y - 1), (x - 1, y), (x + 1, y), (x - 1, y + 1), (x, y + 1), (x + 1, y + 1)):
+            if left <= near[0] < right and top <= near[1] < bottom and near not in joined and pixels[near[0], near[1]] == MASK_COLOUR:
+                joined.add(near)
+                todo.append(near)
+    return list(joined)
+
+
 def mask_found_apart(image: Image.Image, box: Rect) -> list[str]:
-    """What is wrong with the mask over ``box`` (in image pixels); empty when it covers it and goes no further."""
+    """What is wrong with the mask over ``box`` (in image pixels); empty when it covers it and goes no further.
+
+    The mask is the group of pixels of its colour that is joined to the inside of the box. A pixel of
+    that colour which is not joined to it belongs to the page: the anti-aliasing of dark text gives
+    exactly that colour by chance on some browsers, and counting it reads page text as a mask that goes
+    beyond its field.
+    """
     x0, y0, x1, y1 = box
     inside = (math.ceil(x0), math.ceil(y0), math.floor(x1), math.floor(y1))
     colours = set(image.crop(inside).getdata())
     found = [] if colours == {MASK_COLOUR} else [f"the box is not one colour: {len(colours)} colours"]
     margin = 12
     window = (max(0, math.floor(x0) - margin), max(0, math.floor(y0) - margin), min(image.width, math.ceil(x1) + margin), min(image.height, math.ceil(y1) + margin))
-    region = image.crop(window)
-    dark = [
-        (window[0] + index % region.width, window[1] + index // region.width)
-        for index, pixel in enumerate(region.getdata())
-        if pixel == MASK_COLOUR
-    ]
+    dark = mask_group(image, window, inside)
     if dark:
         left, right = min(p[0] for p in dark), max(p[0] for p in dark) + 1
         top, bottom = min(p[1] for p in dark), max(p[1] for p in dark) + 1
