@@ -696,6 +696,10 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
 # --- no switch turns a check off: no environment read outside its module, no option, no flag ---
 
 ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py"}
+# The command an operator runs by hand, outside the server's process (no module imports it): it has
+# a command line of three options and writes one line of result.
+OPERATOR_COMMAND = "credential_import.py"
+OPERATOR_COMMAND_OPTIONS = frozenset({"--source", "--name", "--origin"})
 _ENVIRONMENT_RE = re.compile(r"\bos\.environ\b|\bgetenv\b|\bputenv\b")
 _COMMAND_LINE_RE = re.compile(r"\bsys\.argv\b|\bargparse\b|\boptparse\b|\bgetopt\b|\bclick\.option\b")
 _FLAG_RE = re.compile(r"(?i)^(testing|test_mode|is_test|under_test|unsafe|insecure|skip_checks?|disable_checks?|no_checks?|bypass\w*)$")
@@ -726,8 +730,10 @@ def switches(package: Path) -> list[str]:
         tree = ast.parse(text)
         if relative not in ENVIRONMENT_MODULES and _ENVIRONMENT_RE.search(text):
             found.append(f"{relative}: environment")
-        if _COMMAND_LINE_RE.search(text):
+        if _COMMAND_LINE_RE.search(text) and relative != OPERATOR_COMMAND:
             found.append(f"{relative}: command line")
+        if relative == OPERATOR_COMMAND:
+            found.extend(f"{relative}: option {literal}" for literal in _string_literals(text) if literal.startswith("--") and literal not in OPERATOR_COMMAND_OPTIONS)
         # The confirmation window's own options (--no-label, --no-markup) are its tool's, not the server's.
         if relative != CONFIRM_MODULE_NAME and any(text_.startswith("--no-") for text_ in _string_literals(text)):
             found.append(f"{relative}: --no- option")
@@ -759,6 +765,23 @@ def test_switch_check_catches_an_environment_option_or_flag(tmp_path: Path, sour
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "server.py").write_text(source)
     assert {entry.split(":")[0] for entry in switches(copy)} == {"server.py"}
+
+
+def test_the_operator_command_has_the_three_options_and_no_other(tmp_path: Path) -> None:
+    assert [entry for entry in switches(PACKAGE_DIR) if entry.startswith(OPERATOR_COMMAND)] == []
+    for planted in ("parser.add_argument('--skip-checksum')\n", "parser.add_argument('--force')\n", "FLAG = '--no-verify'\n"):
+        copy = tmp_path / "pkg"
+        shutil.rmtree(copy, ignore_errors=True)
+        shutil.copytree(PACKAGE_DIR, copy)
+        (copy / OPERATOR_COMMAND).write_text((copy / OPERATOR_COMMAND).read_text() + "\n" + planted)
+        assert any(entry.startswith(OPERATOR_COMMAND) for entry in switches(copy))
+
+
+def test_the_operator_command_is_not_a_way_to_give_the_server_a_command_line(tmp_path: Path) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "server.py").write_text("import argparse\n")
+    assert switches(copy) == ["server.py: command line"]
 
 
 # --- the server never starts a browser: the one process it starts is the confirmation window ---
@@ -1142,7 +1165,11 @@ def standard_output_writes(package: Path) -> list[str]:
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
                 found.append(f"{relative}:{node.lineno}: print")
-        found.extend(f"{relative}: {match.group(0)}" for match in _STDOUT_RE.finditer(path.read_text()) if match.group(0) != "print(")
+        found.extend(
+            f"{relative}: {match.group(0)}"
+            for match in _STDOUT_RE.finditer(path.read_text())
+            if match.group(0) != "print(" and not (relative == OPERATOR_COMMAND and match.group(0) == "sys.stdout")
+        )
     return found
 
 
@@ -1164,6 +1191,20 @@ def test_output_check_catches_a_write_on_standard_output(tmp_path: Path, source:
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "server.py").write_text(source)
     assert [entry.split(":")[0] for entry in standard_output_writes(copy)] != []
+
+
+def test_only_the_operator_command_may_name_standard_output_and_it_may_not_print(tmp_path: Path) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    command = (copy / OPERATOR_COMMAND).read_text()
+    assert standard_output_writes(copy) == []
+    (copy / OPERATOR_COMMAND).write_text(command + "\nprint('x')\n")
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [OPERATOR_COMMAND]
+    (copy / OPERATOR_COMMAND).write_text(command + "\nimport os\nos.write(1, b'x')\n")
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [OPERATOR_COMMAND]
+    (copy / OPERATOR_COMMAND).write_text(command)
+    (copy / "journal.py").write_text("import sys\nsys.stdout.write('x')\n")
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == ["journal.py"]
 
 
 # --- no DevTools method but the allowed ones, page scripts in the client only ---------------------------
