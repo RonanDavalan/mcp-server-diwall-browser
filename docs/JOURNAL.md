@@ -751,6 +751,53 @@ set aside.
   `test_lock_check_catches_a_loose_pin_and_a_lock_that_differs`.
 - Set aside: a lock of the runtime dependencies only.
 
+### The boxes of a snapshot are read in CSS pixels, whatever the screen scale
+
+- Measured before the correction (Chromium 141.0.7390.37, headless, `--force-device-scale-factor`
+  at 1, 1.5 and 2, window 1280 x 800, blank profile, pages served on 127.0.0.1). The box of the
+  password field of the demo page, in CSS pixels as `getBoundingClientRect` and
+  `DOM.getContentQuads` give it, and as the server held it:
+
+  | scale | browser, CSS pixels | server before | `viewport.height` / `content_height` before | image |
+  |---|---|---|---|---|
+  | 1 | (98.7, 153.4, 252.0 x 27.0) | same | 713.0 / 713.0 | 1280 x 713 |
+  | 1.5 | (98.7, 154.1, 252.0 x 27.3) | (148.0, 231.2, 378.0 x 41.0) | 713.33 / 1070.0 | 1600 x 892 |
+  | 2 | (98.7, 154.4, 252.0 x 27.5) | (197.4, 308.9, 504.0 x 55.0) | 713.0 / 1426.0 | 1600 x 891 |
+
+  A long page scrolled by 500 CSS pixels (document height 3092): `content_height` was 3092, 4637 and
+  6184 at the three scales, the marks in view were 25, 17 and 12, and at 1.5 the box of
+  "Link number 9" was (54.0, 475.3, 152.1 x 27.0) where the browser's is (36.0, 316.9, 101.4 x 18.0).
+- Cause, as suspected and now measured: `DOMSnapshot.captureSnapshot` gives `bounds`, `contentWidth`
+  and `contentHeight` in device pixels (the numbers above are the CSS ones times the scale), while
+  `Page.getLayoutMetrics` gives `cssVisualViewport` in CSS pixels and `visualViewport` and
+  `contentSize` in device pixels. The perception read the first as if they were the second: a mask
+  laid with those numbers did not cover its field, and the image was published as masked.
+- Decided: the scale is the ratio of `visualViewport.clientWidth` to `cssVisualViewport.clientWidth`,
+  both already in the answer the perception reads; `Dom` takes it (`device_scale`) and divides the
+  boxes and the content size by it, so that everything the class exposes is in CSS pixels, where
+  the viewport, the image mapping and the clicks already were. Measured with a pinch zoom of 2
+  (`Emulation.setPageScaleFactor`) at a scale of 1.5: the snapshot's boxes do not move, the two
+  viewports become 960 x 535 and 640 x 356.67, and their ratio stays 1.5. A browser that gives
+  neither viewport, or a ratio outside 0.1 to 20, is refused with `SnapshotFormatError`: reading it
+  as a scale of 1 would put a mask in the wrong place without a sign. After the correction the
+  demo page at 1.5 gives (98.7, 154.1, 252.0 x 27.3) for the password field and 713.3 for
+  `content_height`; the long page gives 3091.3, 3092 and 3092 and 25 marks in view at the three scales.
+- Not measured: the page zoom of the browser (Ctrl and +), which the ratio is meant to follow as
+  well, and the reading on the operator's own screen (Opera 136 at 1.5), which was not repeated here.
+- Control: `test_boxes_masks_and_sizes_are_in_css_pixels_at_every_scale` (simulated browser at 1, 1.5
+  and 2), `test_the_marks_and_the_mask_of_the_demo_page_are_where_the_browser_has_the_elements`,
+  `test_the_marks_of_a_scrolled_long_page_are_where_the_browser_has_the_elements`,
+  `test_the_password_field_of_the_demo_page_is_covered_by_its_mask_and_the_mask_goes_no_further` and
+  `test_the_viewport_and_the_content_are_in_css_pixels` (real browser at the three scales, the boxes
+  read apart from the server and the marks and the mask looked for in the published image within
+  two pixels), `test_every_snapshot_read_in_the_perception_is_given_its_factor`. Counter-proofs:
+  `test_scale_check_catches_a_perception_that_ignores_the_factor` and the three
+  `test_audit_catches_*` tests, which run the old reading and fail at 1.5 and 2 only.
+- Set aside: `window.devicePixelRatio` read by a script (one more constant script and one more
+  round trip, and it would not follow a pinch zoom the way the snapshot does); the ratio of
+  `contentSize` to `cssContentSize` (rounded to whole pixels: 1070 / 713 = 1.5007); refusing the
+  image whenever the scale is not 1 (the operator's screen is at 1.5: the tool would be unusable).
+
 ## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
 
 Done:
