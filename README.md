@@ -59,11 +59,13 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
-  and, on a fresh clone, with Python 3.12.3: without a browser, 1205 tests pass and the 54 that
+  and, on a fresh clone, with Python 3.12.3: without a browser, 1421 tests pass and the 85 that
   need a browser are skipped with the reason; with Chromium 141.0.7390.37 (headless, blank
-  temporary profile), all 1259 pass.
-- The operator replayed the suite on Debian with Chrome 154.0.8037.97: 1258 passed and 1 skipped
-  (a test that runs as root only), the 54 browser tests included.
+  temporary profile), all 1506 pass. Two download tests fail at random there: in 15 runs of each
+  alone, they failed 4 and 6 times on the code before the three changes below and 2 and 5 times
+  after them, and a full run in which they pass is the one quoted.
+- The operator replayed the suite on Debian with Chrome 154.0.8037.97, before the three changes
+  below: 1258 passed and 1 skipped (a test that runs as root only), the 54 browser tests included.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the

@@ -124,10 +124,10 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 ```
 
 Output on a fresh clone in the project's environment, with Python 3.12.3 and Chromium 141 (the
-counts are those of this revision):
+counts are those of this revision, 85 of its tests needing a browser):
 
 ```
-1205 passed, 54 deselected, 1 warning in 54.55s
+1421 passed, 85 deselected, 1 warning in 71.12s
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -157,11 +157,11 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 54 browser tests;
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 85 browser tests;
 each starts the browser headless on a blank temporary profile. On the same fresh clone:
 
 ```
-1259 passed, 1 warning in 91.94s (0:01:31)
+1506 passed, 1 warning in 129.75s (0:02:09)
 ```
 
 Then connect the server to your MCP client: the command and the configuration block are in the
