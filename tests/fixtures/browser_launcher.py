@@ -17,6 +17,7 @@ import socket
 import subprocess
 import tempfile
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -70,18 +71,22 @@ class LaunchedBrowser:
         shutil.rmtree(self.profile_dir, ignore_errors=True)
 
 
-def launch_browser(timeout: float = 30.0, *, home: str | None = None) -> LaunchedBrowser | None:
+def launch_browser(
+    timeout: float = 30.0, *, home: str | None = None, arguments: Sequence[str] = ()
+) -> LaunchedBrowser | None:
     """Start a headless browser on a free port and a fresh profile; None if none is installed.
 
     ``home`` replaces the home directory the browser sees, so that what it
     saves by its own defaults (downloads) stays in a temporary directory.
+    ``arguments`` are added to the command line, for a test that needs a
+    screen of another scale or size.
     """
     executable = find_browser()
     if executable is None:
         return None
     port = free_port()
     profile_dir = tempfile.mkdtemp(prefix="diwall-test-profile-")
-    arguments = [
+    command = [
         executable,
         "--headless=new",
         f"--remote-debugging-port={port}",
@@ -92,11 +97,12 @@ def launch_browser(timeout: float = 30.0, *, home: str | None = None) -> Launche
         "--disable-dev-shm-usage",
     ]
     if os.geteuid() == 0:
-        arguments.append("--no-sandbox")
-    arguments.append("about:blank")
+        command.append("--no-sandbox")
+    command.extend(arguments)
+    command.append("about:blank")
     environment = None if home is None else {**os.environ, "HOME": home}
     process = subprocess.Popen(
-        arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=environment
+        command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=environment
     )
     launched = LaunchedBrowser(executable, process, port, profile_dir, {})
     deadline = time.monotonic() + timeout
