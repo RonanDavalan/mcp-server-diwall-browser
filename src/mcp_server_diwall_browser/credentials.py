@@ -84,6 +84,25 @@ class _CredentialFile:
     values: dict[str, str]
 
 
+def valid_name(name: object) -> bool:
+    """Whether ``name`` can label a credential file: the file is ``<name>.json``."""
+    return isinstance(name, str) and _NAME_RE.fullmatch(name) is not None
+
+
+def loads_strict(raw: bytes) -> Any:
+    """Parse a JSON document that repeats no key; ``ValueError`` when it is not one."""
+    return json.loads(raw.decode("utf-8"), object_pairs_hook=_no_duplicates)
+
+
+def validate(basename: str, raw: bytes) -> None:
+    """Refuse, as ``credential_invalid``, the content of a credential file that ``resolve`` would refuse.
+
+    The one schema: a file is checked here before it is written as it is
+    when it is read.
+    """
+    _parse(basename, raw)
+
+
 def resolve(volume: Volume, page_origin: Origin, key: str, name: str | None = None) -> Secret:
     """Return the ``key`` of the single credential bound to ``page_origin``.
 
@@ -97,7 +116,7 @@ def resolve(volume: Volume, page_origin: Origin, key: str, name: str | None = No
         raise TypeError("page_origin must be an Origin")
     if key not in KEYS:
         raise ToolError("credential_invalid", "la clé demandée doit être username ou password")
-    if name is not None and (not isinstance(name, str) or not _NAME_RE.fullmatch(name)):
+    if name is not None and not valid_name(name):
         raise ToolError("credential_invalid", "le nom d'identifiant demandé n'est pas un nom valide")
 
     loaded = [_load(volume, basename) for basename in _candidates(volume, root, name)]
@@ -121,14 +140,16 @@ def resolve(volume: Volume, page_origin: Origin, key: str, name: str | None = No
     return Secret(chosen.values[key], key)
 
 
-def _candidates(volume: Volume, root: Path, name: str | None) -> list[str]:
+def credentials_directory(volume: Volume) -> Path | None:
+    """The directory of the credential files, checked; ``None`` when the operator has not made it yet."""
+    root = volume.require_mounted()
     directory = volume.resolve_inside(CREDENTIALS_DIR)
     if directory != root / CREDENTIALS_DIR:
         _refuse(CREDENTIALS_DIR, "not_regular_file")
     try:
         info = os.lstat(directory)
     except FileNotFoundError:
-        return []
+        return None
     if not stat.S_ISDIR(info.st_mode):
         _refuse(CREDENTIALS_DIR, "not_regular_file")
     if info.st_uid != volume.euid:
@@ -140,6 +161,13 @@ def _candidates(volume: Volume, root: Path, name: str | None) -> list[str]:
             "corriger avec : chmod 700 credentials",
             extra_server={"reason": "bad_mode"},
         )
+    return directory
+
+
+def _candidates(volume: Volume, root: Path, name: str | None) -> list[str]:
+    directory = credentials_directory(volume)
+    if directory is None:
+        return []
     if name is not None:
         filename = f"{name}.json"
         return [filename] if os.path.lexists(os.path.join(directory, filename)) else []
@@ -156,8 +184,12 @@ def _load(volume: Volume, basename: str) -> _CredentialFile:
         content = volume.read_file(CREDENTIALS_DIR, basename, max_bytes=MAX_FILE_BYTES)
     except VolumeFileError as exc:
         _refuse(basename, "not_regular_file" if exc.reason == "missing" else exc.reason)
+    return _parse(basename, content.data)
+
+
+def _parse(basename: str, raw: bytes) -> _CredentialFile:
     try:
-        data = json.loads(content.data.decode("utf-8"), object_pairs_hook=_no_duplicates)
+        data = loads_strict(raw)
     except (UnicodeDecodeError, ValueError):
         _refuse(basename, "not_json")
     if not isinstance(data, dict):
