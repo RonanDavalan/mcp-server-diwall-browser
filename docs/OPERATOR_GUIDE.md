@@ -123,10 +123,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output in the project's environment (the counts are those of this revision):
+Output on a fresh clone in the project's environment, with Python 3.12.3 and Chromium 141 (the
+counts are those of this revision):
 
 ```
-1205 passed, 54 deselected, 1 warning in 49.46s
+1205 passed, 54 deselected, 1 warning in 54.55s
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -137,7 +138,7 @@ browser executable: chromium (Chrome/141.0.7390.37)
 server                        0.0.1, configured: True
 browser                       Chrome/141.0.7390.37, attached: True
 encrypted directory           closed_or_absent (encrypted_dir_undetermined), action expected: operator_opens_directory
-tab origin                    http://127.0.0.1:45899
+tab origin                    http://127.0.0.1:41687
 marks                         4
 image                         yes
 tree lines                    9
@@ -147,15 +148,21 @@ elements                      1 textbox "User name", 2 textbox "Password", 3 but
 result: conforming
 ```
 
-The smoke test looks for `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`
-and `brave-browser` on your `PATH`, in that order. It returns 0 when the result is as expected, 1
-when it differs (the line that differs ends with `<- not as expected`), and 3 when no browser is
-found. The encrypted directory line reads `closed_or_absent` on purpose: the smoke test gives the
+The port in `tab origin` changes at every run: the demo page is served on a free port of
+`127.0.0.1`. The smoke test looks for `google-chrome`, `google-chrome-stable`, `chromium`,
+`chromium-browser` and `brave-browser` on your `PATH`, in that order. Without one, it prints
+`smoke test: no Chromium-family browser found (looked for: google-chrome, google-chrome-stable, chromium, chromium-browser, brave-browser)`
+and returns 3. It returns 0 when the result is as expected, and 1 when it differs (the line that
+differs ends with `<- not as expected`). The encrypted directory line reads `closed_or_absent` on purpose: the smoke test gives the
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
 With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 54 browser tests;
-each starts the browser headless on a blank temporary profile.
+each starts the browser headless on a blank temporary profile. On the same fresh clone:
+
+```
+1259 passed, 1 warning in 91.94s (0:01:31)
+```
 
 Then connect the server to your MCP client: the command and the configuration block are in the
 `README.md`.

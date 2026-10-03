@@ -57,9 +57,10 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 
 Tested:
 
-- The full suite runs in this repository's test environment (Ubuntu 24.04, Python 3.13.14):
-  without a browser, 1205 tests pass and the 54 that need a browser are skipped with the reason;
-  with Chromium 141.0.7390.37 (headless, blank temporary profile), all 1259 pass.
+- The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
+  and, on a fresh clone, with Python 3.12.3: without a browser, 1205 tests pass and the 54 that
+  need a browser are skipped with the reason; with Chromium 141.0.7390.37 (headless, blank
+  temporary profile), all 1259 pass.
 - The operator replayed the suite of the previous revision on Debian with Chrome 154: 1203 passed
   and 1 skipped (a test that runs as root only), the 52 browser tests of that revision included.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
