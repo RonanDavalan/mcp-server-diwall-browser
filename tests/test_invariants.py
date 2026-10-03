@@ -1103,3 +1103,228 @@ def test_label_check_catches_a_label(tmp_path: Path, source: str) -> None:
     shutil.copytree(PACKAGE_DIR, copy)
     (copy / "gate.py").write_text(source)
     assert labels_in_code(copy) != []
+
+
+# --- every registered tool calls the single exit point ---------------------------------------------
+
+
+def test_every_tool_of_the_production_server_goes_through_the_exit_point() -> None:
+    from mcp_server_diwall_browser.server import create_server, production_dependencies
+    from test_server import undecorated
+
+    assert undecorated(create_server(production_dependencies())) == []
+
+
+def test_exit_point_invariant_catches_a_tool_added_without_it() -> None:
+    from mcp_server_diwall_browser.server import create_server, production_dependencies
+    from test_server import undecorated
+
+    server = create_server(production_dependencies())
+
+    def stray() -> str:
+        """A tool written outside the exit point."""
+        return "{}"
+
+    server.add_tool(stray, name="stray")
+    assert undecorated(server) == ["stray"]
+
+
+# --- nothing but the protocol on standard output ------------------------------------------------------
+
+_STDOUT_RE = re.compile(r"\bsys\.(?:stdout|__stdout__)\b|\bos\.write\(\s*1\b|\bprint\(")
+
+
+def standard_output_writes(package: Path) -> list[str]:
+    """Places that would write on standard output, which carries the protocol only."""
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
+                found.append(f"{relative}:{node.lineno}: print")
+        found.extend(f"{relative}: {match.group(0)}" for match in _STDOUT_RE.finditer(path.read_text()) if match.group(0) != "print(")
+    return found
+
+
+def test_nothing_writes_on_standard_output_but_the_protocol() -> None:
+    assert standard_output_writes(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "print('ready')\n",
+        "import sys\nsys.stdout.write('ready')\n",
+        "import os\nos.write(1, b'ready')\n",
+        "import sys\nsys.__stdout__.flush()\n",
+    ],
+)
+def test_output_check_catches_a_write_on_standard_output(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "server.py").write_text(source)
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] != []
+
+
+# --- no DevTools method but the allowed ones, page scripts in the client only ---------------------------
+
+# The domains of the DevTools protocol: a literal "Domain.name" with one of them names a method or an event.
+CDP_DOMAINS = (
+    "Accessibility", "Animation", "Audits", "Autofill", "BackgroundService", "Browser", "CacheStorage", "Cast",
+    "Console", "CSS", "Database", "Debugger", "DeviceAccess", "DeviceOrientation", "DOM", "DOMDebugger",
+    "DOMSnapshot", "DOMStorage", "Emulation", "EventBreakpoints", "Extensions", "FedCm", "Fetch", "FileSystem",
+    "HeadlessExperimental", "HeapProfiler", "IndexedDB", "Input", "Inspector", "IO", "LayerTree", "Log", "Media",
+    "Memory", "Network", "Overlay", "Page", "Performance", "PerformanceTimeline", "Preload", "Profiler", "PWA",
+    "Runtime", "Schema", "Security", "ServiceWorker", "Storage", "SystemInfo", "Target", "Tethering", "Tracing",
+    "WebAudio", "WebAuthn",
+)
+_CDP_NAME_RE = re.compile(rf"^(?:{'|'.join(CDP_DOMAINS)})\.[a-z][A-Za-z]*$")
+# Events the server listens to: names the browser sends, never methods it is asked to run.
+CDP_EVENTS = frozenset(
+    {
+        "Browser.downloadProgress",
+        "Browser.downloadWillBegin",
+        "Inspector.targetCrashed",
+        "Page.frameStartedLoading",
+        "Page.frameStoppedLoading",
+        "Page.javascriptDialogClosed",
+        "Page.javascriptDialogOpening",
+        "Page.loadEventFired",
+        "Target.detachedFromTarget",
+        "Target.targetCrashed",
+        "Target.targetCreated",
+        "Target.targetDestroyed",
+    }
+)
+SCRIPT_METHODS = frozenset({"Runtime.evaluate", "Runtime.callFunctionOn"})
+
+
+def devtools_names_out_of_list(package: Path, allowed: frozenset[str]) -> list[str]:
+    """Method-like literals that are neither an allowed method nor a known event; script methods outside cdp.py."""
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        for text in _string_literals(path.read_text()):
+            if not _CDP_NAME_RE.match(text):
+                continue
+            if text in SCRIPT_METHODS and relative != CDP_MODULE:
+                found.append(f"{relative}: {text}")
+            elif text not in allowed and text not in CDP_EVENTS:
+                found.append(f"{relative}: {text}")
+    return found
+
+
+def test_only_allowed_devtools_methods_appear_and_page_scripts_stay_in_the_client() -> None:
+    from mcp_server_diwall_browser.cdp import ALLOWED_METHODS
+
+    assert devtools_names_out_of_list(PACKAGE_DIR, ALLOWED_METHODS) == []
+
+
+@pytest.mark.parametrize(
+    ("module", "source"),
+    [
+        ("actions.py", "async def cookies(registry, tab):\n    return await registry.read(tab, 'Network.getCookies')\n"),
+        ("perception.py", "METHOD = 'Runtime.evaluate'\n"),
+        ("tools/observe.py", "DOCUMENT = 'DOM.getOuterHTML'\n"),
+    ],
+)
+def test_devtools_check_catches_a_method_out_of_the_list(tmp_path: Path, module: str, source: str) -> None:
+    from mcp_server_diwall_browser.cdp import ALLOWED_METHODS
+
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / module).write_text(source)
+    assert [entry.split(":")[0] for entry in devtools_names_out_of_list(copy, ALLOWED_METHODS)] == [module]
+
+
+# --- the factory takes its dependencies from its caller only --------------------------------------------
+
+ENVIRONMENT_NAMES = frozenset({"HOME", "XDG_CONFIG_HOME", "MCP_DIWALL_BROWSER_PROFILE", "ENV_VAR", "WAYLAND_DISPLAY", "DISPLAY"})
+
+
+def environment_names_read(package: Path) -> set[str]:
+    """Names looked up in the environment by the two modules allowed to read it."""
+    names: set[str] = set()
+    for module in ENVIRONMENT_MODULES:
+        for node in ast.walk(ast.parse((package / module).read_text())):
+            target: ast.expr | None = None
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in ("get", "pop", "setdefault"):
+                owner = node.func.value
+                owner_name = owner.id if isinstance(owner, ast.Name) else owner.attr if isinstance(owner, ast.Attribute) else ""
+                if "env" in owner_name.lower() and node.args:
+                    target = node.args[0]
+            elif isinstance(node, ast.Subscript):
+                owner = node.value
+                owner_name = owner.id if isinstance(owner, ast.Name) else owner.attr if isinstance(owner, ast.Attribute) else ""
+                if "env" in owner_name.lower():
+                    target = node.slice
+            if isinstance(target, ast.Constant) and isinstance(target.value, str):
+                names.add(target.value)
+            elif isinstance(target, ast.Name):
+                names.add(target.id)
+            elif target is not None:
+                names.add("<computed>")
+    return names
+
+
+def test_the_environment_is_read_for_named_variables_only() -> None:
+    import inspect
+
+    from mcp_server_diwall_browser import server
+
+    assert environment_names_read(PACKAGE_DIR) <= ENVIRONMENT_NAMES
+    assert list(inspect.signature(server.create_server).parameters) == ["deps"]
+    assert switches(PACKAGE_DIR) == []
+
+
+def test_environment_name_check_catches_a_variable_that_would_switch_a_check(tmp_path: Path) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    source = (copy / "confirm.py").read_text()
+    (copy / "confirm.py").write_text(source + "\n\ndef skip(environ):\n    return environ.get('DIWALL_SKIP_CONFIRMATION')\n")
+    assert "DIWALL_SKIP_CONFIRMATION" in environment_names_read(copy) - ENVIRONMENT_NAMES
+
+
+# --- no forbidden file is tracked -------------------------------------------------------------------------
+
+_FORBIDDEN_NAMES = {"CLAUDE.md", "AGENTS.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "profile.json"}
+_FORBIDDEN_DIRECTORIES = {".claude", "credentials", "evidence", "downloads", "browser-profile"}
+
+
+def forbidden_files(tracked: list[str]) -> list[str]:
+    found = []
+    for name in tracked:
+        parts = name.split("/")
+        if parts[-1] in _FORBIDDEN_NAMES or parts[-1].endswith(".jsonl") or _FORBIDDEN_DIRECTORIES & set(parts[:-1]):
+            found.append(name)
+    return found
+
+
+def tracked_files() -> list[str]:
+    import subprocess
+
+    listed = subprocess.run(["git", "ls-files"], cwd=PACKAGE_DIR.parent.parent, capture_output=True, text=True, check=True)
+    return listed.stdout.splitlines()
+
+
+def test_no_forbidden_file_is_tracked() -> None:
+    tracked = tracked_files()
+    assert tracked and forbidden_files(tracked) == []
+
+
+def test_forbidden_file_check_catches_each_kind() -> None:
+    planted = [
+        "CLAUDE.md",
+        "docs/AGENTS.md",
+        ".claude/settings.json",
+        "LICENSE",
+        "SECURITY.md",
+        "CHANGELOG.md",
+        "config/profile.json",
+        "journal/operations.jsonl",
+        "vault/credentials/service.json",
+        "vault/evidence/2026-01-02/op/before.png",
+        "vault/downloads/op/invoice.pdf",
+        "vault/browser-profile/chrome/Preferences",
+    ]
+    assert forbidden_files(planted + ["README.md", "tests/fixtures/pages/basic.html"]) == planted
