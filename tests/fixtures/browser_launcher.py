@@ -72,20 +72,30 @@ class LaunchedBrowser:
 
 
 def launch_browser(
-    timeout: float = 30.0, *, home: str | None = None, arguments: Sequence[str] = ()
+    timeout: float = 30.0,
+    *,
+    home: str | None = None,
+    arguments: Sequence[str] = (),
+    preferences: dict[str, Any] | None = None,
 ) -> LaunchedBrowser | None:
     """Start a headless browser on a free port and a fresh profile; None if none is installed.
 
     ``home`` replaces the home directory the browser sees, so that what it
     saves by its own defaults (downloads) stays in a temporary directory.
     ``arguments`` are added to the command line, for a test that needs a
-    screen of another scale or size.
+    screen of another scale or size. ``preferences`` is written as the
+    profile's preferences file before the start: the browser has no
+    protocol method for the page zoom, only the default zoom of its profile.
     """
     executable = find_browser()
     if executable is None:
         return None
     port = free_port()
     profile_dir = tempfile.mkdtemp(prefix="diwall-test-profile-")
+    if preferences is not None:
+        os.mkdir(os.path.join(profile_dir, "Default"))
+        with open(os.path.join(profile_dir, "Default", "Preferences"), "w", encoding="utf-8") as handle:
+            json.dump(preferences, handle)
     command = [
         executable,
         "--headless=new",

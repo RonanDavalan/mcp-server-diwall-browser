@@ -1179,3 +1179,81 @@ on the real check and on two checks written in the test with a defect. The check
 written fails the exact-mask-with-page-pixels case; a check that only looks inside the box fails the
 four overflow cases. Both defects were also introduced one at a time in `mask_group` by hand and the
 cases failed. With a browser, `pytest -q tests/test_scale_integration.py` passes at 1, 1.5 and 2.
+
+### The page zoom: sizes and boxes hold, the image and its masks do not
+
+Measured on Chromium 141.0.7390.37 only (Chrome 154 was not available), on the demo page, at page
+zooms of 100, 125, 150 and 200 % and at screen scales of 1 and 1.5 (eight browsers, each with a blank
+profile).
+
+How the zoom was made: the browser's own description of its protocol (`/json/protocol` on the
+debugging port, read on the loopback interface) has no command or event that mentions a zoom, so a
+page zoom cannot be set through the protocol. A zoom level written in the profile's preferences
+before the start (`partition.default_zoom_level.x`, the power of 1.2 that gives the factor) reaches
+the page: `devicePixelRatio` is zoom times screen scale (1.25, 1.5, 2 at a scale of 1; 1.875, 2.25, 3 at
+1.5), `innerWidth` falls to 1024, 853 and 640, and `Page.getLayoutMetrics` reports `zoom` 1.25, 1.5 and
+2. A per-host zoom entry for `127.0.0.1` had no effect, and the keyboard route (Ctrl +) was not tried;
+whether the browser keeps the two kinds of zoom in the same way is not confirmed. The measuring
+probe opened its own connection and called methods that the server's list does not allow
+(`DOM.querySelector`, `Page.captureScreenshot` without a clip); the list bounds the server, not a
+measurement.
+
+What was read, at every combination:
+
+- `Page.getLayoutMetrics`: `visualViewport.clientWidth` stays in device pixels of the whole window
+  (1280 at a scale of 1, 1920 at 1.5) and `cssVisualViewport.clientWidth` falls with the zoom (1024,
+  853.33, 640 at a scale of 1). Their ratio is exactly `devicePixelRatio`, so `_device_scale` is
+  the screen scale times the zoom.
+- `DOMSnapshot.captureSnapshot` bounds: in device pixels. The left edge of the user-name field is
+  106.7 CSS px; the snapshot gives 133.38, 160.05, 213.39 at a scale of 1 and 200.06, 240.08, 320.09
+  at 1.5 for zooms of 125, 150, 200 %: the ratios are 1.25, 1.5, 2 and 1.875, 2.25, 3. The document
+  size it gives (`contentWidth`, `contentHeight`) is in the same unit.
+- `DOM.getContentQuads` and `getBoundingClientRect` agree to the hundredth, in CSS pixels, at every
+  zoom; the boxes the server rebuilds from the snapshot (`bounds` divided by the ratio) agree with
+  them too, as do `viewport.width`, `height` and `content_height` with what the page says.
+- Clicks: the point taken from the quads reaches the same element by `DOM.getNodeForLocation` and by
+  a real `Input.dispatchMouseEvent`, with the same client coordinates, for three elements at each of
+  the eight combinations (24 of 24). This was outside what was asked and is not guarded by a test.
+
+What does not hold: the image. The server cuts the screenshot with a clip given in CSS pixels
+(`cssVisualViewport`). The browser reads that clip in CSS pixels times the zoom. At 100 % the two
+are the same. At 125, 150 and 200 % the image is 1/zoom of the view, from its top-left corner
+(1024×570 of a 1280×713 view at 125 %), and the page is painted in it at zoom times the screen
+scale, while the server places its masks and marks as if it were painted at the screen scale alone.
+The proof, read from the painted page and not from a box the browser states: with the clip
+multiplied by the reported zoom, the image is the whole view and the top, bottom and right edges of
+the unmasked user-name field are painted within 0.4 pixel of its box times `devicePixelRatio`, at all
+six zoomed combinations; with the server's clip, no border is found within 8 pixels of the box
+at 125 and 200 % (at either scale) and none for the top edge at 150 %.
+
+The gap, measured with the real server (`Perception.observe` on the demo page) as the share of the
+painted password field that is mask colour in the published image:
+
+| zoom | screen scale 1 | screen scale 1.5 |
+|---|---|---|
+| 100 % | 100.0 % | 100.0 % |
+| 125 % | 0.0 % | 0.0 % |
+| 150 % | 0.0 % | 0.0 % |
+| 200 % | 0.0 % | 0.0 % |
+
+At every zoom other than 100 % the field is published uncovered, and `capture` reads `ok`. At 125 %
+and a scale of 1 the field is painted at (123, 191)–(437, 225) of the 1024×570 image and the mask is
+drawn at (98, 153)–(350, 181): they do not touch. The existing scale tests cannot see this, and the audit
+is clean at every zoom: it compares the outlines and masks with the browser's box times the ratio
+of the image to the view, which is the server's own placement, not the painted element.
+
+Not corrected, by decision of the brief: it is the operator's to decide. What the measurement says of
+the way to close it: the clip multiplied by the zoom that `Page.getLayoutMetrics` reports gives an
+image of the whole view with the masks and marks at the right ratio (image width over
+`cssVisualViewport.clientWidth` is then zoom times screen scale). What was not measured: a scrolled
+page at a zoom (the offset of the clip would have to follow the same unit), and `captureBeyondViewport`.
+A server that refused to publish an image when `zoom` is not 1 would also close it, by failing closed.
+
+How to check that it holds: `pytest -q tests/test_zoom_integration.py` (a browser is needed; it skips
+without one). It guards what holds at the eight combinations: the zoom reaches the page; the browser
+paints an element at its box times the pixel ratio; the viewport and the boxes of the demo page and of
+a scrolled long page are in CSS pixels, with a counter-proof that fails when the zoom is left out of the
+reading. It records what does not hold as six expected failures (the mask over the password field at
+the three zooms and two scales), and the two combinations at 100 % pass as the control; the check of the
+mask share is itself tried without a browser on drawn images and on a check that accepts a mask anywhere.
+Remove the expected failure when the image follows the view.
