@@ -366,6 +366,87 @@ The origin is exact: scheme, host and port. With the file above, a page of
 or `{"key": "password", "name": "account"}` when several files are bound to one origin); the
 value is typed by the server and never appears in a result.
 
+### Carrying over a credential file of another format
+
+If your credentials already sit in a file of an older format, do not retype them: that would pass
+every value through your editor, your eyes and the session of the model that tells you what to
+type. The format is one JSON file per site with the keys `origines_autorisees` (host names in
+lowercase, no scheme, no port), `username`, `password`, `totp_cle`, `ntfy_topic` and, optionally,
+`checksum`. The server does not read it: the schema above stays strict, and such a file put in the
+`credentials/` directory is refused (`credential_invalid`). A command that you run yourself, in
+your shell, converts one file inside its own process and shows no value.
+
+The encrypted directory must be open. The command finds the operator profile as the server does:
+the variable `MCP_DIWALL_BROWSER_PROFILE` if it is set in your shell, else the standard place of
+section 5. Adapt the paths and the names to yours:
+
+```
+cd ~/mcp-server-diwall-browser
+.venv/bin/python -m mcp_server_diwall_browser.credential_import \
+  --source ~/Vaults/Main/old-credentials/shop.example.invalid.json \
+  --name shop-admin \
+  --origin https://admin.example.invalid
+```
+
+Its output is one line, replayed here on the test files of the project in a simulated volume (it
+was not run on a real gocryptfs volume):
+
+```
+{"written": "shop-admin.json", "origins": ["https://admin.example.invalid"], "carried": ["username", "password"], "not_carried": 2, "origins_differ_from_source": true, "origins_assumed_https": false}
+```
+
+The exit code is 0. A refusal prints one line on the error output and exits with 1, and a name
+that is taken is refused by its base name:
+
+```
+error: target_exists shop-admin.json
+```
+
+The options, and nothing else (no argument, environment variable or standard input carries a
+secret):
+
+- `--source`: the absolute path of the old file, which must lie under the directory where you
+  opened the encrypted directory. Required.
+- `--name`: the label of the new file, which becomes `<name>.json` under the rule for names above.
+  Required.
+- `--origin`: a full origin, `https://host` or `http://host`, with a port if it is not the default
+  one and no path. It may be given several times. Without it, each host of the old file becomes
+  `https://<host>`: the old format has no scheme, so https is an assumption, and the output says so
+  (`origins_assumed_https`). `origins_differ_from_source` says whether the origins written differ
+  from the old file's.
+
+In this order, and a refusal at any step creates no file:
+
+1. The encrypted directory is mounted, as the server checks it.
+2. The source is a regular file of yours under the encrypted directory, on its device, with no
+   right for group or others (`chmod 600`), reached through no link, and at most 64 KiB.
+3. If it has a `checksum`, the sum is recomputed and must be the same.
+4. The origins are fixed, and normalised as the server does.
+5. Only `username` and `password` are carried, at least one of the two. `totp_cle`, `ntfy_topic`,
+   `checksum` and any other key are not: this project has no second factor, and a seed kept next to
+   the password takes away its reason to exist. The output counts the keys left behind
+   (`not_carried`) and never names them.
+6. The new file is checked by the schema the server reads, then written in mode 600 as a hidden
+   file of the same directory and given its name by a hard link, so that a file that exists is never
+   replaced and no half file stays. The `credentials/` directory must already exist in mode 700.
+
+What it does not do: it keeps no second factor, it overwrites nothing, it reads nothing outside the
+encrypted directory, it follows no link, it deletes nothing (the old file stays where it is; removing
+it is yours), it runs no `gocryptfs` command, and it opens no connection.
+
+The refusals, one line each: `source_invalid` (not absolute, missing, not a regular file of yours,
+reached through a link, too large, not a JSON object, repeating a key, a user name or password that is
+not a text), `source_not_in_volume` (outside the encrypted directory or off its device, including a
+link that leads out), `source_mode` (rights for group or others: run `chmod 600` on it),
+`checksum_mismatch`, `target_exists <file>`, `name_invalid`, `origin_invalid` (an origin you gave, or
+host names of the old file that are not plain host names, when you gave none), `nothing_to_carry`,
+and `invalid_arguments`. The usual codes of the server also appear: `not_configured` and
+`profile_invalid` (section 5), `encrypted_dir_closed`, `encrypted_dir_undetermined` and
+`mount_not_gocryptfs` (section 4), `credential_invalid` (the `credentials/` directory is missing or
+not private) and `volume_path_refused` (a link in the way of the new file).
+
+To leave no secret in the shell history, never read the source file with `cat`, `jq` or `grep`.
+
 ## 7. What the model sees and what the server keeps
 
 | What leaves | Through what | Who decides |
@@ -384,6 +465,31 @@ value is typed by the server and never appears in a result.
 What the model's provider keeps of what it receives is not confirmed by this project. A frame of
 another origin embedded in a page of the allowed origins is transmitted with that page: the server
 masks frames in the image, but it cannot filter what a model receives from elsewhere.
+
+### Marks and masks at any screen scale
+
+The boxes of the marks and of the masks, `viewport.height` and `viewport.content_height` are in CSS
+pixels and sit on the element whatever the scale factor of the screen. This was checked against a
+browser started at a scale of 1, 1.5 and 2, on the demo page of the smoke test: the box of the
+password field, as the browser itself gives it by `DOM.getContentQuads`, and as the server held it
+before and after the correction of the scale (Chromium 141, window 1280 x 800, CSS pixels):
+
+| scale | the browser's box | the server's box before | the server's box now | `content_height` before, now |
+|---|---|---|---|---|
+| 1 | 98.7, 153.4, 252.0 x 27.0 | the same | the same | 713.0, 713.0 |
+| 1.5 | 98.7, 154.1, 252.0 x 27.3 | 148.0, 231.2, 378.0 x 41.0 | 98.7, 154.1, 252.0 x 27.3 | 1070.0, 713.3 |
+| 2 | 98.7, 154.4, 252.0 x 27.5 | 197.4, 308.9, 504.0 x 55.0 | 98.7, 154.4, 252.0 x 27.5 | 1426.0, 713.0 |
+
+Before the correction, at a scale above 1, a mask did not cover its field. Now, at each of the three
+scales, every pixel of the password field is under its mask in the published image and the mask goes
+no further than two pixels beyond it, and every mark in view is drawn within two pixels of its
+element. To replay it with a browser on your `PATH`:
+
+```
+.venv/bin/python -m pytest -q tests/test_scale_integration.py
+```
+
+A browser zoom (Ctrl and +) was not measured, and neither was your own screen.
 
 ## 8. What the server never does
 
@@ -633,8 +739,18 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - Visibility is approximate: the server does not compute contrast or `overflow` clipping, so text
   you cannot read can still reach the model.
 - An observation holds at most 150 marks and 400 tree lines (`marks_truncated`,
-  `tree_truncated`). On a long page, an element that comes late in the page, such as the buttons of
-  a cookie banner, can get no mark in that observation; answer the banner yourself.
+  `tree_truncated`). When a page has more, the server keeps first what belongs to a layer above the
+  page, with all it holds: a dialog, a modal node, or a node fixed or sticky that paints over
+  content in view, such as a cookie banner or a sticky header once the page has scrolled under it.
+  In the tree, the lines of those layers come first under `overlay "layer above the page"`. Then it
+  keeps what is in view and not covered, then what is in view and covered, then the rest in document
+  order. An element in view under a layer carries `covered: true`: the layer takes the click, so a
+  click on it is refused (`element_obscured`). The marks kept are numbered from 1 in document
+  order. A page under the caps is read as before, with neither `covered` nor the overlay line.
+  What is not decided by this: a banner that overlaps nothing in view is not a layer, so it can be
+  cut like any element when the view holds more than the cap; a layer covers by its box, not by the
+  pixels it paints, so an element under a transparent part of the box is flagged covered; and at
+  most 100 fixed or sticky nodes of a page are examined.
 - The text inside frames is never read; frames are masked in the image.
 - Fields the server deems sensitive are masked in the image and their values withheld; a field it
   does not recognise as sensitive is shown.
@@ -651,6 +767,11 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - `intent` is kept to 500 characters.
 - The version announced when a session opens is the MCP SDK's; `status` gives the server's.
 - What the model's provider keeps of what it receives is not confirmed by this project.
+- The command that carries a credential file over was tested on files of the test suite in a
+  simulated volume; its publication of the new file by a hard link was not tried on a real gocryptfs
+  volume (if the file system cannot link, it takes the name first and fills it).
+- The scale of the screen was measured on a headless Chromium 141 at 1, 1.5 and 2, not on a screen
+  of the operator's, and a browser zoom was not measured.
 - Not tested: a real `kdialog` or `zenity` window answered by a person, the operator's own
   gocryptfs volume, Brave, Chrome 154 with its profile kept in the encrypted directory, and the
   confirmation asked through a desktop MCP client. Opera 136 with its profile in a throw-away

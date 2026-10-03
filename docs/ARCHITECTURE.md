@@ -46,12 +46,13 @@ refusals that do not depend on the model's judgement.
 | `output` | the single exit point: redaction, envelope, `server` and `page_content` kept apart |
 | `sensitive_field` | the predicate that says a field is sensitive |
 | `mount` | whether the encrypted directory is mounted as expected, and every path inside it |
-| `credentials` | reading credential files and resolving one for an exact origin |
+| `credentials` | reading credential files, resolving one for an exact origin, and the schema other code may ask |
+| `credential_import` | an operator command, outside the server: converts an old credential file to the schema, showing no value |
 | `journal` | the audit journal, one JSON line per call |
 | `operator_profile` | reading the operator profile; with `confirm`, the only module that reads the environment |
 | `cdp` | the DevTools client, its list of allowed methods and its constant scripts |
 | `browser` | attachment checks, tabs the server owns, navigation, dialogs |
-| `perception` | snapshot, marks, tree, image, masks, waiting for a text or an element |
+| `perception` | snapshot, marks, tree, image, masks, what is kept under the caps, waiting for a text or an element |
 | `gate` | the locked categories, their detection, the ceilings |
 | `confirm` | the confirmation: text of the window, native window or client's request |
 | `actions` | click, fill, select an option, keys, scroll, dialogs, through one pipeline |
@@ -96,7 +97,19 @@ refused (`element_stale`) and the model observes again.
 Drawn inside the page, an overlay can be moved, hidden or read by the page's own scripts. Drawn on
 the captured pixels, a mask covers what the server measured, and a value under it cannot be
 recovered from the image; if one mask cannot be drawn, no image is published. The marks match the
-boxes of the snapshot the server checks against when the model acts.
+boxes of the snapshot the server checks against when the model acts. Every box is in CSS pixels:
+the snapshot's device pixels are divided by the ratio of the browser's two viewports, so a mask
+sits on its field at any screen scale; with no such ratio the page is refused, not read at scale 1.
+
+## Why a layer above the page is kept first
+
+An observation holds at most 150 marks and 400 tree lines. A consent banner fixed over the view
+comes late in the document: in document order it was cut, and the elements under it were offered
+as if a click could reach them. Under the caps the server keeps, in order: what belongs to a layer
+above the page (a dialog, a modal node, a fixed or sticky node painting over content in view); what
+is in view and clear; what is in view under a layer (`covered`); the rest. The layer's tree lines
+come first under an overlay line. Layers are told from the snapshot alone, by paint order and
+pointer events, with no call per element; a fixed container around the whole page is not one.
 
 ## Why the confirmation is a native window
 
@@ -122,6 +135,17 @@ that the client never answers it by itself.
   reaches servers over the network only.
 - Subdomain wildcards in the allowed origins: one wildcard covers hosts the operator never saw.
   Would reopen it: a site spread over more subdomains than a profile can list (200 origins).
+- Raising the caps: they keep what the model receives bounded. Would reopen it: a page whose only
+  layer is cut under the present ranking.
+- A search by text in `observe`: the tools are fourteen with fixed parameters. Would reopen it: a
+  layer the ranking cannot recognise on a page the operator needs.
+- The old credential format read by the server: its schema is strict so that a file is never read
+  as something it is not. Would reopen it: a format the operator cannot convert once.
+- A tool that converts credentials: the model would be handed the path of a file of secrets, and its
+  answers go to its provider; the command runs in the operator's shell. Would reopen it: an
+  operator with no shell, and a way to keep the values out of the model's session there.
+- A second path of resolution, for the old format: two rules binding a credential to an origin are
+  two places to fix. Would reopen it: nothing; `resolve` stays the only reader of the one schema.
 - A browser context of the server's own, so that the download refusal stays in the server's tabs:
   its tabs would not share the operator's authenticated session, which is the reason for the
   project. So while the server is attached, the operator's own downloads are refused too. Would

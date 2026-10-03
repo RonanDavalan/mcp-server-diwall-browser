@@ -65,6 +65,17 @@ Tested:
 - The operator replayed the suite on Debian with Chrome 154.0.8037.97: 1258 passed and 1 skipped
   (a test that runs as root only), the 54 browser tests included.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
+- The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
+  every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
+  password field of the demo page is under its mask, and the mask goes no further than two pixels
+  beyond it (`tests/test_scale_integration.py`). Before the correction of this, a mask did not
+  cover its field at a scale above 1. A browser zoom and a real screen at 1.5 were not measured.
+- A dense page with a consent banner fixed over its lower part (643 things to click): its three
+  buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
+  on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
+- The command that carries an old credential file over (see the operator guide): on files of the
+  test suite in a simulated volume, with a refusal tested for each way out, and no value in
+  anything it prints. It was not tried on a real gocryptfs volume.
 - A real gocryptfs 2.5.1 volume, a throw-away one made for the check (not the operator's own),
   mounted on Debian: `status` read `mounted` and `profile_encrypted: true`, and the server wrote
   its journal and created `downloads/` in it. Opera 136 (Chromium 152), started with its profile
@@ -99,8 +110,11 @@ Known limits:
 - Visibility is approximate: the server does not compute contrast or `overflow` clipping, so text a
   human cannot read can still reach the model.
 - An observation holds at most 150 marks and 400 tree lines (`marks_truncated`, `tree_truncated`).
-  On a long page, an element that comes late in the page, such as the buttons of a cookie banner,
-  can get no mark in that observation, and the operator answers the banner.
+  Past that, the server keeps first what is in a layer above the page (a dialog, a modal node, a
+  fixed or sticky node painting over content in view, such as a cookie banner), listed under an
+  `overlay` line in the tree, then what is in view and clear, then what is in view under a layer
+  (`covered: true`, and a click on it is refused), then the rest. A banner that overlaps nothing in
+  view is not a layer and can still be cut.
 - The content of frames is never read; frames are masked in the image.
 - What the model provider keeps of what it receives is not confirmed by this project.
 
