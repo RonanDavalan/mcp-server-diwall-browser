@@ -115,6 +115,9 @@ class Page:
     body: list[El]
     viewport: BoxT = (0, 0, 800, 600)
     content_size: tuple[float, float] = (800, 600)
+    # Device pixels per CSS pixel. The boxes above are in CSS pixels; like a
+    # browser, the snapshot and the image answer in device pixels.
+    device_scale: float = 1.0
     background: tuple[int, int, int] = WHITE
     # Highest identity ever given: a browser never gives a removed node's
     # identity to a new one.
@@ -235,8 +238,8 @@ class Page:
             "textBoxes": {"layoutIndex": [], "bounds": [], "start": [], "length": []},
             "scrollOffsetX": self.viewport[0],
             "scrollOffsetY": self.viewport[1],
-            "contentWidth": self.content_size[0],
-            "contentHeight": self.content_size[1],
+            "contentWidth": self.content_size[0] * self.device_scale,
+            "contentHeight": self.content_size[1] * self.device_scale,
         }
         documents.append(document)
         paint = itertools.count(1)
@@ -265,7 +268,7 @@ class Page:
             nodes["attributes"].append(flat)
             if box is not None:
                 layout["nodeIndex"].append(i)
-                layout["bounds"].append(list(box))
+                layout["bounds"].append([value * self.device_scale for value in box])
                 styles = [s(v) for v in style] if style is not None else []
                 layout["styles"].append(styles)
                 layout["text"].append(-1)
@@ -373,12 +376,21 @@ class Page:
         x, y, width, height = self.viewport
         viewport = {"offsetX": 0, "offsetY": 0, "pageX": x, "pageY": y, "clientWidth": width, "clientHeight": height, "scale": 1, "zoom": 1}
         size = {"x": 0, "y": 0, "width": self.content_size[0], "height": self.content_size[1]}
-        return {"cssVisualViewport": viewport, "visualViewport": viewport, "cssContentSize": size, "contentSize": size}
+        scale = self.device_scale
+        device_viewport = {**viewport, "clientWidth": width * scale, "clientHeight": height * scale}
+        device_size = {**size, "width": self.content_size[0] * scale, "height": self.content_size[1] * scale}
+        return {
+            "cssVisualViewport": viewport,
+            "visualViewport": device_viewport,
+            "cssContentSize": size,
+            "contentSize": device_size,
+        }
 
     def screenshot(self, clip: dict[str, Any] | None = None) -> dict[str, Any]:
         x0, y0, width, height = self.viewport
         if clip is not None:
             x0, y0, width, height = clip["x"], clip["y"], clip["width"], clip["height"]
+        # Drawn in CSS pixels, then enlarged: the image has one pixel per device pixel.
         image = Image.new("RGB", (int(width), int(height)), self.background)
         pen = ImageDraw.Draw(image)
         font = ImageFont.load_default(size=12)
@@ -407,6 +419,10 @@ class Page:
 
         for element in self.body:
             draw(element, x0, y0)
+        if self.device_scale != 1.0:
+            image = image.resize(
+                (round(image.width * self.device_scale), round(image.height * self.device_scale)), Image.Resampling.NEAREST
+            )
         output = io.BytesIO()
         image.save(output, format="PNG")
         return {"data": base64.b64encode(output.getvalue()).decode("ascii")}

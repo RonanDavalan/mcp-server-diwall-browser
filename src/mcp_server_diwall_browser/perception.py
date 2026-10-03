@@ -67,6 +67,9 @@ SNAPSHOTS_KEPT = 3
 POLL_INTERVAL_S = 0.3
 DEFAULT_WAIT_S = 10.0
 MAX_WAIT_S = 60.0
+# Device pixels per CSS pixel: a screen scale factor, a page zoom, or both. Outside this range the
+# two viewports the browser reports do not describe the same page.
+DEVICE_SCALE_RANGE = (0.1, 20.0)
 COMPUTED_STYLES = ("display", "visibility", "opacity", "font-size")
 SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES), "includeDOMRects": True, "includePaintOrder": True}
 LIGHT_SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES)}
@@ -221,17 +224,25 @@ class SnapshotFormatError(ValueError):
 
 
 class Dom:
-    """The main document of a DOMSnapshot.captureSnapshot answer; other documents are dropped."""
+    """The main document of a DOMSnapshot.captureSnapshot answer; other documents are dropped.
 
-    def __init__(self, raw: dict[str, Any]) -> None:
+    The browser gives boxes and sizes in device pixels; every box and size
+    this class exposes is in CSS pixels, the unit of the viewport and of the
+    clicks. ``device_scale`` is the number of device pixels in a CSS pixel:
+    leave it at 1 only for a snapshot taken at a scale of 1.
+    """
+
+    def __init__(self, raw: dict[str, Any], device_scale: float = 1.0) -> None:
+        if not math.isfinite(device_scale) or not DEVICE_SCALE_RANGE[0] <= device_scale <= DEVICE_SCALE_RANGE[1]:
+            raise SnapshotFormatError("device_scale")
         try:
             strings = raw["strings"]
             document = raw["documents"][0]
             nodes = document["nodes"]
             layout = document["layout"]
-            self.content_width = float(document.get("contentWidth", 0))
-            self.content_height = float(document.get("contentHeight", 0))
-            self.nodes = self._read_nodes(strings, nodes, layout)
+            self.content_width = float(document.get("contentWidth", 0)) / device_scale
+            self.content_height = float(document.get("contentHeight", 0)) / device_scale
+            self.nodes = self._read_nodes(strings, nodes, layout, device_scale)
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise SnapshotFormatError(type(exc).__name__) from None
         self.by_backend = {node.backend_id: node for node in self.nodes}
@@ -239,7 +250,7 @@ class Dom:
         self._children: dict[int, list[int]] | None = None
 
     @staticmethod
-    def _read_nodes(strings: list[str], nodes: dict[str, Any], layout: dict[str, Any]) -> list[DomNode]:
+    def _read_nodes(strings: list[str], nodes: dict[str, Any], layout: dict[str, Any], device_scale: float) -> list[DomNode]:
         def text(index: int) -> str:
             return strings[index] if isinstance(index, int) and index >= 0 else ""
 
@@ -255,7 +266,7 @@ class Dom:
         boxes: dict[int, Box] = {}
         styles: dict[int, dict[str, str]] = {}
         for position, node_index in enumerate(layout["nodeIndex"]):
-            x, y, width, height = (float(v) for v in layout["bounds"][position])
+            x, y, width, height = (float(v) / device_scale for v in layout["bounds"][position])
             boxes[node_index] = Box(x, y, width, height)
             values = layout["styles"][position]
             styles[node_index] = {name: text(v) for name, v in zip(COMPUTED_STYLES, values, strict=False)}
@@ -1101,14 +1112,16 @@ class Perception:
                 png = base64.b64decode(shot.get("data", ""), validate=True)
             except (binascii.Error, ValueError, TypeError):
                 png = None
-        dom = Dom(raw)
+        dom = Dom(raw, _device_scale(metrics))
         masks_stable = True
         if png is not None:
             # The image is taken after the snapshot: if a sensitive field or a
             # frame moved meanwhile, its mask would miss it. Read the boxes
             # again and keep the image only if they did not move.
             metrics_after = await self._registry.read(tab, "Page.getLayoutMetrics")
-            dom_after = Dom(await self._registry.read(tab, "DOMSnapshot.captureSnapshot", LIGHT_SNAPSHOT_PARAMS))
+            dom_after = Dom(
+                await self._registry.read(tab, "DOMSnapshot.captureSnapshot", LIGHT_SNAPSHOT_PARAMS), _device_scale(metrics_after)
+            )
             masks_stable = _viewport(metrics_after) == viewport and mask_boxes(
                 dom, viewport, field_verdicts(dom)
             ) == mask_boxes(dom_after, viewport, field_verdicts(dom_after))
@@ -1223,6 +1236,26 @@ def _viewport(metrics: dict[str, Any]) -> Box:
     if not box.finite() or box.width <= 0 or box.height <= 0:
         raise SnapshotFormatError("viewport")
     return box
+
+
+def _device_scale(metrics: dict[str, Any]) -> float:
+    """Device pixels per CSS pixel, from the two descriptions of the visual viewport.
+
+    The snapshot is in device pixels and the viewport in CSS pixels, so
+    neither says the factor alone; the browser gives the viewport in both
+    units and their ratio is the factor. A pinch zoom divides both by the
+    same number: the ratio does not move. A page that cannot be put in one
+    unit is refused, not read as if the factor were 1: a mask in the wrong
+    place would publish the field it was meant to hide.
+    """
+    try:
+        device = float(metrics["visualViewport"]["clientWidth"])
+        css = float(metrics["cssVisualViewport"]["clientWidth"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SnapshotFormatError(type(exc).__name__) from None
+    if not (math.isfinite(device) and math.isfinite(css)) or device <= 0 or css <= 0:
+        raise SnapshotFormatError("device_scale")
+    return device / css
 
 
 def _walk_names(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> list[tuple[str, str]]:
