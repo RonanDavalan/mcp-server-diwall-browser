@@ -265,6 +265,29 @@ class Volume:
         mount_point = self._checker.realpath_fn(self._secrets_dir)
         return Path(self._checker.realpath_fn(os.path.join(mount_point, PROJECT_DIR_NAME)))
 
+    def holds(self, path: str | os.PathLike[str]) -> bool:
+        """Whether ``path`` lies in the mounted volume, on its device; False when it is not mounted.
+
+        An answer about a path the operator declared, such as the browser's
+        dedicated profile: it says where the path leads now, not what the
+        browser does with it.
+        """
+        try:
+            self.require_mounted()
+        except ToolError:
+            return False
+        mount_point = Path(self._checker.realpath_fn(self._secrets_dir))
+        real = Path(self._checker.realpath_fn(os.fspath(path)))
+        if real != mount_point and mount_point not in real.parents:
+            return False
+        existing = real
+        while not os.path.lexists(existing) and existing != mount_point:
+            existing = existing.parent
+        try:
+            return self._checker.stat_fn(os.fspath(existing)).st_dev == self._checker.stat_fn(os.fspath(mount_point)).st_dev
+        except OSError:
+            return False
+
     def resolve_inside(self, *parts: str) -> Path:
         """Real path of ``parts`` under the project root, refused if it leaves the volume."""
         root = self.require_mounted()

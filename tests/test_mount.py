@@ -470,3 +470,51 @@ def test_a_volume_of_the_wrong_kind_keeps_its_own_code(tmp_path: Path) -> None:
     with pytest.raises(ToolError) as caught:
         Volume(fake.checker, paths.mount_point).require_mounted()
     assert caught.value.code == "mount_not_gocryptfs"
+
+
+# --- whether a declared path lies in the mounted volume ----------------------------------------
+
+Holds = Callable[[Volume, str], bool]
+
+
+def holds_checks(holds: Holds, tmp_path: Path) -> list[str]:
+    """The cases a membership answer must get right; empty when all are right."""
+    paths, fake, volume = mounted_volume(tmp_path)
+    wrong = []
+    inside = paths.project / "browser-profile" / "chromium"
+    if not holds(volume, str(inside)):
+        wrong.append("inside, not yet created")
+    sibling = tmp_path / (paths.mount_point.name + "-copy") / "browser-profile"
+    sibling.mkdir(parents=True)
+    if holds(volume, str(sibling)):
+        wrong.append("sibling directory whose name starts like the mount point")
+    link = paths.project / "link-out"
+    link.symlink_to(sibling)
+    if holds(volume, str(link)):
+        wrong.append("link inside the volume that leads out of it")
+    other_device = paths.project / "other-device"
+    other_device.mkdir(mode=0o700)
+    fake.stat_fn.overrides[os.path.realpath(other_device)] = OTHER_DEV
+    if holds(volume, str(other_device)):
+        wrong.append("directory of the volume on another device")
+    fake.rewrite(ROOT_LINE + "\n")
+    if holds(volume, str(inside)):
+        wrong.append("volume closed")
+    return wrong
+
+
+def prefix_holds(volume: Volume, path: str) -> bool:
+    # Defective: compares the texts of the paths, with neither links nor separators considered.
+    return path.startswith(str(volume._secrets_dir))
+
+
+def test_a_path_lies_in_the_volume_only_when_it_really_does(tmp_path: Path) -> None:
+    assert holds_checks(lambda volume, path: volume.holds(path), tmp_path) == []
+
+
+def test_membership_check_catches_a_comparison_of_path_texts(tmp_path: Path) -> None:
+    assert set(holds_checks(prefix_holds, tmp_path)) >= {
+        "sibling directory whose name starts like the mount point",
+        "link inside the volume that leads out of it",
+        "volume closed",
+    }
