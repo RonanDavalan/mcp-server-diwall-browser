@@ -37,6 +37,10 @@ class El:
     display: str = "block"
     visibility: str = "visible"
     opacity: str = "1"
+    # Computed styles read for the layers above the page: fixed and sticky nodes paint after
+    # the flow, whatever their place in the document; none lets the pointer through.
+    position: str = "static"
+    pointer_events: str = "auto"
     role: str | None = None
     name: str = ""
     in_ax: bool = True
@@ -96,6 +100,12 @@ def field_input(
 def div(*children: El, box: BoxT | None = (0, 0, 400, 100), **kw: Any) -> El:
     kw.setdefault("role", None)
     return El("DIV", children=list(children), box=box, **kw)
+
+
+def layer(*children: El, box: BoxT, position: str = "fixed", **kw: Any) -> El:
+    """A node taken out of the flow, painted over it: a banner, a dialog, a sticky header."""
+    kw.setdefault("paint", WHITE)
+    return El("DIV", children=list(children), box=box, position=position, **kw)
 
 
 def hidden(element: El) -> El:
@@ -243,6 +253,7 @@ class Page:
         }
         documents.append(document)
         paint = itertools.count(1)
+        paint_keys: list[tuple[int, int]] = []
         styles_of: dict[int, list[int]] = {}
 
         def add(
@@ -254,7 +265,8 @@ class Page:
             value: str = "",
             attrs: dict[str, str] | None = None,
             box: BoxT | None = None,
-            style: tuple[str, str, str, str] | None = None,
+            style: tuple[str, ...] | None = None,
+            above: bool = False,
         ) -> int:
             i = len(nodes["backendNodeId"])
             nodes["parentIndex"].append(parent)
@@ -272,7 +284,9 @@ class Page:
                 styles = [s(v) for v in style] if style is not None else []
                 layout["styles"].append(styles)
                 layout["text"].append(-1)
-                layout["paintOrders"].append(next(paint))
+                layout["paintOrders"].append(0)
+                # What is positioned paints after the flow, in document order within each group.
+                paint_keys.append((1 if above else 0, next(paint)))
                 styles_of[i] = styles
             return i
 
@@ -284,12 +298,13 @@ class Page:
         add(title, 3, "#text", document_backend + 4, value=self.title)
         body = add(html, 1, "BODY", document_backend + 5, box=whole, style=("block", "visible", "1", "16px"))
 
-        def element_node(element: El, parent: int, parent_style: tuple[str, str, str, str]) -> None:
+        def element_node(element: El, parent: int, parent_style: tuple[str, ...], above: bool = False) -> None:
+            above = above or element.position in ("fixed", "sticky")
             if element.tag == "#text":
-                add(parent, 3, "#text", element.backend_id, value=element.text, box=element.box, style=parent_style if element.box else None)
+                add(parent, 3, "#text", element.backend_id, value=element.text, box=element.box, style=parent_style if element.box else None, above=above)
                 return
-            style = (element.display, element.visibility, element.opacity, "16px")
-            i = add(parent, 1, element.tag, element.backend_id, attrs=element.attrs, box=element.box, style=style if element.box else None)
+            style = (element.display, element.visibility, element.opacity, "16px", element.position, element.pointer_events)
+            i = add(parent, 1, element.tag, element.backend_id, attrs=element.attrs, box=element.box, style=style if element.box else None, above=above)
             if element.input_value is not None:
                 nodes["inputValue"]["index"].append(i)
                 nodes["inputValue"]["value"].append(s(element.input_value))
@@ -303,10 +318,13 @@ class Page:
                 nodes["contentDocumentIndex"]["index"].append(i)
                 nodes["contentDocumentIndex"]["value"].append(inner)
             for child in element.children:
-                element_node(child, i, style)
+                element_node(child, i, style, above)
 
         for element in self.body:
-            element_node(element, body, ("block", "visible", "1", "16px"))
+            element_node(element, body, ("block", "visible", "1", "16px", "static", "auto"))
+        order = sorted(range(len(paint_keys)), key=lambda k: paint_keys[k])
+        for rank, k in enumerate(order, start=1):
+            layout["paintOrders"][k] = rank
         return position
 
     # --- Accessibility.getFullAXTree ----------------------------------------------

@@ -70,9 +70,17 @@ MAX_WAIT_S = 60.0
 # Device pixels per CSS pixel: a screen scale factor, a page zoom, or both. Outside this range the
 # two viewports the browser reports do not describe the same page.
 DEVICE_SCALE_RANGE = (0.1, 20.0)
-COMPUTED_STYLES = ("display", "visibility", "opacity", "font-size")
+COMPUTED_STYLES = ("display", "visibility", "opacity", "font-size", "position", "pointer-events")
 SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES), "includeDOMRects": True, "includePaintOrder": True}
 LIGHT_SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES)}
+
+# What stands above the page: these roles, a modal node, or a node taken out of the flow that
+# paints over other content.
+LAYER_ROLES = frozenset({"dialog", "alertdialog"})
+LAYER_POSITIONS = frozenset({"fixed", "sticky"})
+# Positioned nodes examined for being a layer; a page with more is read as if the rest were not.
+MAX_LAYER_CANDIDATES = 100
+OVERLAY_LINE = 'overlay "layer above the page"'
 
 FIELD_TAGS = frozenset({"input", "textarea", "select"})
 FRAME_TAGS = frozenset({"iframe", "frame"})
@@ -84,6 +92,8 @@ HIDING_REASONS = frozenset({"ariaHiddenElement", "inertElement", "notRendered", 
 # Roles that carry no text of their own: without a name they produce no line.
 STRUCTURAL_ROLES = frozenset({"generic", "none", "LabelText", "LineBreak", "paragraph"})
 TEXT_ROLE = "StaticText"
+# What a layer can be said to cover: things to act on or to read, not the containers around them.
+CONTENT_ROLES = MARKABLE_ROLES | {TEXT_ROLE, "heading", "image", "img"}
 NO_DOM_ROLES = frozenset({"InlineTextBox"})
 
 MASK_COLOUR = (40, 40, 40)
@@ -127,6 +137,17 @@ class Box:
 
     def intersects(self, other: Box) -> bool:
         return self.x < other.right and other.x < self.right and self.y < other.bottom and other.y < self.bottom
+
+    def contains_point(self, x: float, y: float) -> bool:
+        return self.x <= x < self.right and self.y <= y < self.bottom
+
+    def contains(self, other: Box, slack: float = 0.5) -> bool:
+        return (
+            self.x - slack <= other.x
+            and self.y - slack <= other.y
+            and other.right <= self.right + slack
+            and other.bottom <= self.bottom + slack
+        )
 
 
 @dataclass(frozen=True)
@@ -217,6 +238,8 @@ class DomNode:
     clickable: bool
     box: Box | None
     styles: dict[str, str]
+    # Position in the order the browser paints, later painting over earlier; None when not asked.
+    paint_order: int | None = None
 
 
 class SnapshotFormatError(ValueError):
@@ -265,7 +288,11 @@ class Dom:
         input_values, text_values, clickable = rare("inputValue"), rare("textValue"), rare("isClickable")
         boxes: dict[int, Box] = {}
         styles: dict[int, dict[str, str]] = {}
+        paint_orders: dict[int, int] = {}
+        orders = layout.get("paintOrders") or []
         for position, node_index in enumerate(layout["nodeIndex"]):
+            if position < len(orders):
+                paint_orders[node_index] = int(orders[position])
             x, y, width, height = (float(v) / device_scale for v in layout["bounds"][position])
             boxes[node_index] = Box(x, y, width, height)
             values = layout["styles"][position]
@@ -290,6 +317,7 @@ class Dom:
                     clickable=bool(clickable.get(i, False)),
                     box=boxes.get(i),
                     styles=styles.get(i, {}),
+                    paint_order=paint_orders.get(i),
                 )
             )
         return result
@@ -425,6 +453,10 @@ class _Shown:
     name: str
     line: str | None
     in_viewport: bool
+    # Set by _classify, only when a cap is reached: part of a layer above the page,
+    # and covered at its centre by a layer that is not its own.
+    layer: bool = False
+    covered: bool = False
 
 
 @dataclass
@@ -527,6 +559,111 @@ def _walk(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> _Walk:
     return _Walk(shown=shown, depths=depths, omitted=omitted, root=ax[root_id], ax=ax)
 
 
+@dataclass(frozen=True)
+class _Cover:
+    """A box of a layer that takes the pointer, and when the browser paints it."""
+
+    box: Box
+    paint: int
+    layer: int
+
+
+def _paint_key(node: DomNode) -> int:
+    # Without a paint order, the document order is the best guess of what paints later.
+    return node.paint_order if node.paint_order is not None else node.index
+
+
+def _classify(walk: _Walk, dom: Dom, viewport: Box) -> None:
+    """Say which shown nodes belong to a layer above the page, and which such a layer covers.
+
+    A layer is a dialog, a modal node, or a fixed or sticky node that paints
+    over other content in view. A node is covered when the centre of its box
+    lies in a box of a layer that takes the pointer, painted after it and
+    not its own. Everything comes from the one snapshot: no call per node.
+    """
+    roots = _layer_roots(walk, dom, viewport)
+    if not roots:
+        return
+    members: set[int] = set()
+    covers: list[_Cover] = []
+    for root in roots:
+        stack = [root]
+        while stack:
+            node = stack.pop()
+            members.add(node.index)
+            stack.extend(dom.children(node))
+        covers.extend(_covers(root, dom))
+    root_ids = {root.index for root in roots}
+    for item in walk.shown:
+        node = item.dom
+        item.layer = node.index in members
+        if not item.in_viewport or node.box is None:
+            continue
+        own = {node.index, *(ancestor.index for ancestor in dom.ancestors(node))} & root_ids if item.layer else set()
+        x, y = node.box.x + node.box.width / 2, node.box.y + node.box.height / 2
+        paint = _paint_key(node)
+        item.covered = any(c.layer not in own and c.paint > paint and c.box.contains_point(x, y) for c in covers)
+
+
+def _layer_roots(walk: _Walk, dom: Dom, viewport: Box) -> list[DomNode]:
+    def in_view(node: DomNode) -> bool:
+        return node.box is not None and dom.visible(node) and node.box.intersects(viewport)
+
+    roots: dict[int, DomNode] = {}
+    for item in walk.shown:
+        if item.role in LAYER_ROLES and in_view(item.dom):
+            roots[item.dom.index] = item.dom
+    positioned: list[DomNode] = []
+    for node in dom.nodes:
+        if node.node_type != 1 or node.index in roots:
+            continue
+        if node.attributes.get("aria-modal", "").lower() == "true":
+            if in_view(node):
+                roots[node.index] = node
+        elif node.styles.get("position") in LAYER_POSITIONS and len(positioned) < MAX_LAYER_CANDIDATES and in_view(node):
+            positioned.append(node)
+    seen = [item.dom for item in walk.shown if item.in_viewport and item.role in CONTENT_ROLES]
+    for node in positioned:
+        if _paints_over_content(node, seen, dom):
+            roots[node.index] = node
+    return sorted(roots.values(), key=lambda root: root.index)
+
+
+def _paints_over_content(layer: DomNode, seen: list[DomNode], dom: Dom) -> bool:
+    """Whether some content in view, outside the layer, lies under its box and is painted before it."""
+    assert layer.box is not None
+    for node in seen:
+        if node.box is None or node.index == layer.index or not node.box.intersects(layer.box):
+            continue
+        if _paint_key(node) < _paint_key(layer) and all(a.index != layer.index for a in dom.ancestors(node)):
+            return True
+    return False
+
+
+def _covers(root: DomNode, dom: Dom) -> list[_Cover]:
+    """The boxes of a layer that take the pointer: a transparent wrapper that lets clicks through covers nothing."""
+    found: list[_Cover] = []
+    stack: list[tuple[DomNode, Box | None]] = [(root, None)]
+    while stack:
+        node, outer = stack.pop()
+        inside = outer
+        if node.node_type == 1 and node.box is not None and dom.visible(node) and node.styles.get("pointer-events") != "none":
+            if outer is None or not outer.contains(node.box):
+                found.append(_Cover(box=node.box, paint=_paint_key(node), layer=root.index))
+                inside = node.box
+        stack.extend((child, inside) for child in dom.children(node))
+    return found
+
+
+def _rank(item: _Shown) -> int:
+    """0 in a layer above the page; 1 in view; 2 in view and covered; 3 the rest."""
+    if item.layer:
+        return 0
+    if item.in_viewport:
+        return 2 if item.covered else 1
+    return 3
+
+
 def field_verdicts(dom: Dom, ax: dict[str, dict[str, Any]] | None = None) -> dict[int, _Field]:
     """The sensitive-field predicate, asked once for every input, textarea and select."""
     roles: dict[int, str] = {}
@@ -574,6 +711,13 @@ def build(
     ``counters.omitted_not_visible`` counts each hidden subtree once.
     """
     walk = _walk(ax_raw, dom, viewport)
+    candidates = sorted(
+        (item for item in walk.shown if item.role in MARKABLE_ROLES or (item.role == "generic" and item.dom.clickable)),
+        key=lambda item: item.dom.index,
+    )
+    lines_shown = sum(1 for item in walk.shown if item.line is not None)
+    if len(candidates) > MAX_MARKS or lines_shown > MAX_TREE_LINES:
+        _classify(walk, dom, viewport)
     counters: dict[str, Any] = {
         "omitted_not_visible": walk.omitted,
         "redacted_fields": 0,
@@ -585,16 +729,18 @@ def build(
     }
     fields = field_verdicts(dom, walk.ax)
 
-    # Elements the model can designate, in document order.
-    candidates = sorted(
-        (item for item in walk.shown if item.role in MARKABLE_ROLES or (item.role == "generic" and item.dom.clickable)),
-        key=lambda item: item.dom.index,
-    )
-    kept, counters["marks_truncated"] = _keep(candidates, MAX_MARKS, key=lambda item: item.dom.index)
+    # Elements the model can designate: when there are too many, the ones above the page first,
+    # then those in view; the ones kept are numbered in document order.
+    kept, counters["marks_truncated"] = _keep(candidates, MAX_MARKS, key=lambda item: item.dom.index, rank=_rank)
     elements = [
         _with_gate_texts(_element(mark, item, dom, fields, origin, counters), item, dom, walk)
         for mark, item in enumerate(kept, start=1)
     ]
+    if counters["marks_truncated"]:
+        # Said only when choosing was needed: in view, but under a layer that takes the click.
+        for element, item in zip(elements, kept, strict=True):
+            if item.covered:
+                element.public["covered"] = True
     counters["marks"] = len(elements)
     page_has_card_field = any(
         fields[item.dom.index].card for item in walk.shown if item.dom.index in fields
@@ -639,22 +785,28 @@ def _line(role: str, name: str, node: dict[str, Any], parent_name: str | None) -
 
 def _tree(shown: list[_Shown], depths: list[int], counters: dict[str, Any]) -> list[str]:
     lines = [(position, item) for position, item in enumerate(shown) if item.line is not None]
-    kept, counters["tree_truncated"] = _keep(lines, MAX_TREE_LINES, key=lambda pair: pair[0])
+    by_rank: Callable[[tuple[int, _Shown]], int] = lambda pair: _rank(pair[1])  # noqa: E731
+    kept, counters["tree_truncated"] = _keep(lines, MAX_TREE_LINES, key=lambda pair: pair[0], rank=by_rank)
+    if any(item.layer for _position, item in kept):
+        # The line that introduces the layer takes one of the lines.
+        kept, counters["tree_truncated"] = _keep(lines, MAX_TREE_LINES - 1, key=lambda pair: pair[0], rank=by_rank)
+    layer = [(position, item) for position, item in kept if item.layer]
     # Redaction of the registered secrets, before the lines leave the module.
-    return [redact_text("  " * depths[position] + (item.line or "")) for position, item in kept]
+    output = []
+    if layer:
+        output.append(redact_text(OVERLAY_LINE))
+        base = min(depths[position] for position, _item in layer)
+        output += [redact_text("  " * (depths[position] - base + 1) + (item.line or "")) for position, item in layer]
+    output += [redact_text("  " * depths[position] + (item.line or "")) for position, item in kept if not item.layer]
+    return output
 
 
-def _keep(items: list[Any], limit: int, *, key: Callable[[Any], int]) -> tuple[list[Any], bool]:
-    """At most ``limit`` items: those in the viewport first, then document order."""
+def _keep(items: list[Any], limit: int, *, key: Callable[[Any], int], rank: Callable[[Any], int]) -> tuple[list[Any], bool]:
+    """At most ``limit`` items: the lowest ranks first, then document order; the ones kept in document order."""
     if len(items) <= limit:
         return items, False
-
-    def in_viewport(item: Any) -> bool:
-        return (item[1] if isinstance(item, tuple) else item).in_viewport
-
-    first = [item for item in items if in_viewport(item)][:limit]
-    rest = [item for item in items if not in_viewport(item)][: limit - len(first)]
-    return sorted(first + rest, key=key), True
+    ordered = sorted(items, key=lambda item: (rank(item), key(item)))
+    return sorted(ordered[:limit], key=key), True
 
 
 def _field_verdict(node: DomNode, *, ax_role: str | None) -> _Field:
