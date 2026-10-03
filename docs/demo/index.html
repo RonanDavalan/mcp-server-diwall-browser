@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Demo sign-in page</title>
+<style>
+  body { margin: 24px; font-family: sans-serif; }
+  form > * { display: block; margin: 10px 0; }
+  input { width: 240px; padding: 4px; }
+</style>
+</head>
+<body>
+<h1>Demo sign-in page</h1>
+<p>A local page served by the smoke test. Nothing here is real.</p>
+<form id="sign-in" action="/signed-in" method="post">
+  <label>User name <input id="user" name="username" type="text" value="alice"></label>
+  <label>Password <input id="password" name="password" type="password"></label>
+  <button id="submit" type="submit">Sign in</button>
+</form>
+<a href="#help">Help</a>
+<script>
+  // A page that fills the password itself, as a browser's password manager would:
+  // the server must mask it in the image and withhold its value.
+  document.getElementById("password").value = "not-a-real-password";
+  document.getElementById("sign-in").addEventListener("submit", function (event) { event.preventDefault(); });
+</script>
+</body>
+</html>
