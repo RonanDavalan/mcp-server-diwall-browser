@@ -2,17 +2,23 @@
 
 from __future__ import annotations
 
+import json
+import sys
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from importlib.metadata import version
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
-from mcp import types
+from mcp import ClientSession, StdioServerParameters, types
+from mcp.client.stdio import stdio_client
 from mcp.server.fastmcp import FastMCP
 from mcp.shared.memory import create_connected_server_and_client_session
 from test_server import URL, Client, Rig, mark_of, open_and_observe, rig  # noqa: F401 - rig is a fixture
 
+from mcp_server_diwall_browser import __version__
 from mcp_server_diwall_browser.output import ToolError, ToolOutput, tool
 from mcp_server_diwall_browser.server import TOOLS, create_server, registered_tool
 from mcp_server_diwall_browser.tools import close_tab, observe, press_key, select_option, wait
@@ -238,3 +244,23 @@ async def test_a_refusal_from_the_defective_versions_still_leaves_through_the_ex
     async with client_of(server) as client:
         refused = await client.call("close_tab", tab_id="t")
     assert code_of(refused) == "tab_not_owned"
+
+
+# --- the version a client can read --------------------------------------------------------------------
+
+
+async def test_the_server_version_comes_from_status_not_from_the_announcement(tmp_path: Path) -> None:
+    # The operator guide sends the operator to status for the version; this keeps it true.
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    env = {"HOME": str(home), "XDG_CONFIG_HOME": str(tmp_path / "config")}
+    parameters = StdioServerParameters(command=sys.executable, args=["-m", "mcp_server_diwall_browser"], env=env)
+    with open(tmp_path / "stderr.log", "w") as errlog:
+        async with stdio_client(parameters, errlog=errlog) as (read, write):
+            async with ClientSession(read, write) as session:
+                announced = await session.initialize()
+                status = await session.call_tool("status", {})
+    server = json.loads(status.content[0].text)["server"]
+    assert announced.serverInfo.name == "mcp-server-diwall-browser"
+    assert announced.serverInfo.version == version("mcp")
+    assert server["server_version"] == __version__ != version("mcp")
