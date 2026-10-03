@@ -644,3 +644,58 @@ async def test_status_reports_a_browser_that_does_not_answer(rig: Rig) -> None:
         status = await client.call("status")
     assert status["ok"] and status["server"]["browser"]["attached"] is False
     assert status["server"]["browser"]["code"] in ("browser_unreachable", "debug_endpoint_undetermined")
+
+
+# --- dialogs and notices through the tools ------------------------------------------------------------
+
+
+async def test_accepting_an_armed_dialog_is_refused_and_dismissing_it_works(rig: Rig) -> None:
+    async with connected(rig) as client:
+        tab, _observed = await open_and_observe(client, URL)
+        target = next(t for t, info in rig.browser.targets.items() if info.get("url") == URL)
+        await rig.browser.open_dialog(target, "Supprimer définitivement ?")
+        seen = await client.call("observe", tab_id=tab)
+        accepted = await client.call("handle_dialog", tab_id=tab, accept=True)
+        dismissed = await client.call("handle_dialog", tab_id=tab, accept=False)
+    assert seen["ok"] and seen["server"]["dialog_open"] is True
+    assert seen["page_content"] == {"dialog": {"type": "confirm", "message": "Supprimer définitivement ?"}}
+    assert code_of(accepted) == "capture_unavailable"
+    assert accepted["server"]["gate"] == {"red_list": True, "confirmation": "requested"}
+    assert dismissed["ok"] and rig.browser.accepted == [False]
+    assert rig.window.questions() == []
+
+
+async def test_the_notices_of_an_action_reach_the_model_as_the_action_wrote_them(rig: Rig) -> None:
+    rig.timings["settle_start_s"] = 0.3
+    async with connected(rig) as client:
+        tab, observed = await open_and_observe(client, URL)
+
+        async def open_window(target_id: str, hit: int | None) -> None:
+            await rig.browser.announce("Reçu", ORIGIN + "/receipt", opener_id=target_id)
+
+        rig.browser.on_click = open_window
+        clicked = await client.call("click", tab_id=tab, snapshot_id=observed["server"]["snapshot_id"], mark=mark_of(observed, "Envoyer"))
+        listed = await client.call("list_tabs")
+    assert clicked["ok"] and clicked["server"]["notices"], clicked["server"]
+    assert len(listed["server"]["tabs"]) == 2 and any(entry["adopted"] for entry in listed["server"]["tabs"])
+
+
+# --- what the SDK does on its own -----------------------------------------------------------------------
+
+
+async def test_the_sdk_alone_would_ignore_an_unknown_parameter() -> None:
+    # Measured on the SDK in use: a tool registered the plain way drops a
+    # parameter it does not know and runs. The server checks the arguments
+    # itself, which the tests above show refusing it.
+    plain = FastMCP(name="plain")
+    seen: list[dict[str, Any]] = []
+
+    @plain.tool()
+    def click(mark: int) -> str:
+        """A plain tool."""
+        seen.append({"mark": mark})
+        return "done"
+
+    async with create_connected_server_and_client_session(plain) as session:
+        result = await session.call_tool("click", {"mark": 1, "approved": True})
+    assert result.isError is False and seen == [{"mark": 1}]
