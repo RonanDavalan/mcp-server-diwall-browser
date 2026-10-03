@@ -214,7 +214,10 @@ layout at the top of this guide). It never mounts or unmounts the encrypted dire
 `gocryptfs` or `fusermount3`, and never knows its password. When the encrypted directory is closed,
 the server refuses to write; it has no fallback to an unencrypted place.
 
-The commands below were not run by this project: its environment cannot mount a FUSE volume.
+The project's own environment cannot mount a FUSE volume. On Debian with gocryptfs 2.5.1, a
+throw-away volume was created and mounted with a password file in place of the prompt, and the
+server accepted it (`status` read `mounted`); the commands below, with the prompt, were not run as
+written.
 
 Create the encrypted directory once. `gocryptfs` prints a master key at this step: write it down
 on paper or keep it in a password manager, never in a file of this disk.
@@ -439,7 +442,8 @@ The window needs a display: `DISPLAY` or `WAYLAND_DISPLAY` in the environment of
 process. `status` says which way a confirmation would be asked, in `confirmation_channel`:
 `native` (the window), `elicitation` (through the client) or `none` (every action that needs a
 confirmation is refused). The MCP SDK's own client starts a server with `HOME`, `LOGNAME`, `PATH`,
-`SHELL`, `TERM` and `USER` only (read in its source, version 1.25.0); what other clients pass is not
+`SHELL`, `TERM` and `USER` only (read in its source, version 1.25.0). Claude Code, started from a
+desktop terminal, passed the display: `status` read `native`; what other clients pass is not
 confirmed. If `status` says `none` while `kdialog` or `zenity` is installed, add the variable to the
 `env` block of the connection, for example `"DISPLAY": ":0"`; `echo $DISPLAY` in your desktop
 session gives your value.
@@ -628,6 +632,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - While a dialog is open, every other action in that tab is refused at once (`element_obscured`).
 - Visibility is approximate: the server does not compute contrast or `overflow` clipping, so text
   you cannot read can still reach the model.
+- An observation holds at most 150 marks and 400 tree lines (`marks_truncated`,
+  `tree_truncated`). On a long page, an element that comes late in the page, such as the buttons of
+  a cookie banner, can get no mark in that observation; answer the banner yourself.
 - The text inside frames is never read; frames are masked in the image.
 - Fields the server deems sensitive are masked in the image and their values withheld; a field it
   does not recognise as sensitive is shown.
@@ -644,5 +651,7 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - `intent` is kept to 500 characters.
 - The version announced when a session opens is the MCP SDK's; `status` gives the server's.
 - What the model's provider keeps of what it receives is not confirmed by this project.
-- Not tested: a real `kdialog` or `zenity` window, a real gocryptfs volume, Brave, a browser
-  profile kept in the encrypted directory, and the confirmation asked through a desktop MCP client.
+- Not tested: a real `kdialog` or `zenity` window answered by a person, the operator's own
+  gocryptfs volume, Brave, Chrome 154 with its profile kept in the encrypted directory, and the
+  confirmation asked through a desktop MCP client. Opera 136 with its profile in a throw-away
+  gocryptfs volume was attached and observed a page; it is not part of the tested set above.
