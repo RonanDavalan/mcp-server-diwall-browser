@@ -1,7 +1,27 @@
 # mcp-server-diwall-browser
 
-This repository holds an MCP (Model Context Protocol) server that is under construction.
-It is not usable yet and makes no promise about features; the full documentation comes later.
+This repository holds an MCP (Model Context Protocol) server that is under construction; the
+full documentation comes later.
+
+## Running the server
+
+The server speaks MCP over standard input and output and opens no port. From a clone:
+
+```
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/python -m mcp_server_diwall_browser
+```
+
+An MCP client starts the last command itself. Without a profile, the `status` tool says where to
+put one; every other tool answers `not_configured`.
+
+## Effects on the operator's browser
+
+- While the server is attached to the browser, downloads are refused in every tab, the
+  operator's own included, except in the short window around one of the server's clicks or
+  Enter keys; they work again as soon as the server's connection ends (measured on Chromium 141).
+- The tabs the server opened stay open when it stops; the browser is never closed by it.
 
 ## Profile notes
 
