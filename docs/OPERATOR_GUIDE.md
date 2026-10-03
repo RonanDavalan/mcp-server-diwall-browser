@@ -635,8 +635,6 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   measured on 100 common button labels, it missed none and locked 2 that a careful reader would
   not (`Effacer le formulaire`, `Supprimer le filtre`). Known misses: `Reset your password`,
   `Regenerate API key`, `Finaliser l'achat`, `Valider mon panier`.
-- A download started by a page between two actions goes to the directory prepared for the last
-  action.
 - `local_model_origins` and the two declarations are shown in `status` and change nothing else.
 - `profile_encrypted` in `status` says where the declared profile lies, not where the browser
   keeps its data.
