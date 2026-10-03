@@ -1257,3 +1257,141 @@ reading. It records what does not hold as six expected failures (the mask over t
 the three zooms and two scales), and the two combinations at 100 % pass as the control; the check of the
 mask share is itself tried without a browser on drawn images and on a check that accepts a mask anywhere.
 Remove the expected failure when the image follows the view.
+
+### Two download tests that failed at random: the setting was closed before the browser had chosen
+
+Measured on Chromium 141.0.7390.37, each run with a fresh browser. The two tests are
+`test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volume` (late) and
+`test_a_download_begun_by_the_click_ends_in_the_volume_after_the_setting_is_closed` (slow).
+
+Before any change, each test alone, in a new process, 30 times:
+
+| test | passed | failed | how it failed |
+|---|---|---|---|
+| late | 23 | 7 | 6 × `condition not reached in time`, 1 × `FileNotFoundError` on a `.crdownload` file |
+| slow | 22 | 8 | 8 × `condition not reached in time` |
+
+The first kind is the one the operator saw. The second is another cause, in the test itself, below.
+
+What was waited for, what the browser had done, and when. A probe outside the repository replayed the
+bench of the two tests (fresh browser per run) and wrote on one clock the browser's download and loading
+events, the server's calls on the download setting and its own waits, and every change in the volume's
+download directory, then kept watching 18 seconds after the click returned. 40 runs of each case:
+
+- late: 35 ended in the volume, 5 did not; slow: 36 did, 4 did not.
+- In all 9 failures the server had done what it was meant to: `_settle` returned that a load had
+  started, `wait_begin` returned `True` on `Browser.downloadWillBegin` within a millisecond of the
+  event, and `deny` was then sent 0.0 to 0.2 ms after the announcement. In 8 of the 9 the browser
+  sent no `Browser.downloadProgress` at all; in the ninth (slow) it sent one `inProgress` 3 ms after
+  `deny` was sent. In all 9, no file was ever created in the 18 seconds and neither a completion nor a
+  cancellation came: the download was refused, silently.
+- In the 71 successes, the first `inProgress` came between 1.3 ms before and 4.6 ms after the moment
+  `deny` was sent (late) and between 0.3 ms before and 5.0 ms after (slow; six runs sent `deny` about
+  290 ms late, see the end). The first change in the download directory was seen between 1.5 ms before
+  and 12.8 ms after the announcement in the 56 runs where the probe logged it (the other 15 late runs
+  ended before it did). So a download for which `deny` arrived after the browser had chosen is not
+  cancelled, as the earlier measurement said; one for which it arrived before is. And the first
+  progress is not the moment of the choice: in the successes it can follow `deny`, and in the ninth
+  failure it followed `deny` and the download died all the same.
+
+The three causes the brief names, separated by these numbers: the browser is not slow to write (the
+files of the successes appear within 13 ms of the announcement, the failures never write in 18 s); the
+server does see the event (`wait_begin` returned `True` in every failure, 0.0 to 0.1 ms after it); the test does not wait less
+than the server's own delay (it waits 10 s, the server's waits add to 0.8 s). The cause is a fourth one: the
+browser announces a download before it has chosen the behaviour that applies to it, and the server
+closed the setting at the announcement.
+
+Proved by intervention, not by the correlation alone: with the setting closed only after the first
+progress of the announced download (a wait of at most one second), late ended in the volume 40 times of
+40 and slow 40 of 40; with a fixed wait of 5 ms or of 50 ms before `deny`, late 40 of 40 each. The
+unchanged code, in the same probe: 35 of 40 and 36 of 40.
+
+Decided (production, `evidence.py`): `DownloadManager.wait_begin` returns, once a download is announced,
+only when the browser has reported a first progress for every download announced since the last
+`prepare`, or when the same `timeout_s` has passed again (a warning is logged then). The setting is
+closed right after, as before, by the same `forbid`. The call site in `actions.py` does not change.
+
+Why this and not less: the setting keeps naming the same directory of the volume, for a few
+milliseconds more, and only when a download has been announced; a download that is never taken up
+costs at most one more `settle_download_start_s` (0.5 s) and the setting is closed anyway. No control is
+weaker: no file can land outside the volume, and `forbid` still runs in the `finally` of every click.
+
+How to check that it holds:
+
+- `pytest -q tests/test_download_acknowledgement.py` (no browser): a fake browser that announces a
+  download and applies the setting in force `0.05` s later. The manager keeps the download; a manager
+  written in the test that returns at the announcement, as it did, loses it. On the code before the
+  change three of these five tests fail (the other two are the counter-proof, which asserts the loss,
+  and the check that a download never taken up does not hold the setting open).
+- Each test alone, in a new process, after the change: late 130 runs, no `condition not reached`;
+  slow 130 runs, 1 `condition not reached` (the first 30 runs), none in the 100 that followed. The probe
+  on the changed code: slow 100 of 100, late 60 of 60. The tests with a trace of the download path
+  (plugin outside the repository), slow 120 of 120, and 80 of 80 while four processes were started to
+  load the processor (the load itself was not measured during the run, only at the start).
+- The whole browser suite, 10 times each, on the code before and after: 2 of 10 runs failed before (one
+  of each test), 0 of 10 after.
+
+What is not explained: the one `condition not reached` of the slow test after the change (1 in 130
+isolated runs, 0 in 360 traced or probed runs). Not diagnosed: the failing run was not traced. One
+reading, not confirmed: the first progress is a weaker sign than the wait assumes (the ninth failure
+above had one and died), so the browser may choose a little after it and a `deny` that follows it by a
+fraction of a millisecond can still win rarely. What remains to try: a traced loop of the slow test
+until it recurs; and, if it is that window, wait for the file the browser creates in the volume
+instead of the first progress (not tried: it needs the manager to look in the volume, which the manager
+does not do today).
+
+The test that raises: 1 of the 30 late runs before the change, and 3 of the 100 after, ended in
+`FileNotFoundError` from the test's own probe: it lists the files of the download directory, then reads
+one; the browser renames `<id>.crdownload` to `<id>` between the two. The download itself ended in the
+volume. Not changed, because the brief forbids changing an existing test to make it pass. The change
+that would remove it is in `complete()` of both tests: read inside a `try` that ignores `OSError` and
+go on to the next file.
+
+Also measured, not changed: in 6 of the 36 successful slow runs `deny` left about 290 ms after the
+announcement. `_settle` polls every 50 ms for a load in progress; a navigation that turns into a
+download starts and ends loading within one poll, so it reports no load started and waits for its own
+0.3 s limit before the wait for the download is skipped. These runs were safe, because the download had
+been taken up long before; they cost the action 0.3 s.
+
+A third test is intermittent too, with or without the change: `test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused`
+sets the wait to zero, so the setting is closed as soon as the load ends. Alone, alternating the code
+before and after the change 80 times each: 4 failures of 80 before, 4 of 80 after. (A first run of 60 and
+60 gave 0 and 3: the difference was chance, which the alternating run settled.) Not traced; the end of the
+load and the announcement come within a few milliseconds of each other, the end of the load first in the
+timelines above, and when the announcement comes first the browser may keep the download and the test
+finds a file. Not changed. A fact worth keeping: since Python 3.12 `asyncio.wait_for(x, 0)` raises
+`TimeoutError` even when `x` could finish at once, so `wait_begin(0.0)` returns `False` at once with the
+code before and after the change.
+
+Rejected: lengthening the tests' timeouts (the failures never complete in 18 s, so no wait of the test is
+short); a retry around the tests, or removing an assertion; a fixed sleep before `deny` (it removes the
+failure here but is a guess at the browser's speed on another machine, where the wait for the
+browser's own acknowledgement is not); never sending `deny` between a gesture and the download
+(it would leave the setting open when no download comes); changing `wait_begin` to return as soon as the
+file exists (the file name is chosen by the browser and the volume is not read by the manager).
+
+### What is done, with the command that shows it, and what remains
+
+Done (Chromium 141.0.7390.37, Python 3.13.14; the suite without a browser also on Python 3.12.3):
+
+- The mask check no longer takes page text for a mask: `pytest -q tests/test_mask_check.py` (22 passed,
+  no browser) and `pytest -q tests/test_scale_integration.py tests/test_mask_check.py` (43 passed).
+- The page zoom is measured, and what holds is guarded: `pytest -q tests/test_zoom_integration.py`
+  (37 passed, 6 expected failures that record the mask gap).
+- The cause of the random download failures is removed in the code and kept by a test:
+  `pytest -q tests/test_download_acknowledgement.py` (5 passed).
+- `pytest -q -m "not browser"`: 1451 passed. `pytest -q`: 1570 passed, 6 expected failures.
+  `python -m compileall -q src`: no output.
+
+Remains:
+
+- Replay on Chrome 154: `pytest -q tests/test_scale_integration.py tests/test_zoom_integration.py`. The four
+  scale tests that failed there have not been seen to fail or pass on that browser here; the mechanism
+  was reproduced on Chromium 141 by painting one pixel of the mask colour into a real image.
+- The decision on the page zoom, which the operator takes with the numbers above. Until then the
+  operator guide and the README say to keep the zoom at 100 %.
+- The one remaining `condition not reached` of the slow download test (1 in 130 alone); the read in
+  `complete()` of the late download test that fails when the browser renames its file (3 in 100); the
+  intermittence of the counter-proof test (4 in 80). None is traced to its end.
+- The test browser tries to reach Google services in the background (the environment's proxy refused
+  378 connections during 80 runs of one test); the launcher does not disable background networking.

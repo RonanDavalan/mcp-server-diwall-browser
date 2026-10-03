@@ -732,6 +732,10 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   yourself.
 - A download that a page starts more than half a second after a load ends is refused; download it
   yourself.
+- Keep the page zoom of the browser at 100 %. At 125, 150 or 200 % the image the model receives
+  shows another part of the page and the masks do not cover their fields (a password field was
+  covered 0 %, and `capture` still read `ok`); the sizes, the boxes and the clicks are right. Measured
+  on Chromium 141, not on Chrome 154.
 - Accepting a dialog whose message asks for a payment, a deletion or a change of secret is always
   refused (`capture_unavailable`): no evidence can be taken while a dialog is open. Answer it
   yourself.

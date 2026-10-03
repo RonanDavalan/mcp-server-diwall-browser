@@ -67,12 +67,18 @@ class DownloadManager:
         self._pending: dict[str, tuple[tuple[str, ...], str]] = {}
         self._notices: list[str] = []
         self._begun = asyncio.Event()
+        # Downloads the browser announced and has not yet reported a first progress for.
+        self._unacknowledged: set[str] = set()
+        self._acknowledged = asyncio.Event()
+        self._acknowledged.set()
         connection.add_event_handler(self._on_event)
 
     async def prepare(self, operation_id: str) -> str:
         """Before a gesture that may start a download: where it would go, or ``deny``."""
         parts = (DOWNLOADS_DIR, safe_name(operation_id))
         self._begun.clear()
+        self._unacknowledged.clear()
+        self._acknowledged.set()
         try:
             directory = self._volume.ensure_dir(*parts)
         except ToolError:
@@ -87,11 +93,25 @@ class DownloadManager:
         return "allowAndName"
 
     async def wait_begin(self, timeout_s: float) -> bool:
-        """Wait for a download to begin after the last ``prepare``; a download starts a moment after the gesture."""
+        """Wait for a download to begin after the last ``prepare``; a download starts a moment after the gesture.
+
+        The browser announces a download before it has chosen the behaviour
+        that applies to it. A setting changed in between refuses the download
+        without any event (measured: about one download in ten when the
+        setting was closed at the announcement). So once a download is
+        announced this also waits, for at most ``timeout_s`` again, until the
+        browser has reported a first progress for each one announced, and
+        closes the setting after that: no download was lost that way in the
+        runs measured, though a first progress is not proof of the choice.
+        """
         try:
             await asyncio.wait_for(self._begun.wait(), timeout_s)
         except TimeoutError:
             return False
+        try:
+            await asyncio.wait_for(self._acknowledged.wait(), timeout_s)
+        except TimeoutError:
+            _log.warning("a download was announced and not taken up by the browser in time")
         return True
 
     async def forbid(self) -> None:
@@ -128,11 +148,19 @@ class DownloadManager:
             if isinstance(guid, str) and self._directory is not None:
                 suggested = params.get("suggestedFilename")
                 self._pending[guid] = (self._directory, suggested if isinstance(suggested, str) else "")
+                self._unacknowledged.add(guid)
+                self._acknowledged.clear()
                 self._begun.set()
         elif method == "Browser.downloadProgress":
             guid = params.get("guid")
             state = params.get("state")
-            if not isinstance(guid, str) or guid not in self._pending or state not in ("completed", "canceled"):
+            if not isinstance(guid, str):
+                return
+            if guid in self._unacknowledged:
+                self._unacknowledged.discard(guid)
+                if not self._unacknowledged:
+                    self._acknowledged.set()
+            if guid not in self._pending or state not in ("completed", "canceled"):
                 return
             directory, suggested = self._pending.pop(guid)
             if state == "canceled":

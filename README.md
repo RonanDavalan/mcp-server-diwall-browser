@@ -59,11 +59,16 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
-  and, on a fresh clone, with Python 3.12.3: without a browser, 1421 tests pass and the 85 that
-  need a browser are skipped with the reason; with Chromium 141.0.7390.37 (headless, blank
-  temporary profile), all 1506 pass. Two download tests fail at random there: in 15 runs of each
-  alone, they failed 4 and 6 times on the code before the three changes below and 2 and 5 times
-  after them, and a full run in which they pass is the one quoted.
+  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1451
+  tests pass and the 125 that need a browser are skipped with the reason; with Chromium
+  141.0.7390.37 (headless, blank temporary profile), 1570 pass and 6 are expected failures that
+  record a known gap (the page zoom, in the limits below).
+- Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
+  closed the download setting before the browser had chosen what to do with the download. After the
+  change they failed 3 and 1 times in 130 runs of each alone; the 3 are a read, in the test itself, of a
+  file the browser renames. A third test, `test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused`,
+  fails about 5 times in 100 alone, on the code before the change as on the code after it. The
+  measures and what remains are in `docs/JOURNAL.md`.
 - The operator replayed the suite on Debian with Chrome 154.0.8037.97, before the three changes
   below: 1258 passed and 1 skipped (a test that runs as root only), the 54 browser tests included.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
@@ -71,7 +76,8 @@ Tested:
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
   password field of the demo page is under its mask, and the mask goes no further than two pixels
   beyond it (`tests/test_scale_integration.py`). Before the correction of this, a mask did not
-  cover its field at a scale above 1. A browser zoom and a real screen at 1.5 were not measured.
+  cover its field at a scale above 1. A real screen at 1.5 was not measured. The page zoom was, and
+  it does not hold for the image (see the limits).
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
@@ -117,6 +123,11 @@ Known limits:
   `overlay` line in the tree, then what is in view and clear, then what is in view under a layer
   (`covered: true`, and a click on it is refused), then the rest. A banner that overlaps nothing in
   view is not a layer and can still be cut.
+- At a page zoom other than 100 % (the browser's Ctrl +), the published image shows another part
+  of the page and the masks do not cover their fields: measured at 125, 150 and 200 %, at screen
+  scales of 1 and 1.5, on Chromium 141, 0 % of a password field was covered and `capture` still read
+  `ok`. The sizes, the boxes and the clicks are right. Keep the zoom of the browser at 100 % until
+  this is decided (`docs/JOURNAL.md`). Not measured on Chrome 154.
 - The content of frames is never read; frames are masked in the image.
 - What the model provider keeps of what it receives is not confirmed by this project.
 

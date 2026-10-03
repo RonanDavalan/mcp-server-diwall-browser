@@ -51,7 +51,8 @@ SCROLL_TO_ATTEMPTS = 20
 SETTLE_START_S = 0.5
 SETTLE_LOAD_S = 10.0
 # A load the gesture started may turn into a download; one begins this long, at
-# most, after the load ends. A download that begins later is refused.
+# most, after the load ends, and the browser has the same time to take it up before
+# the setting is closed. A download that begins later is refused.
 SETTLE_DOWNLOAD_START_S = 0.5
 FORM_TEXT_LIMIT = 4000
 
