@@ -79,6 +79,7 @@ ERROR_CODES = frozenset(
         "limit_reached",
         "journal_unavailable",
         "wait_timeout",
+        "invalid_arguments",
         "internal_error",
     }
 )
@@ -341,8 +342,15 @@ def current_operation_id() -> str | None:
 ToolResult = tuple[dict[str, Any], bytes | None]
 
 
+EXIT_POINT_ATTRIBUTE = "output_tool_name"
+
+
 def tool(name: str) -> Callable[[Callable[..., Awaitable[ToolOutput]]], Callable[..., Awaitable[ToolResult]]]:
-    """Wrap a tool coroutine so that its result always leaves through finalize."""
+    """Wrap a tool coroutine so that its result always leaves through finalize.
+
+    The wrapper carries the tool's name, so the server can check that every
+    tool it registers goes through here.
+    """
 
     def decorate(func: Callable[..., Awaitable[ToolOutput]]) -> Callable[..., Awaitable[ToolResult]]:
         @functools.wraps(func)
@@ -354,6 +362,7 @@ def tool(name: str) -> Callable[[Callable[..., Awaitable[ToolOutput]]], Callable
             finally:
                 _current_operation_id.reset(token)
 
+        setattr(wrapper, EXIT_POINT_ATTRIBUTE, name)
         return wrapper
 
     return decorate

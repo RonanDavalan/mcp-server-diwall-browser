@@ -388,3 +388,28 @@ def test_page_text_is_cleaned_and_bounded() -> None:
 
 def test_text_check_catches_a_cleaner_that_keeps_format_characters() -> None:
     assert not text_is_fit(keeps_format_characters)
+
+
+async def test_a_decorated_tool_carries_its_name_for_the_server_to_check() -> None:
+    from mcp_server_diwall_browser.output import EXIT_POINT_ATTRIBUTE, ToolOutput, tool
+
+    @tool("example")
+    async def run() -> ToolOutput:
+        return ToolOutput()
+
+    async def plain() -> ToolOutput:
+        return ToolOutput()
+
+    assert getattr(run, EXIT_POINT_ATTRIBUTE) == "example"
+    assert getattr(plain, EXIT_POINT_ATTRIBUTE, None) is None
+
+
+async def test_refused_arguments_have_their_own_code() -> None:
+    from mcp_server_diwall_browser.output import ToolError, ToolOutput, tool
+
+    @tool("example")
+    async def run() -> ToolOutput:
+        raise ToolError("invalid_arguments", "paramètres refusés : approved (inconnu)")
+
+    envelope, _image = await run()
+    assert envelope["ok"] is False and envelope["server"]["error"]["code"] == "invalid_arguments"
