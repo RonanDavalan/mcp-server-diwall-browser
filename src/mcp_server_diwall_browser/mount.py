@@ -232,7 +232,9 @@ class VolumeFileError(Exception):
     """A file of the volume was refused before or while being read.
 
     ``reason`` is one of ``not_regular_file``, ``bad_owner``, ``bad_mode``,
-    ``too_large`` or ``missing``.
+    ``too_large``, ``missing``, ``outside_volume`` (the path leads out of the
+    volume or off its device) or ``link`` (a link was followed below the
+    volume's directory).
     """
 
     def __init__(self, reason: str) -> None:
@@ -400,6 +402,48 @@ class Volume:
             os.close(fd)
         return path
 
+    def publish_new(self, *parts: str, data: bytes) -> Path:
+        """Create a file that must not exist yet, whole or not at all, and never replace one.
+
+        The data goes to a hidden file of the same directory (mode 600), which
+        takes its name by a hard link that fails when the name is taken; so a
+        reader never meets half a file, and nothing but a complete file stays
+        under the name. On a file system that cannot link, the name is taken
+        first (created exclusively) and filled, and removed if that fails.
+        """
+        root = self.require_mounted()
+        path = self._resolve_exact(root, parts)
+        if os.path.lexists(path):
+            raise FileExistsError(errno.EEXIST, "the name is taken")
+        hidden = self._resolve_exact(root, (*parts[:-1], f".{parts[-1]}.{os.urandom(6).hex()}.tmp"))
+        self._write_exclusive(hidden, data)
+        try:
+            os.link(hidden, path)
+        except OSError as exc:
+            if exc.errno not in (errno.EPERM, errno.ENOTSUP, errno.ENOSYS, errno.EXDEV, errno.EMLINK):
+                raise
+            self._write_exclusive(path, data, remove_on_failure=True)
+        finally:
+            os.unlink(hidden)
+        return path
+
+    def _write_exclusive(self, path: Path, data: bytes, *, remove_on_failure: bool = True) -> None:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
+        fd = os.open(path, flags, 0o600)
+        try:
+            self._check_private_file(fd)
+            view = memoryview(data)
+            while view:
+                written = os.write(fd, view)
+                view = view[written:]
+            os.fsync(fd)
+        except BaseException:
+            os.close(fd)
+            if remove_on_failure:
+                os.unlink(path)
+            raise
+        os.close(fd)
+
     def read_file(self, *parts: str, max_bytes: int) -> VolumeFile:
         """Read a private regular file of the volume, at most ``max_bytes`` long."""
         try:
@@ -408,6 +452,42 @@ class Volume:
             if exc.extra_server.get("mount_reason") == "symlink":
                 raise VolumeFileError("not_regular_file") from None
             raise
+        return self._read_private(path, max_bytes)
+
+    def read_file_at(self, path: str | os.PathLike[str], *, max_bytes: int) -> VolumeFile:
+        """Read a private regular file anywhere under the mounted volume, at most ``max_bytes`` long.
+
+        For a file kept next to the project's directory, such as an old
+        credential file to convert. The path must be absolute. It is resolved
+        first and must lead into the volume, on its device; and no link may
+        have been followed below the volume's own directory, since a link
+        could lead where the operator never looked. The file is then opened
+        without following a link and must be the server's user's, mode 600.
+        """
+        self.require_mounted()
+        given = os.path.normpath(os.fspath(path))
+        if not os.path.isabs(given):
+            raise ValueError("the path must be absolute")
+        mount_point = self._checker.realpath_fn(self._secrets_dir)
+        real = self._checker.realpath_fn(given)
+        if real != mount_point and not real.startswith(mount_point.rstrip(os.sep) + os.sep):
+            raise VolumeFileError("outside_volume")
+        # The volume's directory as the operator wrote it, and as it really is: below either, the
+        # path as given must be the real one, or a link was followed.
+        starts = [prefix for prefix in (os.path.normpath(self._secrets_dir), mount_point) if given == prefix or given.startswith(prefix.rstrip(os.sep) + os.sep)]
+        if not any(os.path.normpath(os.path.join(mount_point, os.path.relpath(given, prefix))) == real for prefix in starts):
+            raise VolumeFileError("link")
+        try:
+            same_device = self._checker.stat_fn(real).st_dev == self._checker.stat_fn(mount_point).st_dev
+        except FileNotFoundError:
+            raise VolumeFileError("missing") from None
+        except OSError:
+            same_device = False
+        if not same_device:
+            raise VolumeFileError("outside_volume")
+        return self._read_private(Path(real), max_bytes)
+
+    def _read_private(self, path: Path, max_bytes: int) -> VolumeFile:
         flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK
         try:
             fd = os.open(path, flags)
