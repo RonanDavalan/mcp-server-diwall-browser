@@ -1289,6 +1289,9 @@ def test_environment_name_check_catches_a_variable_that_would_switch_a_check(tmp
 
 _FORBIDDEN_NAMES = {"CLAUDE.md", "AGENTS.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "profile.json"}
 _FORBIDDEN_DIRECTORIES = {".claude", "credentials", "evidence", "downloads", "browser-profile"}
+# A capture is an image of a page: the only one tracked is the demo page's, shown in the README.
+_CAPTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
+_DOCUMENTED_CAPTURE = "docs/images/observe-demo.png"
 
 
 def forbidden_files(tracked: list[str]) -> list[str]:
@@ -1296,6 +1299,8 @@ def forbidden_files(tracked: list[str]) -> list[str]:
     for name in tracked:
         parts = name.split("/")
         if parts[-1] in _FORBIDDEN_NAMES or parts[-1].endswith(".jsonl") or _FORBIDDEN_DIRECTORIES & set(parts[:-1]):
+            found.append(name)
+        elif name.lower().endswith(_CAPTURE_SUFFIXES) and name != _DOCUMENTED_CAPTURE:
             found.append(name)
     return found
 
@@ -1326,5 +1331,7 @@ def test_forbidden_file_check_catches_each_kind() -> None:
         "vault/evidence/2026-01-02/op/before.png",
         "vault/downloads/op/invoice.pdf",
         "vault/browser-profile/chrome/Preferences",
+        "docs/images/screenshot.png",
+        "tests/fixtures/capture.JPG",
     ]
-    assert forbidden_files(planted + ["README.md", "tests/fixtures/pages/basic.html"]) == planted
+    assert forbidden_files(planted + ["README.md", "tests/fixtures/pages/basic.html", "docs/images/observe-demo.png"]) == planted
