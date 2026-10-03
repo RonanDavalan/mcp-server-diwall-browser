@@ -930,3 +930,33 @@ name is a key a client may come to depend on, and the five keys of the specifica
 `counters` keeps its seven keys: the six of PER-14 and `marks` and `tree_lines`, which the perception
 already gave before this change. Removing them would break a contract in use; the specification
 lists the six it requires, not the only ones allowed.
+
+## 2026-10-03 — A first run on a real volume, a real browser and a long public page
+
+### What was run
+
+A throw-away gocryptfs 2.5.1 volume was mounted on Debian and the server was started on an operator
+profile that points at it, with Opera 136 (Chromium 152) launched on a profile kept in that volume
+and a debugging port on the loopback interface. Through the MCP SDK client, the server opened the
+home page of a public shopping site, filled the search field, pressed Enter, scrolled and
+observed. `status` read `mounted`, `profile_encrypted: true` and `confirmation_channel: native`;
+the journal received one line per call and the typed text appears in it as `<typed>` only. Through
+Claude Code, `claude mcp list` showed the server connected and `status` read
+`confirmation_channel: native`.
+
+### Two findings, not yet diagnosed and not fixed
+
+- On the results page, the observation held 150 marks (`marks_truncated`) and 400 tree lines
+  (`tree_truncated`) with 1005 elements left unmarked. The buttons of the cookie banner that covered
+  the lower half of the view were not among the marks, so the model could not answer the banner.
+  This is the cap the specification sets; the limit is now written in the README and the guide.
+- In the image of that page, several boxes do not sit on the element their mark names: the box of
+  the search field is narrower than the field, and after a scroll of 500 pixels the boxes of the
+  price filters lie about 200 pixels below where the filters are drawn. Marks 143 to 150 are drawn
+  over the banner that covers the elements they name. The cause is not measured: the page may have
+  changed layout between the snapshot and the capture, or the boxes may be computed in another
+  scroll state. On the local demo page of the smoke test the boxes are aligned. Nothing was changed.
+
+How to check that it holds, when it is looked at: run the same sequence against the same page with
+`scripts/smoke_test.py --save-image` style captures before and after a scroll, and compare each
+box with the element's position read from the accessibility tree in the same observation.
