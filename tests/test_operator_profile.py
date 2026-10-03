@@ -10,7 +10,7 @@ import pytest
 from conftest import DELETE, default_profile, write_profile
 
 from mcp_server_diwall_browser import operator_profile
-from mcp_server_diwall_browser.operator_profile import ENV_VAR, Limits, Profile, load_profile
+from mcp_server_diwall_browser.operator_profile import ENV_VAR, EnvironmentDirs, Limits, Profile, environment_dirs, load_profile
 from mcp_server_diwall_browser.origin import Origin
 from mcp_server_diwall_browser.output import ToolError
 
@@ -389,3 +389,10 @@ def test_a_profile_larger_than_the_cap_is_refused(tmp_path: Path) -> None:
 def test_size_check_catches_a_loader_without_a_cap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(operator_profile, "MAX_PROFILE_BYTES", 10 * 1024 * 1024)
     assert not oversized_profile_refused(tmp_path)
+
+
+def test_the_environment_directories_are_read_here() -> None:
+    assert environment_dirs({"HOME": "~", "XDG_CONFIG_HOME": "~/.cfg"}) == EnvironmentDirs(
+        home="~", config_home="~/.cfg"
+    )
+    assert environment_dirs({"HOME": "~", "XDG_CONFIG_HOME": ""}).config_home is None

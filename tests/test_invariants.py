@@ -685,6 +685,74 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
     assert transport_uses_outside_cdp(copy) == ["perception.py"]
 
 
+# --- no switch turns a check off: no environment read outside its module, no option, no flag ---
+
+ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py"}
+_ENVIRONMENT_RE = re.compile(r"\bos\.environ\b|\bgetenv\b|\bputenv\b")
+_COMMAND_LINE_RE = re.compile(r"\bsys\.argv\b|\bargparse\b|\boptparse\b|\bgetopt\b|\bclick\.option\b")
+_FLAG_RE = re.compile(r"(?i)^(testing|test_mode|is_test|under_test|unsafe|insecure|skip_checks?|disable_checks?|no_checks?|bypass\w*)$")
+
+
+def _identifiers(tree: ast.AST) -> list[str]:
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            names.append(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.append(node.attr)
+        elif isinstance(node, ast.arg):
+            names.append(node.arg)
+        elif isinstance(node, ast.keyword) and node.arg:
+            names.append(node.arg)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.append(node.name)
+    return names
+
+
+def switches(package: Path) -> list[str]:
+    """Ways a check could be turned off from outside: environment, command line, a test flag."""
+    found: list[str] = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        text = path.read_text()
+        tree = ast.parse(text)
+        if relative not in ENVIRONMENT_MODULES and _ENVIRONMENT_RE.search(text):
+            found.append(f"{relative}: environment")
+        if _COMMAND_LINE_RE.search(text):
+            found.append(f"{relative}: command line")
+        # The confirmation window's own options (--no-label, --no-markup) are its tool's, not the server's.
+        if relative != CONFIRM_MODULE_NAME and any(text_.startswith("--no-") for text_ in _string_literals(text)):
+            found.append(f"{relative}: --no- option")
+        found.extend(f"{relative}: flag {name}" for name in _identifiers(tree) if _FLAG_RE.match(name))
+    return found
+
+
+CONFIRM_MODULE_NAME = "confirm.py"
+
+
+def test_no_environment_option_or_flag_turns_a_check_off() -> None:
+    assert switches(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import os\nGATE = os.environ.get('DIWALL_NO_GATE')\n",
+        "import os\nDEBUG = os.getenv('DIWALL_DEBUG')\n",
+        "import argparse\nparser = argparse.ArgumentParser()\nparser.add_argument('--no-confirm')\n",
+        "import sys\nFAST = '--fast' in sys.argv\n",
+        "OPTIONS = ['--no-gate']\n",
+        "TESTING = True\n",
+        "def build(skip_checks=False):\n    return skip_checks\n",
+    ],
+)
+def test_switch_check_catches_an_environment_option_or_flag(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "server.py").write_text(source)
+    assert {entry.split(":")[0] for entry in switches(copy)} == {"server.py"}
+
+
 # --- the server never starts a browser: the one process it starts is the confirmation window ---
 
 CONFIRM_MODULE = "confirm.py"

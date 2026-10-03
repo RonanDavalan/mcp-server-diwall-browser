@@ -109,6 +109,23 @@ class Profile:
     limits: Limits
 
 
+@dataclass(frozen=True)
+class EnvironmentDirs:
+    """The directories the process environment names, where browsers keep their default data."""
+
+    home: str
+    config_home: str | None
+
+
+def environment_dirs(environ: Mapping[str, str] | None = None) -> EnvironmentDirs:
+    """Read from the environment in this module only: no other module looks at it."""
+    env = os.environ if environ is None else environ
+    return EnvironmentDirs(
+        home=env.get("HOME") or os.path.expanduser("~"),
+        config_home=env.get("XDG_CONFIG_HOME") or None,
+    )
+
+
 def standard_profile_path(environ: Mapping[str, str] | None = None) -> Path:
     env = os.environ if environ is None else environ
     config_home = env.get("XDG_CONFIG_HOME", "")

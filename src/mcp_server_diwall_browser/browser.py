@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .cdp import DEFAULT_TIMEOUT_S, CdpConnection, CdpError
+from .operator_profile import environment_dirs
 from .origin import Origin, OriginError, is_blank, origin_of_url, split_host_port, split_url
 from .output import ToolError
 
@@ -331,11 +332,12 @@ class BrowserAttachment:
         port = settings.debug_port
         tcp_text, tcp6_text = proc_net()
         verify_loopback_listening(port, tcp_text=tcp_text, tcp6_text=tcp6_text)
+        dirs = environment_dirs()
         check_profile_dir(
             settings.family,
             settings.profile_dir,
-            os.path.expanduser("~") if home is None else home,
-            config_home=os.environ.get("XDG_CONFIG_HOME") if config_home is None else config_home,
+            dirs.home if home is None else home,
+            config_home=dirs.config_home if config_home is None else config_home,
         )
         ws_url = check_debugger_url(await _announced_url(http_get, port), port)
         connection = cdp_factory()
