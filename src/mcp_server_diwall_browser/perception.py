@@ -1166,13 +1166,13 @@ class Perception:
             "origin": reading.origin.canonical,
             # The document the marks belong to: a navigation gives a new one.
             "loader_id": snapshot.loader_id,
-            # The part of the page in view, in CSS pixels; scale is image pixels per CSS pixel.
+            # The part of the page in view and how far the document extends, in CSS pixels.
             "viewport": {
-                "x": reading.viewport.x,
-                "y": reading.viewport.y,
                 "width": reading.viewport.width,
                 "height": reading.viewport.height,
-                "scale": server_image["scale"] if server_image is not None else 1.0,
+                "scroll_x": reading.viewport.x,
+                "scroll_y": reading.viewport.y,
+                "content_height": reading.dom.content_height,
             },
             "capture": capture,
             "counters": dict(built.counters),

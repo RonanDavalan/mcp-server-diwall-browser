@@ -906,3 +906,27 @@ Remaining:
   browser profile in the encrypted directory; none could be run in this environment.
 - Check with Claude Code which environment it gives the server, and whether the confirmation
   window opens from it.
+
+## 2026-10-03 — The keys of the viewport follow the specification
+
+### `observe` states the viewport with the keys the specification names
+
+Decided: the `viewport` of the `server` part of `observe` carries `width`, `height`, `scroll_x`,
+`scroll_y` and `content_height`, in CSS pixels. It replaces the `x`, `y`, `width`, `height` and
+`scale` that the previous entry on this subject chose.
+
+Why: the perception specification (PER-14) names these five keys; the session that added the
+viewport did not have that text and wrote the keys from the browser's own names. The image scale is
+not lost: the `image` key already carries it. `content_height` is what tells a model that the page
+goes on below the view, which `scale` never did.
+
+How to check that it holds: `tests/test_tools_results.py::test_observe_states_exactly_what_the_perception_specifies` serves a page of 2000
+pixels scrolled by 300 and expects exactly `{"width": 800, "height": 600, "scroll_x": 0,
+"scroll_y": 300, "content_height": 2000}`; on the code before this change it fails.
+
+Rejected: keeping `x`, `y` and `scale` next to the specified keys. A key the specification does not
+name is a key a client may come to depend on, and the five keys of the specification are enough.
+
+`counters` keeps its seven keys: the six of PER-14 and `marks` and `tree_lines`, which the perception
+already gave before this change. Removing them would break a contract in use; the specification
+lists the six it requires, not the only ones allowed.

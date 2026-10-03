@@ -197,7 +197,7 @@ async def test_close_check_catches_a_tool_that_closes_nothing(rig: Rig) -> None:
 # What the perception states about an observation, and what the exit point adds to every result.
 OBSERVE_SERVER_KEYS = {"tab_id", "snapshot_id", "origin", "loader_id", "viewport", "counters", "dialog_open"}
 ENVELOPE_SERVER_KEYS = {"operation_id", "tool", "notices", "capture"}
-VIEWPORT_KEYS = {"x", "y", "width", "height", "scale"}
+VIEWPORT_KEYS = {"width", "height", "scroll_x", "scroll_y", "content_height"}
 COUNTER_KEYS = {"marks", "marks_truncated", "tree_lines", "tree_truncated", "omitted_not_visible", "redacted_fields", "frames_masked"}
 
 
@@ -205,13 +205,16 @@ async def check_observe(rig: Rig, server: FastMCP) -> None:
     async with client_of(server) as client:
         opened = await client.call("open_tab", url=URL)
         tab = opened["server"]["tab_id"]
+        # A taller page, scrolled: the viewport must say where the view is and how far the document extends.
+        page = rig.page_of(URL)
+        page.viewport, page.content_size = (0, 300, 800, 600), (800, 2000)
         with_image = await client.call("observe", tab_id=tab)
         tree_only = await client.call("observe", tab_id=tab, include=["tree"])
     server_part = with_image["server"]
     assert set(server_part) == OBSERVE_SERVER_KEYS | ENVELOPE_SERVER_KEYS | {"image"}, sorted(server_part)
     assert set(tree_only["server"]) == OBSERVE_SERVER_KEYS | ENVELOPE_SERVER_KEYS, sorted(tree_only["server"])
     assert set(server_part["viewport"]) == VIEWPORT_KEYS
-    assert server_part["viewport"] == {"x": 0, "y": 0, "width": 800, "height": 600, "scale": 1.0}
+    assert server_part["viewport"] == {"width": 800, "height": 600, "scroll_x": 0, "scroll_y": 300, "content_height": 2000}
     assert set(server_part["counters"]) == COUNTER_KEYS
     assert server_part["counters"]["marks"] == len(with_image["page_content"]["elements"])
     assert server_part["counters"]["tree_lines"] == len(with_image["page_content"]["tree"])
