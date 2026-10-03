@@ -1164,6 +1164,16 @@ class Perception:
             "tab_id": tab.tab_id,
             "snapshot_id": snapshot.snapshot_id,
             "origin": reading.origin.canonical,
+            # The document the marks belong to: a navigation gives a new one.
+            "loader_id": snapshot.loader_id,
+            # The part of the page in view, in CSS pixels; scale is image pixels per CSS pixel.
+            "viewport": {
+                "x": reading.viewport.x,
+                "y": reading.viewport.y,
+                "width": reading.viewport.width,
+                "height": reading.viewport.height,
+                "scale": server_image["scale"] if server_image is not None else 1.0,
+            },
             "capture": capture,
             "counters": dict(built.counters),
             "dialog_open": False,

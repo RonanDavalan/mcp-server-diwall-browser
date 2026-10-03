@@ -745,7 +745,9 @@ async def test_observation_output_separates_server_facts_from_page_content(fake_
     tab = await showing(fake_browser, registry, login_page())
     observation = await perceiver(registry).observe(tab)
     server, page = observation.server, observation.page_content
-    assert set(server) == {"tab_id", "snapshot_id", "origin", "capture", "counters", "dialog_open", "notices", "image"}
+    assert set(server) == {
+        "tab_id", "snapshot_id", "origin", "loader_id", "viewport", "capture", "counters", "dialog_open", "notices", "image"
+    }
     assert server["origin"] == ORIGIN and server["tab_id"] == tab.tab_id and len(server["snapshot_id"]) == 32
     assert page is not None and set(page) == {"url", "title", "tree", "elements"}
     assert page["title"] == "Login"
