@@ -21,6 +21,11 @@ PAGES_DIR = Path(__file__).resolve().parent / "pages"
 SLOW_FILE = "/slow.bin"
 SLOW_FILE_SIZE = 20000
 SLOW_FILE_PAUSE_S = 1.5
+# A file whose response begins a moment after the click, far longer than a
+# round trip to the browser and far shorter than the wait for a download to begin.
+LATE_FILE = "/late.bin"
+LATE_FILE_BODY = b"late file\n"
+LATE_FILE_DELAY_S = 0.2
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
@@ -28,6 +33,15 @@ class _QuietHandler(SimpleHTTPRequestHandler):
         pass
 
     def do_GET(self) -> None:  # noqa: N802 - name fixed by the base class
+        if self.path == LATE_FILE:
+            time.sleep(LATE_FILE_DELAY_S)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition", 'attachment; filename="late.bin"')
+            self.send_header("Content-Length", str(len(LATE_FILE_BODY)))
+            self.end_headers()
+            self.wfile.write(LATE_FILE_BODY)
+            return
         if self.path != SLOW_FILE:
             super().do_GET()
             return

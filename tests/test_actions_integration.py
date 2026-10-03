@@ -17,7 +17,7 @@ import pytest
 from conftest import FAKE_PASSWORD, FakeMount, VolumePaths, mounted_volume, write_credential
 from fixtures.action_support import FakeChannel, FakeClock, make_profile
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
-from fixtures.page_server import SLOW_FILE_PAUSE_S, SLOW_FILE_SIZE, PageServer
+from fixtures.page_server import LATE_FILE_BODY, LATE_FILE_DELAY_S, SLOW_FILE_SIZE, PageServer
 from fixtures.raw_cdp import RawSession
 
 from mcp_server_diwall_browser.actions import ActionContext, Actions
@@ -375,13 +375,27 @@ async def test_a_download_begun_by_the_click_ends_in_the_volume_after_the_settin
     await until_true(complete, timeout=10)
 
 
+async def test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volume(rig: Rig) -> None:
+    # The response begins after the gesture returned: the wait for a download
+    # to begin is what keeps the setting open long enough for it.
+    tab, snapshot = await rig.open("download-late.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger le rapport"))
+    downloads = rig.paths.project / "downloads"
+
+    async def complete() -> bool:
+        return any(path.is_file() and path.read_bytes() == LATE_FILE_BODY for path in downloads.rglob("*"))
+
+    await until_true(complete, timeout=10)
+
+
 async def test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused(rig: Rig) -> None:
-    # The download of a load begins a moment after the load ends: closing the
-    # setting at once refuses it. The wait for it to begin is what lets it in.
+    # Closing the setting at once refuses a download whose response has not
+    # begun: the page answers a fixed delay after the click, so the refusal
+    # does not depend on a race against the browser's round trip.
     rig.context.settle_download_start_s = 0.0
-    tab, snapshot = await rig.open("download-slow.html")
-    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger l'archive"))
-    await asyncio.sleep(SLOW_FILE_PAUSE_S + 1.0)
+    tab, snapshot = await rig.open("download-late.html")
+    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger le rapport"))
+    await asyncio.sleep(LATE_FILE_DELAY_S + 1.0)
     downloads = rig.paths.project / "downloads"
     assert not any(path.is_file() for path in downloads.rglob("*"))
 
