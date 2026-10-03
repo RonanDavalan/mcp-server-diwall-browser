@@ -2,18 +2,25 @@
 
 Why this module exists:
     The console script and ``python -m mcp_server_diwall_browser`` need a
-    single place to start from. Until the tools are wired, starting must fail
-    loudly instead of pretending to serve.
+    single place to start from, where the process is made safe before the
+    first secret could be read and the server is built with the real
+    dependencies only.
 """
 
 from __future__ import annotations
 
-import sys
+from . import hardening, output
+from .server import create_server, production_dependencies
 
 
 def main() -> None:
-    sys.stderr.write("mcp-server-diwall-browser: the server is not wired yet\n")
-    raise SystemExit(2)
+    hardening.restrict_umask()
+    # Before anything could read a secret: a crash must leave no core file.
+    hardening.disable_core_dumps()
+    output.configure_logging()
+    server = create_server(production_dependencies())
+    # Standard input and output only: the server opens no port.
+    server.run(transport="stdio")
 
 
 if __name__ == "__main__":

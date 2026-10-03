@@ -186,6 +186,8 @@ class FakeBrowser:
         self.targets: dict[str, dict[str, Any]] = {}
         self.sessions: dict[str, str] = {}
         self.navigation_error: str | None = None
+        # Address -> builder of the simulated page a navigation to it shows.
+        self.site: dict[str, Callable[[], Any]] = {}
         self.emit_load_events = True
         self.same_document = False
         self._target_ids = itertools.count(1)
@@ -539,6 +541,9 @@ class FakeBrowser:
             return result
         self.targets[target_id]["url"] = params["url"]
         self.targets[target_id]["loader"] = loader
+        page = self.site.get(params["url"])
+        if page is not None:
+            self.targets[target_id]["page"] = page()
         if self.same_document:
             del result["loaderId"]
             return result

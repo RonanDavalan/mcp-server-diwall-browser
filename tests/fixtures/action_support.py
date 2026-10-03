@@ -10,6 +10,9 @@ Why this module exists:
 from __future__ import annotations
 
 import inspect
+import json
+import os
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -74,3 +77,46 @@ def make_profile(
         browser=BrowserSettings(family="chromium", profile_dir="~/Vaults/Main/browser-profile"),
         limits=limits or Limits(),
     )
+
+
+_WINDOW_TOOL = """#!{python}
+import json, sys
+arguments = sys.argv[1:]
+if arguments and arguments[0] == "--help":
+    sys.stdout.write("--defaultno")
+    sys.exit(0)
+with open({record!r}, "a") as handle:
+    handle.write(json.dumps(arguments) + "\\n")
+with open({answer!r}) as handle:
+    answer = handle.read().strip()
+if answer == "wait":
+    import time
+    time.sleep(60)
+sys.exit(int(answer) if answer.isdigit() else 1)
+"""
+
+
+class FakeWindow:
+    """A kdialog the test writes: it records what it was asked and exits with the answer the test sets."""
+
+    def __init__(self, directory: Path) -> None:
+        directory.mkdir(mode=0o700, exist_ok=True)
+        self.path = directory / "kdialog"
+        self.record = directory / "asked.jsonl"
+        self.answer_file = directory / "answer"
+        self.answer(granted=False)
+        self.path.write_text(_WINDOW_TOOL.format(python=sys.executable, record=str(self.record), answer=str(self.answer_file)))
+        os.chmod(self.path, 0o700)
+        self.present = True
+
+    def answer(self, *, granted: bool = False, wait: bool = False) -> None:
+        """Yes, no, or nobody there: the window stays open until the server gives up."""
+        self.answer_file.write_text("wait" if wait else "0" if granted else "1")
+
+    def which(self, name: str) -> str | None:
+        return str(self.path) if self.present and name == "kdialog" else None
+
+    def questions(self) -> list[str]:
+        if not self.record.exists():
+            return []
+        return [json.loads(line)[-1] for line in self.record.read_text().splitlines()]
