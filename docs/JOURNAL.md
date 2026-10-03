@@ -843,3 +843,66 @@ Measured:
 Remaining:
 
 - The detailed documentation and the guides of the operator.
+
+## 2026-10-03 — Documentation, the invariants gathered, acceptance on a fresh clone
+
+Done:
+
+- `README.md`: connecting the server to an MCP client, the image the model receives, what is
+  tested and what is not, the known limits.
+- `docs/OPERATOR_GUIDE.md`: the final layout, then what is needed, installation, the dedicated
+  browser profile, the encrypted directory, the operator profile, credential files, what leaves the
+  machine, what the server never does, the confirmation, backups, one troubleshooting entry per
+  error code with the messages of the code, the known limits.
+- `docs/ARCHITECTURE.md`: the two layers, one step, the modules, the safeguards, the reasons for
+  the main choices, the decisions set aside and what would reopen them.
+- `scripts/smoke_test.py` and the demo page `docs/demo/index.html`; `docs/images/observe-demo.png`
+  written by it.
+- `observe` says which document and which view it describes (`loader_id`, `viewport`).
+- `tests/test_tools_results.py`: the result of `wait`, `select_option`, `press_key`, `close_tab`
+  and `observe`, each check with a defective tool it catches; the version read from `status`.
+- `tests/test_invariants.py` gathers the invariants (exit point of every production tool, nothing
+  on standard output, DevTools methods and scripts, environment reads, forbidden tracked files);
+  `tests/test_layout.py` checks the layout and the hygiene of the repository (module names,
+  pins and lock, no optional import, no real data, comments in English without history, module
+  headers). Each check has its counter-proof.
+- `.github/workflows/ci.yml`: Python 3.12, install, `compileall`, the suite without browser tests.
+- `requirements.lock` regenerated from the tested environment.
+- The parsing test of IPv6 sockets compares addresses, not their text, which differs between
+  Python 3.12 and 3.13.
+
+Proof:
+
+```
+.venv/bin/python -m pytest -q                       # 1205 passed, 54 skipped: no browser on PATH
+PATH=<dir with a chromium link>:$PATH .venv/bin/python -m pytest -q   # 1259 passed, browser tests included
+.venv/bin/python -m compileall -q src               # no output, exit code 0
+```
+
+On a fresh clone, following the README and the operator guide, with Python 3.12.3:
+
+```
+.venv/bin/python -m pytest -q -m "not browser"      # 1205 passed, 54 deselected
+.venv/bin/python scripts/smoke_test.py              # exit code 3 without a browser, 0 with Chromium 141
+PATH=<dir with a chromium link>:$PATH .venv/bin/python -m pytest -q   # 1259 passed
+```
+
+Measured:
+
+- Python 3.12.3 writes an IPv4-mapped IPv6 address as `::ffff:7f00:1`, Python 3.13.14 as
+  `::ffff:127.0.0.1`; the server's loopback check reads the mapped address in both.
+- Chromium 141 started with `--remote-debugging-port=9222` listens on `127.0.0.1:9222` only.
+- Read in the source of the MCP SDK 1.25.0: its client starts a server with `HOME`, `LOGNAME`,
+  `PATH`, `SHELL`, `TERM` and `USER` only. The native window needs `DISPLAY` or `WAYLAND_DISPLAY`,
+  so a connection made that way needs one of them in its environment block.
+- The server announces `mcp-server-diwall-browser 1.25.0` when a session opens; `status` says
+  `0.0.1`.
+
+Remaining:
+
+- Pin the actions of the workflow by commit hash before any publication; they are referenced by
+  version tag.
+- Run the operator guide on Debian with a real gocryptfs volume, a real confirmation window and the
+  browser profile in the encrypted directory; none could be run in this environment.
+- Check with Claude Code which environment it gives the server, and whether the confirmation
+  window opens from it.
