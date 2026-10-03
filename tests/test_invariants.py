@@ -105,6 +105,11 @@ SINGLE_DEFINITIONS = {
     "bounded_text": "output.py",
     "origin_allowed": "origin.py",
     "split_host_port": "origin.py",
+    "holds": "mount.py",
+    "environment_dirs": "operator_profile.py",
+    "classify": "gate.py",
+    "choose_channel": "confirm.py",
+    "tool": "output.py",
 }
 
 # Standard library helpers that parse an address; only origin.py may parse one.
@@ -146,6 +151,9 @@ def test_security_definitions_exist_once_in_their_module() -> None:
         ("browser.py", "class MountChecker:\n    pass\n"),
         ("gate.py", "async def resolve(volume, origin, key):\n    pass\n"),
         ("tools/fill.py", "from urllib.parse import urlsplit\n"),
+        ("server.py", "def redact_text(text):\n    return text\n"),
+        ("tools/status.py", "def holds(volume, path):\n    return str(path).startswith(str(volume))\n"),
+        ("tools/click.py", "def classify(ref, **kw):\n    return None\n"),
     ],
 )
 def test_definition_check_catches_a_second_copy(tmp_path: Path, module: str, source: str) -> None:
