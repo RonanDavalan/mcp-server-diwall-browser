@@ -524,11 +524,15 @@ class TabRegistry:
         infos = []
         for tab in list(self._tabs.values()):
             try:
-                frame = await self.main_frame_info(tab)
+                frame = await self.main_frame_info(tab, stop_on_dialog=True)
             except ToolError as exc:
                 if exc.code == "tab_not_owned":
                     continue
                 raise
+            except DialogBlocking:
+                # The page answers nothing while a dialog is open; the dialog's
+                # own address says where the tab is.
+                frame = FrameInfo(url=tab.dialog_url or "", origin=_origin_or_none(tab.dialog_url), loader_id="", frame_id="")
             infos.append(TabInfo(tab_id=tab.tab_id, origin=origin_label(frame), adopted=tab.adopted))
         return infos
 
@@ -871,6 +875,13 @@ class TabRegistry:
 
 async def _awaited(waiter: Any) -> Any:
     return await waiter
+
+
+def _origin_or_none(url: str | None) -> Origin | None:
+    try:
+        return origin_of_url(url or "")
+    except OriginError:
+        return None
 
 
 def origin_label(frame: FrameInfo) -> str | None:

@@ -1034,3 +1034,21 @@ async def test_an_internal_script_on_a_closed_tab_reports_the_tab(fake: FakeCdp,
     with pytest.raises(ToolError) as caught:
         await registry.run_script(tab, "active_element")
     assert caught.value.code == "tab_not_owned" and tab.closed
+
+
+async def test_a_tab_with_an_open_dialog_is_listed_at_once(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
+    tab = await registry.open_tab("https://example.test/")
+    await fake_browser.open_dialog(tab.target_id, "Continuer ?")
+    await until(lambda: tab.dialog is not None)
+    [info] = await asyncio.wait_for(registry.list_tabs(), 1.0)
+    assert info.tab_id == tab.tab_id and info.origin == "https://example.test"
+
+
+async def test_counter_proof_a_listing_that_reads_the_frame_as_usual_waits_behind_the_dialog(
+    fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry
+) -> None:
+    tab = await registry.open_tab("https://example.test/")
+    await fake_browser.open_dialog(tab.target_id, "Continuer ?")
+    await until(lambda: tab.dialog is not None)
+    with pytest.raises(TimeoutError):
+        await asyncio.wait_for(registry.main_frame_info(tab), 1.0)
