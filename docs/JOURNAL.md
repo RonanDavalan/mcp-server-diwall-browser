@@ -798,6 +798,69 @@ set aside.
   `contentSize` to `cssContentSize` (rounded to whole pixels: 1070 / 713 = 1.5007); refusing the
   image whenever the scale is not 1 (the operator's screen is at 1.5: the tool would be unusable).
 
+### Under the caps, what is above the page is kept first, and what it covers says so
+
+- Measured before the change, on `tests/fixtures/pages/dense-banner.html` (643 things to click: a
+  sticky header, a menu of 96 links, a menu of 132 and eight filters under a banner fixed over the
+  lower 300 pixels of the view, 400 results below; the three buttons of the banner last in the
+  document), Chromium 141.0.7390.37, window 1280 x 800. With the choice of the time (the view
+  first, then document order): 150 marks and 400 tree lines, both truncated; none of the banner's
+  four elements marked or in the tree, so "Refuse" could not be named; the same after a scroll of
+  500 pixels. With the new choice: the four elements of the banner are marked (marks 147 to 150)
+  and are the first lines of the tree under the overlay line; 47 elements carry `covered` (the
+  eight filters and 39 of the menu behind the banner); after the scroll the sticky header joins
+  the overlay lines. Nothing from below the view is marked while elements of the view are left out.
+- Decided: when marks exceed 150 or tree lines exceed 400, the server keeps, in this order, what
+  belongs to a layer above the page, with all it holds; what is in view and not covered; what is in
+  view and covered, which carries `covered: true` (the key is there only when true); the rest in
+  document order. The marks kept are numbered from 1 in document order. In the tree the layer
+  comes first under `overlay "layer above the page"`, indented under it from the shallowest of its
+  lines, then the rest in document order. The caps do not change; the overlay line is one of the
+  400 lines. A page under the caps is read as before: no `covered`, no overlay line.
+- What is a layer, and what is covered, written out because the specification leaves it to the
+  code: a layer is a node of role `dialog` or `alertdialog`, a node with `aria-modal`, or a node of
+  computed position `fixed` or `sticky`, visible, with its box in view, with something to read or
+  act on in view outside it, under its box, painted before it. The last condition keeps out a
+  fixed node that hides nothing, and above all a fixed container around the whole application,
+  which would otherwise take every element and end the rule that the view comes first. An element
+  in view is covered when the centre of its box lies in a box of a layer that is not its own,
+  painted after it, and that takes the pointer: the boxes of a layer are those of its topmost
+  nodes whose computed `pointer-events` is not `none`, so a transparent wrapper that lets clicks
+  through covers nothing.
+- Measured on the dense page: the boxes of a fixed node in the snapshot are in document
+  coordinates (the banner's top is at 411 with no scroll and 911 after a scroll of 500), and the
+  paint order the snapshot gives puts the fixed banner (8) and the sticky header (7) after the
+  positioned menu (5). The snapshot now also asks for the computed `position` and `pointer-events`
+  of each node, and uses the paint order it already asked for; with none, the document order
+  stands in. A page with more than 100 positioned nodes has the first 100 examined.
+- Not decided by the text, taken by the session: `covered` and the overlay line follow the caps,
+  as PER-46 puts them under the ranking. The alternative is to state `covered` on every
+  observation; it would change the shape of `elements` on pages that never reach a cap.
+- Control: `tests/test_perception_ranking.py` on a simulated page (the buttons of a banner marked
+  and last, `covered` on the elements behind it and nowhere else, the overlay line and its
+  indentation, a sticky header that is a layer only once content is under it, a dialog by its role,
+  a modal node, a dialog out of view, a fixed node painted behind the content, a wrapper that lets
+  the pointer through and one that takes it, nothing changed under the caps, the order of the
+  choice itself) and `tests/test_ranking_integration.py` in a real browser (the same, plus a
+  click on "Refuse" by its mark that takes the banner away, clicks on three covered filters refused
+  as `element_obscured`, the page scrolled). Counter-proofs: the choice of the time is kept in the
+  tests as a function passed in place of the real one, and with it the banner has no mark, no
+  overlay line and "Refuse" cannot be named (`test_ranking_check_catches_the_old_choice_that_dropped_the_banner`,
+  `test_tree_check_catches_the_old_choice_that_dropped_the_banner_lines`,
+  `test_ranking_check_catches_the_old_choice_on_the_dense_page`,
+  `test_banner_check_catches_the_old_choice_that_left_no_mark_on_refuse`,
+  `test_ranking_check_catches_the_old_choice_on_the_scrolled_page`); a perception that never looks
+  under the banner flags nothing (`test_covered_check_catches_a_perception_that_never_looks_under_the_banner`
+  in both files); a rank that puts the covered with the clear is caught
+  (`test_choice_check_catches_a_rank_that_puts_the_covered_with_the_clear`).
+- Set aside: raising the caps; a search by text in `observe` (the surface of the tools is fixed);
+  one `DOM.getNodeForLocation` per element to know what is covered (a round trip per element, and
+  the snapshot already holds what is needed); taking every fixed or sticky node for a layer.
+- Limits, written in the guide: a banner that overlaps nothing in view is not a layer, so it is
+  cut like any element if the view holds more than the cap; the cover is the box of the layer, not
+  the pixels it paints, so an element under a transparent part of a layer's box is flagged covered;
+  the colour and the transparency of a layer are not computed.
+
 ## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
 
 Done:
