@@ -114,6 +114,8 @@ class _Run:
     notices: list[str] = field(default_factory=list)
     gate: dict[str, Any] = field(default_factory=lambda: {"red_list": False, "confirmation": "none"})
     dialog_opened: bool = False
+    # The origin checked against the allowed sites, for the journal line of the call.
+    origin: str | None = None
 
 
 class Actions:
@@ -131,7 +133,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        self._require_allowed(profile, verified.frame)
+        run.origin = self._require_allowed(profile, verified.frame)
         decision = classify(ref, action_kind="click", intent_category=intent_category, snapshot=snapshot)
         await self._guard(run, tab, profile, "click", ref, verified, decision)
         if run.gate["confirmation"] == "granted":
@@ -188,7 +190,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        self._require_allowed(profile, verified.frame)
+        run.origin = self._require_allowed(profile, verified.frame)
         if ref.tag not in ("input", "textarea") or (ref.tag == "input" and (ref.input_type or "") not in FILL_INPUT_TYPES):
             raise ToolError("unsupported_element", "cet élément ne se remplit pas : un champ de texte ou une zone de texte est attendu")
         if ref.sensitive and text is not None:
@@ -223,7 +225,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        self._require_allowed(profile, verified.frame)
+        run.origin = self._require_allowed(profile, verified.frame)
         if ref.tag != "select":
             raise ToolError("unsupported_element", "seule une liste de choix native (select) se règle ainsi")
         await self._guard(run, tab, profile, "select_option", ref, verified, NOT_ARMED)
@@ -257,14 +259,14 @@ class Actions:
         context.registry.ensure_no_dialog(tab)
         profile = context.profile()
         if key != "Enter":
-            self._require_allowed(profile, await self._frame(tab))
+            run.origin = self._require_allowed(profile, await self._frame(tab))
             await self._with_gate(run, self._key(run, tab, key))
             return await self._finish(run, tab, mark=None)
         if snapshot_id is None or mark is None:
             raise ToolError("unsupported_element", "la touche Entrée exige un repère (snapshot_id et mark)")
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         verified = await self.verify_element(tab, snapshot, ref)
-        self._require_allowed(profile, verified.frame)
+        run.origin = self._require_allowed(profile, verified.frame)
         await self._focus_into(tab, ref, verified.object_id, select=False)
         decision = classify(ref, action_kind="enter_key", intent_category=intent_category, snapshot=snapshot)
         await self._guard(run, tab, profile, "enter_key", ref, verified, decision)
@@ -367,6 +369,7 @@ class Actions:
         if not origin_allowed(origin, profile.allowed_origins):
             raise ToolError("origin_not_allowed", _ORIGIN_REFUSED, extra_server={"origin": None if origin is None else origin.canonical})
         assert origin is not None
+        run.origin = origin.canonical
         message = dialog.get("message", "")
         decision = classify(
             None,
@@ -388,11 +391,13 @@ class Actions:
         run = self._start("save_evidence", "")
         tab = context.registry.get(tab_id)
         context.registry.ensure_no_dialog(tab)
-        self._require_allowed(context.profile(), await self._frame(tab))
+        run.origin = self._require_allowed(context.profile(), await self._frame(tab))
         png = await context.perception.capture_masked_png(tab)
         path = context.evidence.manual(run.operation_id, label, png)
         outcome = await self._finish(run, tab, mark=None, settle=False)
         outcome.server["evidence_file"] = path.name
+        # Relative to the server's directory in the volume: evidence/<day>/<operation>/<file>.
+        outcome.server["evidence_path"] = "/".join(path.parts[-4:])
         return outcome
 
     # --- identity of an element ------------------------------------------------------------------------
@@ -445,9 +450,10 @@ class Actions:
             raise ToolError("element_stale", _UNKNOWN_MARK)
         return tab, snapshot, ref
 
-    def _require_allowed(self, profile: Profile, frame: FrameInfo) -> None:
-        if not origin_allowed(frame.origin, profile.allowed_origins):
+    def _require_allowed(self, profile: Profile, frame: FrameInfo) -> str:
+        if frame.origin is None or not origin_allowed(frame.origin, profile.allowed_origins):
             raise ToolError("origin_not_allowed", _ORIGIN_REFUSED, extra_server={"origin": origin_label(frame)})
+        return frame.origin.canonical
 
     async def _guard(
         self,
@@ -569,6 +575,8 @@ class Actions:
         }
         if mark is not None:
             server["mark"] = mark
+        if run.origin is not None:
+            server["origin"] = run.origin
         return ActionOutcome(server=server, typed_marker=typed_marker, gate=dict(run.gate))
 
     async def _settle(self, run: _Run, tab: Tab) -> bool:

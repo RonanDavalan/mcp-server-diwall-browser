@@ -1054,8 +1054,9 @@ async def test_a_credential_is_typed_on_its_origin_and_never_leaves_the_server(
     assert found == [], f"a credential value appears in: {found}"
     # Neither the value nor its length: the result says what was done, nothing of what was typed.
     assert set(envelope["server"]) == {
-        "notices", "tab_id", "action", "dialog_open", "counters", "mark", "typed", "gate", "operation_id", "tool"
+        "notices", "tab_id", "action", "dialog_open", "counters", "mark", "origin", "typed", "gate", "operation_id", "tool"
     }
+    assert envelope["server"]["origin"] == ORIGIN
     assert set(envelope["server"]["counters"]) == {"actions", "pages", "max_actions", "max_pages", "min_action_delay_ms"}
 
 
@@ -1265,6 +1266,8 @@ async def test_save_evidence_writes_a_manual_capture_with_a_safe_name(bench: Ben
     outcome = await bench.actions.save_evidence(tab.tab_id, "../../reçu final")
     [path] = bench.evidence_files()
     assert path.name == outcome.server["evidence_file"] and path.name.startswith("manual-") and "/" not in path.name
+    assert outcome.server["evidence_path"] == path.relative_to(bench.paths.project).as_posix()
+    assert outcome.server["origin"] == ORIGIN
     assert path.is_relative_to(bench.paths.project / "evidence")
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
