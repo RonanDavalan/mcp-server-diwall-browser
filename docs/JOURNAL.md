@@ -570,6 +570,112 @@ set aside.
 - Control: `test_a_target_replaced_by_a_clone_is_stale_and_nothing_is_clicked`.
 - Set aside: none.
 
+### The download setting is closed at attachment, and given back when the server stops
+
+- Decided: the server's connection to the browser is built in one place (`server.ServerState`),
+  which calls `DownloadManager.forbid()` right after attaching, before any action, and again on
+  every new attachment after a lost connection. When the server stops (end of its input), the
+  same place calls `restore_default()` and closes the connection; the tabs it opened stay open.
+- Why: between the attachment and the first action, a page download would follow the browser's
+  own setting, outside the volume. Measured on Chromium 141: `deny` is the browser's setting, not
+  a tab's; while the server is attached, a download the operator starts in a tab of their own is
+  refused too, and works again once the server's connection has ended.
+- Control: `test_downloads_are_forbidden_from_the_attachment_on`, with
+  `test_counter_proof_a_wiring_that_never_forbids_leaves_the_setting_open`;
+  `test_a_lost_connection_is_replaced_and_the_setting_closed_again`;
+  `test_when_its_input_closes_the_process_gives_downloads_back_and_leaves_tabs_open` (the real
+  process); `test_while_the_server_is_attached_the_operators_own_downloads_are_refused_too` (real
+  browser, the measured fact frozen).
+- Set aside: a setting scoped to the server's tabs (the protocol's setting is the browser's or a
+  browser context's, and the server's tabs share the operator's context).
+- Review of the two commits this relies on: no defect found in the closing of the setting. The
+  checks of the second commit match their words anywhere in a module's text, comments included,
+  which errs on the side of refusing.
+
+### The server checks the arguments of a tool itself; a refused one has its own code
+
+- Decided: each tool declares its arguments as a strict model that refuses unknown keys; the
+  server validates them before the tool runs. A refusal leaves through the single exit point,
+  with the new code `invalid_arguments` and the names of the refused parameters (never their
+  values), and is journaled like any call.
+- Why: measured on the SDK in use (1.25.0), a tool registered the plain way drops a parameter it
+  does not know and runs, and its own validation error leaves as a text outside the exit point.
+  No existing code says that a parameter was wrong.
+- Control: `test_an_invented_approval_parameter_is_refused_and_does_nothing` (`approved`,
+  `confirm`, `override`), `test_a_malformed_parameter_is_refused_through_the_exit_point`,
+  `test_the_sdk_alone_would_ignore_an_unknown_parameter`.
+- Set aside: the SDK's own refusal (outside the exit point, values of the arguments in its text);
+  `internal_error` (says nothing useful).
+
+### Every call is journaled once, from the server, after its result
+
+- Decided: the registered tool of the server writes the final line of every call, `status` and
+  `observe` included, from the finalized result: `origin` from `server.origin` (actions now say
+  the origin they checked), `result`, `mutating` from the operator's table, `intent` with the
+  typed marker, the gate state the action reports, the client's name and version from the
+  session. An armed action's `requested` line, written by the action before asking, is never
+  written again. Without a profile there is no volume to write in: such calls are counted in
+  `operations_not_journaled` with the ones the journal could not write.
+- Why: one place, so no tool can forget it; the line describes what was returned.
+- Control: `test_a_session_of_ten_tools_writes_ten_lines_without_any_credential`,
+  `test_an_armed_action_writes_its_request_then_its_result_and_every_state_is_journaled` (the six
+  confirmation states), `test_with_the_volume_closed_calls_are_counted_as_not_journaled`,
+  `test_the_client_name_cannot_break_a_journal_line`.
+- Set aside: a line written before the call (it could not say the result).
+
+### The parameters are exactly the operator's table
+
+- Decided: `press_key` takes no `intent_category` and `handle_dialog` takes no `intent`, as in the
+  table, although the actions accept them; `wait` takes `for` under that name.
+- Why: no parameter is added to a fixed surface.
+- Control: `test_the_parameters_are_those_of_the_operators_table`.
+- Set aside: exposing the extra parameters the actions have.
+
+### The environment is read in the profile module only
+
+- Decided: the browser module asked the process environment for the home and configuration
+  directories itself; it now asks `operator_profile.environment_dirs`. Only the profile module and
+  the confirmation window read the environment.
+- Why: a variable read anywhere is a switch nobody reviews.
+- Control: `test_no_environment_option_or_flag_turns_a_check_off`, with
+  `test_switch_check_catches_an_environment_option_or_flag` (an environment read, a command-line
+  option, an option string that turns something off, a test flag).
+- Set aside: none.
+
+### A tab with an open dialog is listed at once
+
+- Decided: listing the tabs stops on an open dialog and takes the tab's origin from the address
+  of the dialog's opening event.
+- Why: the page answers no call while a dialog is open; the listing waited for the whole call
+  delay on such a tab.
+- Control: `test_a_tab_with_an_open_dialog_is_listed_at_once`, with
+  `test_counter_proof_a_listing_that_reads_the_frame_as_usual_waits_behind_the_dialog`.
+- Set aside: none.
+
+### What the decisions on dialogs and downloads change for the model
+
+- Decided: the descriptions of `click`, `fill`, `select_option`, `press_key` and `scroll` say that
+  an open dialog refuses them at once (`element_obscured`, `action_expected` `handle_dialog`); the
+  description of `handle_dialog` and the guide's limits say that accepting an armed dialog is
+  refused with `capture_unavailable` and that the operator answers it; the description of `click`
+  and the guide's limits say that a download a page starts more than half a second after a load
+  ends is refused, and that the operator downloads it.
+- Why: the model must know the outcome before it meets it, and what to say to the operator.
+- Control: `test_the_descriptions_say_what_a_dialog_and_a_late_download_mean`,
+  `test_the_limits_say_what_the_dialogs_and_the_downloads_cannot_do`,
+  `test_a_dialog_open_in_the_tab_refuses_every_other_action_at_once`,
+  `test_accepting_an_armed_dialog_is_refused_and_dismissing_it_works`.
+- Set aside: none.
+
+### Attempts that never reach the browser are not counted
+
+- Decided: the ceilings count an action at the entry of the action pipeline, after the server is
+  attached; a call refused before (no profile, no browser) is not counted.
+- Why: the pipeline of the actions counts first thing, and the tools call it as it is; a call that
+  cannot reach a page cannot loop on one.
+- Control: `test_the_ceilings_hold_through_the_tools`.
+- Set aside: counting twice to count those too.
+
 ## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
 
 Done:
@@ -620,3 +726,45 @@ Remaining:
 - A download started by a page between two actions goes to the directory prepared for the last
   action; if the volume is closed in the meantime, the browser would create that directory on the
   unencrypted disk below the mount point.
+
+## 2026-10-03 — The MCP server, its fourteen tools, the journal of every call and the guide
+
+Done:
+
+- `server.py`: `Dependencies` (everything the tests replace), `production_dependencies()`, the
+  one factory `create_server`, the browser session (attachment, download setting closed at once
+  and given back at the end), the check of every tool's arguments, the journal line of every call,
+  the choice of the confirmation window or the client's own confirmation.
+- `__main__.py`: umask, core files off, log to standard error through redaction, then the server
+  over standard input and output.
+- `tools/`: the fourteen tools of the operator's table, one file each, through the exit point.
+- `guide.py`: twelve rules with their consequence in the first lines, then the reference (tools,
+  error codes, limits).
+- `mount.Volume.holds`, `operator_profile.environment_dirs`, the code `invalid_arguments`, the
+  origin and the evidence path in action results, a listing of tabs that does not wait behind a
+  dialog.
+- Tests: `tests/test_server_session.py`, `tests/test_server.py` (in memory, through the SDK's
+  client), `tests/test_server_process.py` (the process over standard streams, its sockets and
+  limits), `tests/test_server_integration.py` (Chromium), `tests/test_guide.py`.
+
+Proof:
+
+```
+.venv/bin/python -m pytest -q                       # 1151 passed, 52 skipped: no browser on PATH
+PATH=<dir with a chromium link>:$PATH .venv/bin/python -m pytest -q   # 1203 passed, browser tests included
+.venv/bin/python -m compileall -q src               # no output, exit code 0
+.venv/bin/python -m mcp_server_diwall_browser < /dev/null   # exit code 0, nothing on standard output
+```
+
+Measured:
+
+- SDK 1.25.0: a plain tool drops an unknown parameter and runs; a result can be marked as an
+  error (`isError`); the client announces elicitation when it has a handler for it, and the server
+  asks through `Context.elicit` with a model of one boolean; the server's version given at
+  initialization is the SDK's own.
+- Against Chromium 141.0.7390.37: while the server is attached and holds `deny`, a download in a
+  tab of the operator is refused too; it works again once the server's connection has ended.
+
+Remaining:
+
+- The detailed documentation and the guides of the operator.
