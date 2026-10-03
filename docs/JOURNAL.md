@@ -861,6 +861,59 @@ set aside.
   the pixels it paints, so an element under a transparent part of a layer's box is flagged covered;
   the colour and the transparency of a layer are not computed.
 
+### An old credential file is carried over by a command of the operator, not read by the server
+
+- Decided: `python -m mcp_server_diwall_browser.credential_import --source <absolute path>
+  --name <label> [--origin <origin> ...]` converts one file of the old format (keys
+  `origines_autorisees`, `username`, `password`, `totp_cle`, `ntfy_topic`, optional `checksum`) into
+  `credentials/<name>.json`, inside its own process, printing one line of JSON (`written`, `origins`,
+  `carried`, `not_carried`, `origins_differ_from_source`, `origins_assumed_https`) or one line
+  `error: <code>` with exit code 1. It is not an MCP tool: the fourteen stay fourteen, and no module
+  of the package imports it. Its steps and refusals are in the operator guide, section 6.
+- Why: retyping the values passes them through the operator's editor and eyes and the session of the
+  model that says what to type. The server must not read the old format either, which would undo the
+  strict schema of `credentials`.
+- Taken by the session, where the text left it open:
+  - the volume gets one new way to read: `Volume.read_file_at`, a private file anywhere under the
+    mount point, resolved first, on the volume's device, with no link followed below the volume's
+    directory; the reading it shares with the project's files is one function. A link that leads out
+    of the volume is `source_not_in_volume`, a link inside it is `source_invalid`;
+  - a new file is published whole by `Volume.publish_new`: written to a hidden file of the same
+    directory, in mode 600, and given its name by a hard link, which fails when the name is taken. On
+    a file system that cannot link, the name is taken first, exclusively, and removed if the write
+    fails. The hard link was not tried on a real gocryptfs volume;
+  - `credentials` offers `valid_name`, `loads_strict`, `validate` and `credentials_directory` instead
+    of the command copying them; `resolve` decides nothing differently, and a test requires
+    `validate` and `resolve` to agree on ten kinds of content;
+  - a missing `credentials/` directory is `credential_invalid`, there being no code for it;
+  - the hosts of the old file must be plain host names (no port, no capital, no scheme): `shop.example.invalid:8443`
+    is refused as `origin_invalid` unless origins are given, rather than read as a port;
+  - an empty user name or password counts as absent; one of another type is `source_invalid`;
+  - `not_carried` counts every key of the file left behind except the list of hosts, which becomes the
+    origins; the checksum counts;
+  - a name that is taken is the one refusal that adds a word to its line: `error: target_exists
+    <base name>`;
+  - the command line is read by an `argparse` parser whose error says only `invalid_arguments`, since
+    its own message repeats what was typed; the help is not offered;
+  - the invariants that keep a command line and standard output out of the package name this one
+    command as their exception, limited to its three options and its one line of result.
+- Control: `tests/test_credential_import.py` (the file produced, mode 600 in a 700 directory, the six
+  keys of the line, no value in anything printed for a success and for every refusal, the schema of
+  the server unchanged, the neighbours of the origin refused, a refusal and no file created for a
+  taken name, a link as source, as target and as a directory, a source outside the volume or off its
+  device, rights for group or others, a wrong checksum, nothing to carry, a bad name, a bad origin,
+  hosts that are not plain, a closed volume, a source of the wrong shape, a failing write, an
+  argument line that is not the three options, the process itself), `tests/test_volume_files.py`,
+  `tests/test_credentials_api.py`. Counter-proofs: an output that does not go through the redaction
+  repeats a value (`test_printing_check_catches_an_output_that_does_not_go_through_the_redaction`); a
+  refusal that repeats a value; a schema that would accept the old format; a conversion that does not
+  verify the checksum; a publication that leaves half a file; a reader that judges the path as written
+  and follows a link out; a publication that renames over a taken name; a command that reads before
+  lowering the core file limit; a second way to write; a way out to the network or to a program.
+- Set aside: reading the old format in the server; a tool that converts; a second path of resolution
+  (the three are in the architecture, with what would reopen them); deleting the source after the
+  conversion (not asked; the old file stays); replacing a file that exists.
+
 ## 2026-10-02 — Security gate, human confirmation, actions, evidence and downloads
 
 Done:
