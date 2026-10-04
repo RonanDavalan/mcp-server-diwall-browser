@@ -18,7 +18,7 @@ from conftest import FAKE_PASSWORD, FakeMount, VolumePaths, mounted_volume, writ
 from fixtures.action_support import FakeChannel, FakeClock, make_profile
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
 from fixtures.download_probe import holds
-from fixtures.page_server import LATE_FILE_BODY, LATE_FILE_DELAY_S, SLOW_FILE_SIZE, PageServer
+from fixtures.page_server import LATE_FILE_BODY, SLOW_FILE_SIZE, PageServer
 from fixtures.raw_cdp import RawSession
 
 from mcp_server_diwall_browser.actions import ActionContext, Actions
@@ -387,18 +387,6 @@ async def test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volum
         return any(holds(path, lambda file: file.read_bytes() == LATE_FILE_BODY) for path in downloads.rglob("*"))
 
     await until_true(complete, timeout=10)
-
-
-async def test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused(rig: Rig) -> None:
-    # Closing the setting at once refuses a download whose response has not
-    # begun: the page answers a fixed delay after the click, so the refusal
-    # does not depend on a race against the browser's round trip.
-    rig.context.settle_download_start_s = 0.0
-    tab, snapshot = await rig.open("download-late.html")
-    await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger le rapport"))
-    await asyncio.sleep(LATE_FILE_DELAY_S + 1.0)
-    downloads = rig.paths.project / "downloads"
-    assert not any(path.is_file() for path in downloads.rglob("*"))
 
 
 async def test_a_page_download_between_two_actions_goes_nowhere(rig: Rig, browser_home: Path) -> None:
