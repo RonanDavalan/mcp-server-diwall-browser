@@ -123,11 +123,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output on a fresh clone in the project's environment, with Python 3.12.3 and Chromium 141 (the
-counts are those of this revision, 452 of its tests needing a browser):
+Output in the project's environment, with Python 3.13.14 (the counts are those of this revision, 532
+of its tests needing a browser):
 
 ```
-1618 passed, 452 deselected, 1 warning in 72.08s (0:01:12)
+1654 passed, 532 deselected, 1 warning in 83.65s (0:01:23)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -157,11 +157,11 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 452 browser tests;
-each starts the browser headless on a blank temporary profile. On the same fresh clone:
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 532 browser tests;
+each starts the browser headless on a blank temporary profile. In the same environment:
 
 ```
-2070 passed, 1 warning in 271.63s (0:04:31)
+2186 passed, 1 warning in 346.46s (0:05:46)
 ```
 
 Then connect the server to your MCP client: the command and the configuration block are in the
@@ -567,8 +567,44 @@ browser on your `PATH`:
 The second command needs no browser. Not measured: Chrome 154 (the browser tests of the clicks were
 not replayed there: if its node lookup reads a point of the view, the tests of a click on a scrolled
 page fail on it), the zoom of the Ctrl and + keys of a browser that is not headless, a screen whose
-scale really is 1.5, a click on an element inside a frame of a scrolled page, and a page that
-scrolls itself between the two readings of a click.
+scale really is 1.5, and a click on an element inside a frame of a scrolled page. The page that
+moves under the click is in the next part.
+
+#### A page that moves when the pointer arrives
+
+A click is three mouse events, and the first one, the movement of the pointer, is what makes some
+pages move: a menu that opens on hover, a banner that slides in. The check above was made once,
+before that first event, so a click could then be pressed on whatever had taken the place of the
+target. Measured on Chromium 141.0.7390.37 with a page that shifts each target 60 CSS pixels down at
+the first movement and puts a button of another name where the target was: at the eight combinations
+of page zoom (100, 125, 150, 200 %) and screen scale (1, 1.5), for each of three buttons, all 24
+clicks returned no error and none reached the target; each landed on the button put in its place.
+
+Now, after the movement and before the press, the server reads the box of the target and the scroll
+offset again. If either changed, it asks the browser again what lies under the point it is about to
+press, and refuses with `element_obscured` unless that is still the target or one of its
+descendants. On that page the 24 clicks are all refused and no button, the one put in its place
+included, receives anything; a second click on a new observation (the page has moved and moves no
+more) lands. A page that did not move costs two more readings and no more lookup; the median
+duration of a click on the test page was 318.41 ms before and 318.42 ms after (20 clicks, Chromium
+141, the delay between two actions left out), almost all of it the wait for a load that a click may
+start. An observation you ask for after a refusal shows the page as it now is.
+
+What remains, measured: on the same test page with a script that scrolls the document by 4 CSS
+pixels every 4 ms, back and forth (1000 pixels a second, 144 clicks at the eight combinations, six
+per combination and button), 64 clicks landed and 80 returned no error with the click landing
+nowhere before the change; after it 55 landed, 82 were refused and 7 returned no error with the
+click landing nowhere. None landed on another button. A page that moves in the instant between the
+second reading and the press is not covered, nor is a page that opens something over the target
+without moving the target or the view, since the lookup is not repeated when nothing moved. To
+replay the first measure:
+
+```
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py
+.venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
+```
+
+The second command needs no browser. Chrome 154 was not used for these tests.
 
 ## 8. What the server never does
 
@@ -852,6 +888,10 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - The command that carries a credential file over was tested on files of the test suite in a
   simulated volume; its publication of the new file by a hard link was not tried on a real gocryptfs
   volume (if the file system cannot link, it takes the name first and fills it).
+- A click that the page moves between the second reading of its box and the press, or whose target
+  the page covers without moving it or the view, is not caught (see the part on pages that move
+  when the pointer arrives): on a page that scrolled by 1000 CSS pixels a second, 7 of 144 clicks
+  landed nowhere with no error. Observe again before a second try after a refusal.
 - A node that has no box of its own is taken for hidden, and what lies under it is not shown to the
   model. Measured on Chromium 141: a page whose body had no height because its children were placed
   out of the flow gave no mark, and a wrapper of no height holding a dialog fixed to the view gave

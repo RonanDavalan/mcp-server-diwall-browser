@@ -58,11 +58,11 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 
 Tested:
 
-- The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
-  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1618
-  tests pass and the 452 that need a browser are skipped with the reason (as a user other than root,
-  one of the 1618 is skipped: a test that runs as root only); with Chromium 141.0.7390.37 (headless,
-  blank temporary profile), 2070 pass, with no expected failure.
+- The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14 and
+  the dependencies of `requirements.lock`: without a browser, 1654 tests pass and the 532 that need a
+  browser are deselected (as a user other than root, one of the 1654 is skipped: a test that runs as
+  root only); with Chromium 141.0.7390.37 (headless, blank temporary profile), the 532 browser tests
+  pass, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
   change they failed 3 and 1 times in 130 runs of each alone; the 3 were a read, in the test itself, of
@@ -114,6 +114,18 @@ Tested:
   covered by the banner was accepted and the banner was clicked, at the eight combinations: the browser
   answers the node lookup for a point of the document, and the click gave it a point of the view. The
   measures are in `docs/JOURNAL.md`.
+- A click on a page that moves when the pointer first moves (a menu that opens on hover, a banner that
+  slides in). The test page shifts each target 60 CSS pixels down at the first mouse movement and puts an
+  intruder button where the target was. At each of the eight combinations of page zoom and screen scale,
+  for each of three buttons (a large one, a 16 by 16 one between two decoys, one two and a half views
+  down), a click of the server either lands once on the target or is refused as covered
+  (`element_obscured`) with nothing clicked, and in the 24 attempts it is refused every time
+  (`tests/test_click_shifting_integration.py`, 80 tests; `tests/test_click_shifting_page.py`, 30, and
+  `tests/test_click_moving_page.py`, 6, need no browser). Before the change the same 24 attempts returned
+  no error and the click landed on the intruder. After a refusal, a click on a new observation lands.
+  The server now reads the box and the scroll offset again after the movement and before the press, and
+  asks the browser again what lies under the point when either changed. Chromium 141.0.7390.37, not
+  Chrome 154. The measures, and those of a page that scrolls without stopping, are in `docs/JOURNAL.md`.
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
@@ -148,6 +160,10 @@ Not tested:
   on Chromium 141 (it answers for a point of the document, not of the view): if it differs on another
   version, the tests of a click on a scrolled page fail there. A click on an element inside a frame of a
   scrolled page was not measured.
+- A page that moves after the second reading of a click and before the press, or that covers the target
+  without moving it or the view (an overlay that opens on hover): the second lookup is made only when the
+  box or the offset changed. On a page that scrolls by 1000 CSS pixels a second, 7 of 144 clicks gave no
+  error and landed nowhere; none landed on another button (Chromium 141, `docs/JOURNAL.md`).
 - A refusal in the confirmation window, answered by a person.
 
 Known limits:

@@ -1811,3 +1811,97 @@ Remains:
   the page scroll at that moment and the click is refused or lands, never lands elsewhere.
 - The rule of the observation about a node with no box. Complete when the operator has decided to keep it or to change
   it, and a test holds the decision on the two pages above.
+
+## 2026-10-04 — A click is checked again after the pointer moved, before it is pressed
+
+Point of departure: `4997ee1`. Chromium 141.0.7390.37 (headless, as root with `--no-sandbox`, a link named `chromium`
+outside the repository), Python 3.13.14 with `requirements.lock`; Chrome 154, on which the operator replays, was not
+available here.
+
+### What was measured before the change
+
+The click checked what lies under its point once, before its first mouse event, then sent `mouseMoved`, `mousePressed`
+and `mouseReleased` to that point. A new page, `tests/fixtures/pages/click-shifting.html`, moves each of the three
+targets (large, small between two decoys, far) 60 CSS pixels down at the first `mousemove` of the document, once, and
+shows a button of another name where the target was. On `4997ee1`, by `Actions.click`, at the eight combinations of page
+zoom (100, 125, 150, 200 %) and screen scale (1, 1.5): 24 of 24 attempts returned no error and the intruder received the
+click (`large received 0 clicks ... large-intruder received 1 clicks`, the same for `small` and `far`, eight times each),
+the page having moved its target in every attempt (read apart, `marginTop` of the target is `60px`).
+
+### The change and its decisions
+
+`actions.py` only. After `mouseMoved` and before `mousePressed` the click reads the box of the target and the scroll
+offset again (`_recheck_before_press`); if either differs from what the first check used, it asks
+`DOM.getNodeForLocation` again at the view point it is about to press, plus the offset read again, and refuses with
+`element_obscured` unless the node is the target or one of its descendants. If the box can no longer be read the click is
+refused the same way. The press and the release go in a second call of `_gesture` marked `started`, so that a dialog
+opened by `mousePressed` stays a notice and not a refusal, as before; a dialog opened by the movement ends the click.
+
+- **Refusal, not a second aim.** Reason: the point the click was verified for is the one it presses; moving it to the new
+  place of the target would send a click to a point the operator never saw checked, and the server has no way to say the
+  page moved on purpose. After a refusal a click on a new observation lands (tested at the 24 combinations). Rejected:
+  pressing at the target's new centre.
+- **The second lookup is conditional on a change.** `tests/test_click_lookup_point.py` asserts that a click on a static
+  page asks `DOM.getNodeForLocation` exactly once, and the set of internal scripts is fixed by `tests/test_cdp.py`; neither
+  test could be edited, and no script could be added. An unconditional second lookup failed 7 of the existing tests
+  (`asked == [one point]`, `(160, 115)` twice) and nothing else. So the lookup is repeated only when the box or the offset
+  changed. Cost: a target covered by something that opens over it without the target or the view moving is not caught.
+  Proposed alternative, for the operator to decide: make the second lookup unconditional and change that one assertion to
+  read the first lookup only; it removes the residual above. Rejected: an internal script for `document.elementFromPoint`
+  (it changes the set `test_cdp.py` pins, and it replaces the method the click names).
+- The two extra readings (`DOM.getContentQuads`, `Page.getLayoutMetrics`) are the same methods the click already calls.
+  No method was added to `ALLOWED_METHODS`, no error code, no result form changed; the gate, the confirmation, the download
+  check and the journal of `_gesture` are untouched.
+
+### What was measured after
+
+- `pytest -q -m browser tests/test_click_shifting_integration.py`: 80 passed (24 land-or-refuse; refusal, nothing clicked,
+  for the three targets; 3 second tries after a refusal; 24 counter-proofs). All 24 attempts are refused, none lands.
+- The counter-proof neutralises `_recheck_before_press` and runs the same attempts: at the 24 combinations the click
+  returns no error, lands on the intruder, and the check raises `AssertionError`.
+- `pytest -q tests/test_click_moving_page.py`: 6 passed, no browser: a simulated page that shifts its target or scrolls at the
+  first `mouseMoved` gets a refusal and no `mousePressed`; a server without the check fails the same test; a static page is
+  pressed and looked up once; an element with no box after the movement is refused.
+- `pytest -q tests/test_click_shifting_page.py`: 30 passed, no browser: the page contract (13 broken variants refused) and
+  the judgement of a click (11 wrong outcomes refused, 4 right ones accepted).
+- `pytest -q -m "not browser"`: 1654 passed, 532 deselected in 83.65 s. `pytest -q -m browser`: 532 passed in 264.20 s.
+  `pytest -q`: 2186 passed in 346.46 s. `python -m compileall -q src`: no output.
+
+### A page that moves without stopping, measured, not a test
+
+`click-targets.html` plus the script `setInterval` every 4 ms, `scrollBy(0, 4 * direction)`, the direction reversed at both
+ends (1000 CSS pixels a second); six attempts per combination and button, 144, by `Actions.click`, a fresh tab each. A
+result is "landed" (no error, one click on the target, nothing else), "refused" (`element_obscured`, nothing clicked) or
+"no error, nothing landed on the target".
+
+| | landed | refused | no error, click elsewhere or lost | landed on another button |
+|---|---|---|---|---|
+| `4997ee1` | 64 | 0 | 80 | 0 |
+| after | 55 | 82 | 7 | 0 |
+
+By button, after: large 13 landed, 31 refused, 4 lost; small 0, 47, 1; far 42, 4, 2. The 7 that remain are clicks the page
+moved in the instant between the second reading and the press; the "elsewhere" in every case was no button. This is
+the window that is left, and its order of magnitude on this machine.
+
+### Latency
+
+Median of 20 clicks on `click-targets.html` at zoom 100 % and scale 1, by `Actions.click`, the pacer on a fake clock so
+that its delay is not counted: 318.41 ms on `4997ee1`, 318.42 ms after (min 315.74 / 315.67, max 330.53 / 331.25). The
+figure is almost entirely the 0.3 s the call waits for a load a click may start (`settle_start_s`); the two extra readings
+are not measurable against it. No surcharge above 100 ms.
+
+### Not changed, and why
+
+`perception.py` and the visibility rule are untouched. The test double `fake_cdp.py` is untouched; `test_click_moving_page.py`
+makes its page move by wrapping the mouse handler. The probes of the integration tests read through
+`tests/fixtures/raw_cdp.py` (`DOM.querySelector` is not in the list).
+
+### What remains
+
+- Replay on Chrome 154: `pytest -q -m browser tests/test_click_shifting_integration.py`, then `pytest -q -m browser`.
+  Complete when the 532 pass there.
+- The zoom of the Ctrl + keys in a headed browser, and a screen whose scale really is 1.5: they need a person and a screen.
+- The unconditional second lookup (above). Complete when the operator has decided whether to loosen the one assertion of
+  `test_click_lookup_point.py` that counts lookups, and a test holds a target covered without moving.
+- The window between the second reading and the press. Complete when the operator accepts the measured 7 of 144, or asks
+  for a different gesture (a single dispatch of the three events is not in the protocol the list allows).
