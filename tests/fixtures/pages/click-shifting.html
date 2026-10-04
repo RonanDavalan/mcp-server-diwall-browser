@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click targets that move</title>
+<style>
+  /* The geometry of click-targets.html, with an intruder for each target: a button that stays out of
+     the page until the first movement of the pointer, then takes the place the target leaves. */
+  html, body { margin: 0; padding: 0; }
+  body { height: 300vh; }
+  button { position: absolute; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid #333; background: #eee; font: 14px sans-serif; }
+  #large { left: 320px; top: 500px; width: 120px; height: 32px; }
+  #decoy-left { left: 500px; top: 310px; width: 16px; height: 16px; }
+  #small { left: 520px; top: 310px; width: 16px; height: 16px; }
+  #decoy-right { left: 540px; top: 310px; width: 16px; height: 16px; }
+  #far { left: 320px; top: 250vh; width: 120px; height: 40px; }
+  #large-intruder { left: 320px; top: 500px; width: 120px; height: 32px; display: none; }
+  #small-intruder { left: 520px; top: 310px; width: 16px; height: 16px; display: none; }
+  #far-intruder { left: 320px; top: 250vh; width: 120px; height: 40px; display: none; }
+</style>
+</head>
+<body>
+<button id="large" type="button">Large target</button>
+<button id="decoy-left" type="button" aria-label="Left decoy"></button>
+<button id="small" type="button" aria-label="Small target"></button>
+<button id="decoy-right" type="button" aria-label="Right decoy"></button>
+<button id="far" type="button">Far target</button>
+<button id="large-intruder" type="button">Large intruder</button>
+<button id="small-intruder" type="button" aria-label="Small intruder"></button>
+<button id="far-intruder" type="button">Far intruder</button>
+<script>
+  window.__clicks = {};
+  window.__stray_clicks = 0;
+  document.querySelectorAll("button").forEach(function (button) {
+    window.__clicks[button.id] = 0;
+    button.addEventListener("click", function () { window.__clicks[button.id] += 1; });
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest("button")) { window.__stray_clicks += 1; }
+  });
+  // What a menu that opens when the pointer arrives does: at the first movement each target goes
+  // 60 CSS pixels down and its intruder appears where it was. It happens once.
+  document.addEventListener("mousemove", function () {
+    ["large", "small", "far"].forEach(function (id) {
+      document.getElementById(id).style.marginTop = "60px";
+      document.getElementById(id + "-intruder").style.display = "block";
+    });
+  }, { once: true });
+</script>
+</body>
+</html>
