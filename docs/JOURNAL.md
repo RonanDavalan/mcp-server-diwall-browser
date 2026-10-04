@@ -1856,7 +1856,7 @@ opened by `mousePressed` stays a notice and not a refusal, as before; a dialog o
 ### What was measured after
 
 - `pytest -q -m browser tests/test_click_shifting_integration.py`: 80 passed (24 land-or-refuse; refusal, nothing clicked,
-  for the three targets; 3 second tries after a refusal; 24 counter-proofs). All 24 attempts are refused, none lands.
+  at the eight combinations; 24 second tries after a refusal; 24 counter-proofs). All 24 attempts are refused, none lands.
 - The counter-proof neutralises `_recheck_before_press` and runs the same attempts: at the 24 combinations the click
   returns no error, lands on the intruder, and the check raises `AssertionError`.
 - `pytest -q tests/test_click_moving_page.py`: 6 passed, no browser: a simulated page that shifts its target or scrolls at the
