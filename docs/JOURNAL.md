@@ -1395,3 +1395,219 @@ Remains:
   intermittence of the counter-proof test (4 in 80). None is traced to its end.
 - The test browser tries to reach Google services in the background (the environment's proxy refused
   378 connections during 80 runs of one test); the launcher does not disable background networking.
+
+## 2026-10-04 — The image follows the view at any page zoom; three repairs of tests
+
+Measured on Chromium 141.0.7390.37 (headless, as root in a container, Python 3.13.14). Chrome 154 was not
+available here; what the operator measured on it is quoted as such, and what was not replayed on it is
+said under each heading.
+
+### The cut of the screenshot is in CSS pixels times the page zoom
+
+Decided (production, `perception.py`): the clip given to `Page.captureScreenshot` is the scroll offset
+and the size of the view, in CSS pixels, each multiplied by `visualViewport.zoom` of the same
+`Page.getLayoutMetrics` that gave the view (`_screenshot_clip`). The decoded image must be within 2
+pixels, on either axis, of `visualViewport.clientWidth` by `clientHeight`, the view in device pixels
+(`_image_fits_view`). A zoom that is absent, not a number, not finite or not above zero gives no
+screenshot call at all (`_page_zoom`). In each case `capture` reads `unavailable`, the notice says so and
+the tree is still served. The second reading, the one that compares the boxes before and after the image,
+compares the zoom of the two readings too.
+
+Why: the browser reads the clip in CSS pixels times the zoom, so a clip in plain CSS pixels cut the top
+left part of the view at any zoom other than 100 % and the masks, placed for the whole view, landed
+beside their fields. Measured here with a clip in CSS pixels, the size of the image on the demo page:
+
+| zoom | view in device pixels, scale 1 | clip in CSS pixels | clip times the zoom |
+|---|---|---|---|
+| 100 % | 1280 × 713 | 1280 × 713 | 1280 × 713 |
+| 125 % | 1280 × 713 | 1024 × 570 | 1280 × 713 |
+| 150 % | 1280 × 713 | 853 × 475 | 1280 × 713 |
+| 200 % | 1280 × 713 | 640 × 356 | 1280 × 713 |
+
+At a screen scale of 1.5 the view is 1920 × 1070 and the clip in CSS pixels gives 1920 × 1070, 1536 × 855,
+1280 × 713 and 960 × 534; the clip times the zoom gives 1920 × 1070 at 100, 125 and 200 % and 1919 × 1070 at
+150 %. `visualViewport.zoom` and `cssVisualViewport.zoom` were both equal to the page zoom (1, 1.25, 1.5, 2);
+the first is the one read, as the operator measured it on Chrome 154 (1, 1.25, 1.5, 2 at 100 to 200 %, images
+of 780 × 493, 780 × 492, 780 × 493 and 780 × 493 with the clip times the zoom, in a window of 780 × 493).
+
+How the cut relates to the view, measured on `long.html` (it has a scrollbar), unscrolled and scrolled
+by 500 CSS pixels, at the eight combinations, against an unclipped capture of the same view: the image
+with the clip times the zoom is the top left crop of the painted view, pixel for pixel (mean absolute
+difference 0.0 in 16 of 16), and it differs by 2.1 to 5.1 from the same view stretched to its size. It is
+1 pixel narrower than `visualViewport.clientWidth` at a screen scale of 1.5 (1896 against 1897) and as wide
+as the view at a scale of 1. The unclipped capture is wider than the view by the scrollbar (1280 against
+1265 at a scale of 1); `clientWidth` is the width without it, which is what the clip covers.
+
+Why a guard and not a fallback: a zoom read as 1 when it is missing, or an image taken for good because the
+server's own arithmetic says it should be, is the defect that was measured (0 % of the field covered, `capture`
+`ok`). The size of the image is the one thing that is checked against what the browser states about the
+view, and it fails closed.
+
+Controls, all of them also run on a defective version that must fail:
+
+- `pytest -q tests/test_perception_zoom.py` (91 tests, no browser, on a simulated page that answers at a
+  zoom, `tests/fixtures/zoomed_page.py`): the clip is the offset and size times the zoom for the four zooms
+  and two scales; the mask covers the field and a block of a colour found nowhere else shows where the
+  browser paints it; the check fails on a clip whose offset is not multiplied and on a clip without the
+  zoom; with the size guard removed, a clip without the zoom publishes a misplaced mask; a zoom that is
+  absent, 0, negative, NaN, infinite, text, null, a boolean or a list gives no image and no screenshot
+  call; an image 3 pixels from the view on either axis, in either direction, is withheld and one 2 pixels
+  from it is not; bytes that are not an image give no image; a browser that goes wrong three ways in a row (a
+  zoom left out, a zoom of 0, an image of the wrong size) never publishes one; a zoom that changes between
+  the two readings withholds the image, and the check fails on a reader that sees the same zoom twice; the
+  evidence image is cut the same way.
+- `pytest -q -m browser tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py` (40 and 64
+  tests): the six cases of the mask test pass without the expected failure; a new test requires that the
+  image be published, because the old one passes when none is; on a page scrolled so that the password field
+  is near the bottom of the view or in the middle of it, at the four zooms and two scales, the block of the
+  colour is where the browser paints it, the mask covers the field and goes no further than 2 pixels beyond
+  it, and no edge of the mask lies more than a pixel inside the field. The same check fails on a clip whose
+  offset is not multiplied by the zoom (every case at a zoom other than 100 %), on a clip without the zoom
+  (the image is withheld, `capture` `unavailable`), and, with the guard removed, on that clip (a misplaced
+  mask is published) and on a zoom read as 1.
+- Against the module as it was at the start of the session, the three checks of the image fail at every
+  zoom other than 100 % (18 of 24 runs; the 6 at 100 % pass).
+
+Rejected: refusing every image when the zoom is not 100 % (the zoom of a site is kept from one session to
+the next, and the control is possible); keeping the advice to leave the zoom at 100 % as the only protection
+(it rests on the operator); a wider tolerance than 2 pixels for the size; reading an absent zoom as 1.
+
+### A box is placed with the view the browser states, not with the size of the image
+
+The image is a crop of the view, not the view stretched to its size, and it can be a pixel short of it
+(above). `render` placed a box with the ratio of the image to the view (`image.width / viewport.width`),
+which is a little smaller than the browser's ratio when the image is a pixel short: a box at the far edge
+moved toward the origin by up to a pixel. Measured with the real server, on a page whose password field
+ends 24 CSS pixels from the right edge of the view, scrolled so that the field is near the bottom, at a
+screen scale of 1.5 (the image is reduced to 1600 pixels; deviations of the mask's edges from the painted
+field in pixels of the published image, negative on the right edge meaning the mask stops inside the field):
+
+| zoom | right edge before | right edge after | left edge before | left edge after |
+|---|---|---|---|---|
+| 100 % | −0.46 | +0.54 | −0.98 | −0.98 |
+| 125 % | +0.13 | +0.13 | −0.77 | −0.77 |
+| 150 % | −0.27 | +0.73 | −1.55 | −0.55 |
+| 200 % | −0.08 | +0.92 | −1.12 | −0.12 |
+
+Before, 3 of the 4 right edges stopped inside the field (by under half a pixel here; the error is the
+distance of the field from the origin times 1/1897, so it would reach a pixel at the far edge: computed, not
+measured). After, none of the 16 placements measured (the two vertical places, the four zooms, the two
+scales) has an edge inside its field; at a scale of 1 the two were the same (at most 1 pixel outward, by the
+rounding that always goes outward). On a first version of the page, whose field ended at the right edge of
+the view, the right edge of the mask stopped 0.84 pixel short of the box before and after: that is the column
+the image lacks (1 pixel at full size), which no mask can cover.
+
+Decided: `render` takes `device_view`, the size of the view in device pixels from `visualViewport` of the
+same metrics (`_device_view`), and places boxes with its ratio to the view in CSS pixels. Without it, the
+image is taken for the view as before. Control: `pytest -q tests/test_perception_zoom.py`, a check on four
+boxes whose far edges fall half way between two device pixels, with an image a pixel short on one axis or
+both: placed with the view the browser states, every mask covers its box; placed with the size of the image,
+the four are a pixel short (the check fails).
+
+Rejected: passing `_device_scale` (the factor used for the snapshot) as the ratio. Tried first, it passes
+the same measures, and it breaks `test_audit_catches_a_mask_that_misses_its_field_when_the_factor_is_ignored`
+of the earlier session: when that test makes `_device_scale` return 1, the boxes and the ratio are wrong
+together and the mask lands right by chance, so the test no longer sees the defect it stands for. The size of
+the view is a second statement of the browser that does not share the defect. Not changed: the rounding of
+the height at the reduction to 1600 pixels (`round(height × scale)`), under half a pixel at the bottom edge
+of the image at the most; no inward edge was measured.
+
+### What the guide and the README said about clicks at a zoom
+
+They said that the clicks are right at a page zoom. The only basis in the repository is the probe of the
+earlier entry (24 of 24, no test). The sentence is gone; the documents say the probe was made and that no
+test replays it. Not measured now either.
+
+### What was not measured
+
+The zoom made by the Ctrl + keys in a browser that is not headless (the protocol has no command for a zoom;
+the tests write the default zoom of the profile, as before); a screen whose scale really is 1.5; the tests of
+this entry on Chrome 154 (the operator measured the size of the cut there, the browser tests were not
+replayed). The command for the operator: `pytest -q -m browser tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py tests/test_scale_integration.py`.
+
+### Three repairs of tests
+
+The three modifications of existing tests that were allowed, and no other: the expected failure of the mask
+test is gone (with the sentence of its module header that spoke of a known gap); the `complete()` probe of the
+two download tests; the racy counter-proof test is replaced.
+
+The probe. The two download tests listed the download directory and read a file in it; the browser renames
+`<id>.crdownload` to its final name, and the read raised `FileNotFoundError`, an error of the probe. The read is
+now one helper (`holds` in `tests/fixtures/download_probe.py`) that answers false when the file is not there or
+goes away; the size or the content the tests wait for, and their delay, are as before. Tested without a
+browser (`tests/test_download_probe.py`): a file that goes away between the listing and the read gives false and
+does not raise; a file of the right size or content gives true; one of the wrong size or content gives false;
+the same check on a probe without the protection fails with `FileNotFoundError`. Each test alone, in a new
+process, 200 times: `test_a_download_begun_by_the_click_ends_in_the_volume_after_the_setting_is_closed` 0
+failures in 200, `test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volume` 0 failures in 200
+(before the change to the launcher below); and again on the final head, with the options of the launcher below, 0
+failures in 200 for each. The earlier entry's reopening condition (a failure on Chrome 154, or three in 130
+here) did not occur.
+
+The counter-proof. `test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused` closed the
+setting at once after the click and expected a download that begins 0.2 s later to be refused. Alone, 200
+runs: 4 failures (2 in 100 with a trace, 2 in 100 without; the earlier entry had 4 in 80 before the change
+and 4 in 80 after). The trace (a plugin outside the repository that stamped the browser's download events,
+the server's calls on the setting, the click and the files of the volume with their modification times, on
+one clock): in 10 of the 100 traced runs the browser announced the download (`Browser.downloadWillBegin`),
+always after the server had sent the call that closes the setting; in 8 of them it refused the download (no
+progress, no file); in the other 2 (runs 35 and 98) it had already written the file: its modification time
+is 624.83 and 603.24 ms on the clock, while the server saw the end of the load at 627.08 and 604.08 ms and sent
+the closing at 628.00 and 604.57 ms (the file is 2.3 and 0.8 ms before the end of the load, 3.2 and 1.3 ms
+before the call). In the 100 runs the call left 0.14 to 0.92 ms after the end of the load and took 0.68 to
+6.07 ms to be answered. The page's response and the end of the load come together, so the browser can choose
+before the server can close: that a close made at once refuses is not true of a real browser, and the test's
+premise (its comment said the refusal did not depend on a race) was wrong.
+
+Decided: the test is removed, and the property it stood for is tested where the browser's timing is not in
+play, on the simulated browser that chooses after a set delay (`tests/test_download_acknowledgement.py`): a
+download announced after the setting is closed is refused (no wait, nothing in the volume); one announced 50
+ms after the gesture, with the wait, is taken up; and the check of the refusal, run on a manager that never
+closes the setting, sees the download taken. Rejected: a retry around the test, a longer wait, or an
+assertion that tolerates one file (each hides what the measure shows).
+
+The launcher. `tests/fixtures/browser_launcher.py` (the launcher of the tests; nothing else changes) now
+starts the browser with `--disable-background-networking`, `--disable-component-update` and
+`--disable-sync`, and with `--no-proxy-server` and `--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE
+127.0.0.1`. The environment's proxy counts the connections it refuses, shown after a command: for one run of
+the 188 browser tests, 202 before any change; 181 with the three options asked for, which ask the browser
+not to connect and left two attempts at each start (`www.google.com:443` and `android.clients.google.com:443`;
+tried and not removed by `--no-pings`, `--disable-domain-reliability`, `--metrics-recording-only`, the
+phishing-detection and Safe Browsing options, `--disable-default-apps` and `--disable-features` with a list
+of services); 3 with the last two options added, all three from `scripts/smoke_test.py`, which has its own
+launcher and is not touched. Resolving nothing but `127.0.0.1` is by itself not enough with a proxy in the
+environment (the proxy resolves the name), hence both options. One run of each count; the variance was not
+measured. The 188 tests pass with the options. Rejected: touching the launcher of `scripts/smoke_test.py` or
+the browser options of the operator's own launch.
+
+### What is done, with the command that shows it, and what remains
+
+Done (Chromium 141.0.7390.37; Python 3.12.3 on a fresh clone of the branch, with `requirements.lock`):
+
+- The cut is in CSS pixels times the zoom, the image is checked against the view, the zoom is compared at
+  both readings: `pytest -q tests/test_perception_zoom.py` (91 passed, no browser).
+- The six cases of the mask test pass, and the scrolled page holds at every zoom and scale:
+  `pytest -q -m browser tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py` (104 passed,
+  none expected to fail).
+- The masks are placed with the view the browser states: the same file, and
+  `pytest -q -m browser tests/test_scale_integration.py` (the earlier counter-proofs still fail where they must).
+- The two download tests no longer fail on the rename: `pytest -q tests/test_download_probe.py` (2 passed);
+  0 in 200 for each alone, twice. The replacement of the racy test:
+  `pytest -q tests/test_download_acknowledgement.py` (9 passed).
+- `pytest -q -m "not browser"`: 1547 passed, 188 deselected. `pytest -q`: 1735 passed in 161.98 s.
+  `python -m compileall -q src`: no output. No method was added to `ALLOWED_METHODS`; the probes of this entry
+  used only methods of the list (`Page.getLayoutMetrics`, `Page.captureScreenshot` with and without a clip,
+  `Runtime.evaluate`), on a connection of their own.
+
+Remains:
+
+- Replay on Chrome 154: `pytest -q -m browser tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py tests/test_scale_integration.py`.
+  Complete when the 188 tests of `-m browser` pass there; if the scrolled-page tests report a mask that stops
+  more than a pixel inside its field, the rounding of the cut on that version differs from the one measured here.
+- The zoom of the Ctrl + keys in a browser that is not headless. Complete when the same measure
+  (`visualViewport.zoom`, the size of the image, the mask over the field) is made after pressing the keys in a
+  headed browser and agrees with the profile's default zoom, or differs and is written down.
+- A test that replays a click at a page zoom. Complete when `tests/` has a browser test that clicks a marked
+  element at the four zooms and two scales and reaches it (the probe of the earlier entry did, 24 of 24).
+- A screen whose scale really is 1.5 and not forced by `--force-device-scale-factor`. Complete when the
+  scale tests are replayed on one.

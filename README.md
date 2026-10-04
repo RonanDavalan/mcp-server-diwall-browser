@@ -59,18 +59,22 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
-  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1451
-  tests pass and the 125 that need a browser are skipped with the reason; with Chromium
-  141.0.7390.37 (headless, blank temporary profile), 1570 pass and 6 are expected failures that
-  record a known gap (the page zoom, in the limits below).
+  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1547
+  tests pass and the 188 that need a browser are skipped with the reason (as a user other than root,
+  one of the 1547 is skipped: a test that runs as root only); with Chromium 141.0.7390.37 (headless,
+  blank temporary profile), 1735 pass, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
-  change they failed 3 and 1 times in 130 runs of each alone; the 3 are a read, in the test itself, of a
-  file the browser renames. A third test, `test_counter_proof_without_the_wait_a_download_that_begins_late_is_refused`,
-  fails about 5 times in 100 alone, on the code before the change as on the code after it. The
+  change they failed 3 and 1 times in 130 runs of each alone; the 3 were a read, in the test itself, of
+  a file the browser renames, which is now one helper that ignores the rename. Since then each of the
+  two alone failed 0 times in 200 runs, twice over. A third test, which closed the setting at once and
+  expected a late download to be refused, failed 4 times in 200 alone: the real browser can choose
+  before the server closes the setting, so the test is replaced by tests on a simulated browser. The
   measures and what remains are in `docs/JOURNAL.md`.
-- The operator replayed the suite on Debian with Chrome 154.0.8037.97, before the three changes
-  below: 1258 passed and 1 skipped (a test that runs as root only), the 54 browser tests included.
+- The operator replayed the revision before this one on Debian (Python 3.13.5) with Chrome
+  154.0.8037.97: without a browser 1450 passed and 1 was skipped (a test that runs as root only);
+  with it 119 passed and 6 failed as expected, the six of the page zoom that this revision closes;
+  the two download tests alone, 0 failures in 40 runs each. Not replayed on it since.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
