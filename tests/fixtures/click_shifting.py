@@ -11,7 +11,15 @@ from __future__ import annotations
 
 import re
 
-from fixtures.click_targets import _COUNTING, _OUTSIDE_WORLD, _boxes, _Buttons
+from fixtures.click_targets import (
+    _COUNTING,
+    _OUTSIDE_WORLD,
+    Received,
+    _boxes,
+    _Buttons,
+    landing_problems,
+    refusal_problems,
+)
 
 PAGE = "click-shifting.html"
 INTRUDERS = {"large": "large-intruder", "small": "small-intruder", "far": "far-intruder"}
@@ -66,3 +74,21 @@ def shifting_page_problems(source: str) -> list[str]:
 def _rules(source: str) -> dict[str, str]:
     style = re.search(r"<style>(.*?)</style>", source, re.DOTALL)
     return dict(re.findall(r"#([\w-]+)\s*\{([^}]*)\}", style.group(1) if style else ""))
+
+
+def shifting_click_problems(received: Received, target: str) -> list[str]:
+    """What is wrong with a click on a page that moves under it; empty for the two issues allowed.
+
+    The click either landed on the target, once, with nothing else touched and no error, or the server
+    refused it as covered and no button received anything, a click that reached no button included.
+    A click without an error that went elsewhere or nowhere is the failure this exists to catch.
+    """
+    if received.error is None:
+        return landing_problems(received, target)
+    return refusal_problems(received, "element_obscured")
+
+
+def assert_landed_or_refused(received: Received, target: str) -> None:
+    problems = shifting_click_problems(received, target)
+    if problems:
+        raise AssertionError("; ".join(problems))

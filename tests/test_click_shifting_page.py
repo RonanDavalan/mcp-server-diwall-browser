@@ -10,8 +10,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 
 import pytest
-from fixtures.click_shifting import INTRUDERS, NAMES, PAGE, shifting_page_problems
+from fixtures.click_shifting import INTRUDERS, NAMES, PAGE, assert_landed_or_refused, shifting_click_problems, shifting_page_problems
 from fixtures.click_targets import NAMES as STILL_NAMES
+from fixtures.click_targets import Received
 from fixtures.page_server import PageServer
 from test_click_targets_page import fetch
 
@@ -59,3 +60,62 @@ def test_the_shifting_page_check_refuses_a_page_that_has_the_defect(served: str,
     broken = change(served)
     assert broken != served, "the variant is the page itself: the defect was not applied"
     assert any(named in problem for problem in shifting_page_problems(broken)), shifting_page_problems(broken)
+
+
+# --- the judgement of a click on a page that moves --------------------------------------------------
+
+QUIET = {name: 0 for name in NAMES}
+
+
+def received(target: str | None = None, *, stray: int = 0, error: str | None = None, **others: int) -> Received:
+    clicks = dict(QUIET)
+    if target is not None:
+        clicks[target] = 1
+    clicks.update({name.replace("_", "-"): number for name, number in others.items()})
+    return Received(clicks, stray, error)
+
+
+@pytest.mark.parametrize(
+    "attempt",
+    [received("large"), received("small"), received("far"), received(error="element_obscured")],
+    ids=("landed-large", "landed-small", "landed-far", "refused-nothing-clicked"),
+)
+def test_a_click_that_landed_or_that_was_refused_with_nothing_clicked_is_accepted(attempt: Received) -> None:
+    target = next((name for name, number in attempt.clicks.items() if number), "large")
+    assert shifting_click_problems(attempt, target) == []
+    assert_landed_or_refused(attempt, target)
+
+
+@pytest.mark.parametrize(
+    ("attempt", "target"),
+    [
+        (received("large-intruder"), "large"),
+        (received("small-intruder"), "small"),
+        (received("decoy-left"), "small"),
+        (received(stray=1), "far"),
+        (received(), "large"),
+        (received("large", large_intruder=1), "large"),
+        (received("large", error="element_obscured"), "large"),
+        (received(error="element_obscured", stray=1), "far"),
+        (received(error="element_obscured", far_intruder=1), "far"),
+        (received(error="navigation_failed"), "large"),
+        (received(error="TypeError"), "large"),
+    ],
+    ids=(
+        "landed-on-the-intruder",
+        "landed-on-the-small-intruder",
+        "landed-on-a-decoy",
+        "lost-with-no-error",
+        "nothing-and-no-error",
+        "target-and-intruder",
+        "refused-yet-clicked",
+        "refused-yet-a-click-was-lost",
+        "refused-yet-an-intruder-was-clicked",
+        "another-error",
+        "an-escaped-exception",
+    ),
+)
+def test_a_click_that_went_elsewhere_or_nowhere_is_a_failure_whatever_the_server_said(attempt: Received, target: str) -> None:
+    assert shifting_click_problems(attempt, target)
+    with pytest.raises(AssertionError):
+        assert_landed_or_refused(attempt, target)
