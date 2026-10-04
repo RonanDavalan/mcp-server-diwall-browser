@@ -12,6 +12,7 @@ Why this module exists:
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -60,6 +61,7 @@ _STALE_SNAPSHOT = "la page a changé depuis l'observation : observer à nouveau 
 _STALE_ELEMENT = "cet élément n'est plus celui de l'observation : observer à nouveau avant d'agir"
 _UNKNOWN_MARK = "ce repère n'existe pas dans l'instantané : observer à nouveau avant d'agir"
 _OBSCURED = "un autre élément recouvre la cible à cet endroit : rien n'a été cliqué"
+_NO_OFFSET = "la position de la page n'a pas pu être lue : ce qui recouvre la cible n'est pas connu, rien n'a été cliqué"
 _FOCUS_MOVED = "le curseur n'est pas dans l'élément visé : rien n'a été saisi"
 _ORIGIN_REFUSED = "cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite"
 _SENSITIVE = (
@@ -157,7 +159,7 @@ class Actions:
         x, y = round(centre_x), round(centre_y)
         # The quads and the mouse events are in the view, but the node lookup reads a point of the
         # document: asked at a view point of a scrolled page, it answers for another place, or for none.
-        scroll_x, scroll_y = await self._viewport(tab)
+        scroll_x, scroll_y = await self._viewport(tab, strict=True)
         hit = await self._read(
             tab,
             "DOM.getNodeForLocation",
@@ -346,8 +348,16 @@ class Actions:
             run, tab, [("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": x, "y": y, "deltaX": 0, "deltaY": dy})]
         )
 
-    async def _viewport(self, tab: Tab) -> tuple[float, float]:
+    async def _viewport(self, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
+        """Where the view starts in the document, in CSS pixels.
+
+        An offset the browser does not give reads as 0, which is enough to see whether a scroll moved.
+        ``strict`` refuses it instead: a click that cannot place its lookup in the document does not
+        know what lies under the point it would click.
+        """
         visual = (await self._read(tab, "Page.getLayoutMetrics")).get("cssVisualViewport", {})
+        if strict and not (isinstance(visual, dict) and all(_is_finite_number(visual.get(key)) for key in ("pageX", "pageY"))):
+            raise ToolError("element_obscured", _NO_OFFSET)
         return float(visual.get("pageX", 0)), float(visual.get("pageY", 0))
 
     # --- dialogs ---------------------------------------------------------------------------------
@@ -697,6 +707,10 @@ def _credential_reference(reference: dict[str, Any]) -> tuple[str, str | None]:
 
 def _script_value(result: dict[str, Any]) -> Any:
     return (result.get("result") or {}).get("value")
+
+
+def _is_finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 async def _sync(function: Callable[[], Any]) -> Any:

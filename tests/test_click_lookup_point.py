@@ -64,7 +64,7 @@ async def test_a_click_asks_the_node_lookup_about_the_middle_of_the_box_in_the_d
     await check_the_click_lands_and_the_lookup_is_about_the_middle_of_the_box(bench, name)
 
 
-async def no_scroll_offset(self: Actions, tab: Tab) -> tuple[float, float]:
+async def no_scroll_offset(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
     """The scroll offset read as none: the lookup is asked at the point of the view, as the server once did."""
     return 0.0, 0.0
 
@@ -72,11 +72,11 @@ async def no_scroll_offset(self: Actions, tab: Tab) -> tuple[float, float]:
 REAL_VIEWPORT = Actions._viewport
 
 
-async def vertical_scroll_offset_only(self: Actions, tab: Tab) -> tuple[float, float]:
+async def vertical_scroll_offset_only(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
     return 0.0, (await REAL_VIEWPORT(self, tab))[1]
 
 
-OFFSETS: dict[str, Callable[[Actions, Tab], Awaitable[tuple[float, float]]]] = {
+OFFSETS: dict[str, Callable[..., Awaitable[tuple[float, float]]]] = {
     "none": no_scroll_offset,
     "vertical-only": vertical_scroll_offset_only,
 }
@@ -99,3 +99,69 @@ async def test_the_defect_shows_only_where_the_page_is_scrolled_in_a_direction_t
 ) -> None:
     monkeypatch.setattr(Actions, "_viewport", OFFSETS[offset])
     await check_the_click_lands_and_the_lookup_is_about_the_middle_of_the_box(bench, name)
+
+
+# --- a browser that gives no usable scroll offset -------------------------------------------------------
+
+
+def metrics_with_an_offset_that_is(page: Page, kind: str) -> None:
+    """Make the simulated view metrics give no usable ``pageX`` and ``pageY``: missing, text, null or a boolean."""
+    simulated = page.layout_metrics
+
+    def layout_metrics() -> dict[str, Any]:
+        metrics = simulated()
+        view = metrics["cssVisualViewport"]
+        for key in ("pageX", "pageY"):
+            if kind == "missing":
+                del view[key]
+            else:
+                view[key] = {"text": "0", "null": None, "boolean": True}[kind]
+        return metrics
+
+    page.layout_metrics = layout_metrics  # type: ignore[method-assign]
+
+
+async def check_a_click_without_a_usable_offset_is_refused_and_nothing_is_clicked(bench: Bench, kind: str) -> None:
+    page = PAGES["not-scrolled"]()
+    tab, snapshot = await bench.show(page)
+    metrics_with_an_offset_that_is(page, kind)
+    try:
+        await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Go"))
+    except ToolError as caught:
+        assert caught.code == "element_obscured"
+    else:
+        raise AssertionError("the click went through although the browser gave no scroll offset")
+    assert "DOM.getNodeForLocation" not in bench.cdp.methods()
+    assert "Input.dispatchMouseEvent" not in bench.cdp.methods()
+
+
+UNUSABLE = ("missing", "text", "null", "boolean")
+
+
+@pytest.mark.parametrize("kind", UNUSABLE)
+async def test_a_click_is_refused_when_the_browser_gives_no_usable_scroll_offset(bench: Bench, kind: str) -> None:
+    await check_a_click_without_a_usable_offset_is_refused_and_nothing_is_clicked(bench, kind)
+
+
+async def reads_a_missing_offset_as_none(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
+    """Defective: the strict reading is asked for and ignored, so what the browser does not say reads as 0."""
+    return await REAL_VIEWPORT(self, tab)
+
+
+# A null offset is not here: the lenient reading raises on it instead of reading 0, and nothing is clicked.
+@pytest.mark.parametrize("kind", ("missing", "text", "boolean"))
+async def test_the_check_fails_on_a_click_that_reads_an_offset_the_browser_does_not_give_as_none(
+    bench: Bench, monkeypatch: pytest.MonkeyPatch, kind: str
+) -> None:
+    monkeypatch.setattr(Actions, "_viewport", reads_a_missing_offset_as_none)
+    with pytest.raises(AssertionError):
+        await check_a_click_without_a_usable_offset_is_refused_and_nothing_is_clicked(bench, kind)
+
+
+async def test_scrolling_to_the_bottom_still_reads_a_missing_offset_as_none(bench: Bench) -> None:
+    """The strict reading is the click's: the scroll keeps its own, which only has to see whether the view moved."""
+    page = PAGES["down"]()
+    tab, _snapshot = await bench.show(page)
+    metrics_with_an_offset_that_is(page, "missing")
+    outcome = await bench.actions.scroll(tab.tab_id, to="bottom")
+    assert outcome.server["action"] == "scroll"

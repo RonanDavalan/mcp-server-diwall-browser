@@ -207,7 +207,7 @@ async def test_a_click_of_the_server_lands_on_its_target_at_every_page_zoom_and_
 # --- the same check on a server that asks for the node at the view point ---------------------------
 
 
-async def no_scroll_offset(self: Actions, tab: Tab) -> tuple[float, float]:
+async def no_scroll_offset(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
     """The scroll offset read as none: the node lookup is asked at the view point, as the server once did."""
     return 0.0, 0.0
 
@@ -302,14 +302,14 @@ async def test_a_click_of_the_server_lands_on_a_button_of_a_page_scrolled_in_bot
 REAL_VIEWPORT = Actions._viewport
 
 
-async def vertical_scroll_offset_only(self: Actions, tab: Tab) -> tuple[float, float]:
+async def vertical_scroll_offset_only(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
     """The horizontal offset left out: right on a page scrolled down, wrong on one scrolled across as well."""
     return 0.0, (await REAL_VIEWPORT(self, tab))[1]
 
 
 @pytest.mark.parametrize("offset", (no_scroll_offset, vertical_scroll_offset_only), ids=("none", "vertical-only"))
 async def test_the_click_check_fails_on_a_server_that_leaves_out_a_part_of_the_scroll_offset(
-    screen: ZoomedScreen, rig: Rig, offset: Callable[[Actions, Tab], Awaitable[tuple[float, float]]], monkeypatch: pytest.MonkeyPatch
+    screen: ZoomedScreen, rig: Rig, offset: Callable[..., Awaitable[tuple[float, float]]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(Actions, "_viewport", offset)
     outcome = await attempt_on(rig, screen, rig.pages.url(SCROLLED_PAGE), to_the_distant_button, "distant", server_click)
