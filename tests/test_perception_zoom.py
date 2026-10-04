@@ -18,7 +18,7 @@ import pytest
 from conftest import FAKE_PASSWORD
 from fixtures.fake_cdp import FakeBrowser, FakeCdp  # noqa: F401 - FakeCdp is the type of a fixture
 from fixtures.page_model import Page, button, div, field_input
-from fixtures.zoomed_page import ZoomedPage, at_zoom
+from fixtures.zoomed_page import ZoomedPage, at_zoom, clip_with_the_offset_unscaled, clip_without_the_zoom
 from PIL import Image
 from test_perception import (  # noqa: F401 - fakes and fixtures
     fake,
@@ -31,7 +31,7 @@ from test_perception import (  # noqa: F401 - fakes and fixtures
 from mcp_server_diwall_browser import perception
 from mcp_server_diwall_browser.browser import TabRegistry
 from mcp_server_diwall_browser.output import ToolError
-from mcp_server_diwall_browser.perception import MASK_COLOUR, Box, Observation
+from mcp_server_diwall_browser.perception import MASK_COLOUR, Box, Observation, render
 
 ZOOMS = (1.0, 1.25, 1.5, 2.0)
 SCREEN_SCALES = (1.0, 1.5)
@@ -96,15 +96,6 @@ async def image_problems(fake_browser: FakeBrowser, registry: TabRegistry, zoom:
     if (share := share_of(observation.image_png, LANDMARK, factor, LANDMARK_COLOUR)) < COVERED:
         found.append(f"the block that the browser paints in view shows in {share:.0%} of its place")
     return found
-
-
-def clip_without_the_zoom(viewport: Box, zoom: float) -> dict[str, float]:
-    return {"x": viewport.x, "y": viewport.y, "width": viewport.width, "height": viewport.height, "scale": 1}
-
-
-def clip_with_the_offset_unscaled(viewport: Box, zoom: float) -> dict[str, float]:
-    """The size follows the zoom, the place the cut starts at does not."""
-    return {"x": viewport.x, "y": viewport.y, "width": viewport.width * zoom, "height": viewport.height * zoom, "scale": 1}
 
 
 def screenshot_requests(fake: FakeCdp) -> list[dict[str, Any]]:
@@ -453,3 +444,63 @@ async def test_the_evidence_image_is_refused_when_the_zoom_cannot_be_used(fake_b
     with pytest.raises(ToolError) as caught:
         await perceiver(registry).capture_masked_png(tab)
     assert caught.value.code == "capture_unavailable"
+
+
+# --- a box is placed with the view the browser states, not with the size of an image that is a pixel short ----
+
+
+def mask_rect_problems(place: Callable[[bytes, Box, Box, tuple[float, float]], tuple[int, int, int, int]]) -> list[str]:
+    """What a placement of a mask gets wrong when the image is a pixel short of the view; empty when it is right.
+
+    ``place`` takes the image, the view in CSS pixels, the box in CSS pixels and the view in device
+    pixels, and gives the rectangle of the mask in the published image. The box must be covered whole.
+    """
+    wrong = []
+    # A view of 800 by 600 CSS pixels; the image is one pixel narrower, or one pixel shorter, than the view.
+    # The far edges of the boxes fall half way between two device pixels, where the size of the image
+    # taken for the size of the view puts them a pixel short.
+    for ratio, (extra_width, extra_height), box in (
+        (1.5, (-1, 0), Box(759.75, 100, 36, 20)),
+        (1.5, (0, -1), Box(100, 559.75, 36, 36)),
+        (1.25, (-1, -1), Box(700.4, 500.4, 96, 96)),
+        (2.0, (-1, -1), Box(742.75, 562.75, 56, 36)),
+    ):
+        view = Box(0, 0, 800, 600)
+        device_view = (800 * ratio, 600 * ratio)
+        png = png_of_size(round(device_view[0]) + extra_width, round(device_view[1]) + extra_height)
+        x0, y0, x1, y1 = place(png, view, box, device_view)
+        if x0 > box.x * ratio or y0 > box.y * ratio or x1 < box.right * ratio or y1 < box.bottom * ratio:
+            wrong.append(f"ratio {ratio}, image {extra_width:+d}/{extra_height:+d}: the mask {(x0, y0, x1, y1)} does not cover {box}")
+    return wrong
+
+
+def placed_with_the_view_of_the_browser(png: bytes, view: Box, box: Box, device_view: tuple[float, float]) -> tuple[int, int, int, int]:
+    return render(png, view, sensitive_boxes=[box], frame_boxes=[], marks=[], max_width=None, device_view=device_view).mask_rects[0]
+
+
+def placed_with_the_size_of_the_image(png: bytes, view: Box, box: Box, device_view: tuple[float, float]) -> tuple[int, int, int, int]:
+    return render(png, view, sensitive_boxes=[box], frame_boxes=[], marks=[], max_width=None).mask_rects[0]
+
+
+def test_a_mask_covers_its_box_whole_when_the_image_is_a_pixel_short_of_the_view() -> None:
+    assert mask_rect_problems(placed_with_the_view_of_the_browser) == []
+
+
+def test_the_mask_placement_check_fails_on_a_placement_that_stretches_the_image_over_the_view() -> None:
+    assert mask_rect_problems(placed_with_the_size_of_the_image) != []
+
+
+@pytest.mark.parametrize(("zoom", "scale"), CASES, ids=CASE_IDS)
+async def test_the_observation_places_the_masks_with_the_view_the_browser_states(
+    fake_browser: FakeBrowser, registry: TabRegistry, monkeypatch: pytest.MonkeyPatch, zoom: float, scale: float
+) -> None:
+    seen: list[tuple[float, float] | None] = []
+    real = perception.render
+
+    def watching(*args: Any, **kwargs: Any) -> Any:
+        seen.append(kwargs.get("device_view"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(perception, "render", watching)
+    await observe_at(fake_browser, registry, at_zoom(scrolled_page(), zoom, scale))
+    assert seen == [pytest.approx((800 * zoom * scale, 200 * zoom * scale))]

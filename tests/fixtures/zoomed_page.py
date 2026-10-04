@@ -12,6 +12,7 @@ from dataclasses import dataclass, fields
 from typing import Any
 
 from fixtures.page_model import Page
+from mcp_server_diwall_browser.perception import Box
 
 
 @dataclass
@@ -38,3 +39,15 @@ def at_zoom(page: Page, zoom: float, screen_scale: float = 1.0) -> ZoomedPage:
     values = {item.name: getattr(page, item.name) for item in fields(Page) if item.init}
     values["device_scale"] = zoom * screen_scale
     return ZoomedPage(**values, zoom=zoom)
+
+
+# Defective versions of the cut the perception makes, for the checks that must fail on them.
+
+
+def clip_without_the_zoom(viewport: Box, zoom: float) -> dict[str, float]:
+    return {"x": viewport.x, "y": viewport.y, "width": viewport.width, "height": viewport.height, "scale": 1}
+
+
+def clip_with_the_offset_unscaled(viewport: Box, zoom: float) -> dict[str, float]:
+    """The size follows the zoom, the place the cut starts at does not."""
+    return {"x": viewport.x, "y": viewport.y, "width": viewport.width * zoom, "height": viewport.height * zoom, "scale": 1}

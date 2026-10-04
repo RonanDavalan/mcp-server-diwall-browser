@@ -1029,12 +1029,21 @@ def render(
     marks: Sequence[tuple[int, Box]],
     mask_drawer: MaskDrawer = draw_mask,
     max_width: int | None = MAX_IMAGE_WIDTH,
+    device_view: tuple[float, float] | None = None,
 ) -> Rendered:
-    """Masks first, on the full image; then the reduction; then the marks, never over a mask."""
+    """Masks first, on the full image; then the reduction; then the marks, never over a mask.
+
+    ``device_view`` is the size of the view in device pixels, as the browser states it. The image is
+    a cut of the view from its top left corner, rounded to whole pixels, not the view stretched to
+    fit: when it is a pixel short, a box is still placed with the browser's ratio of the view to its
+    CSS size, and the ratio of the image to the view would move a box at the far edge by up to a
+    pixel, away from its field. Without it, the image is taken to span the viewport.
+    """
     try:
         image = _decode_png(png)
-        sx = image.width / viewport.width if viewport.width > 0 else 1.0
-        sy = image.height / viewport.height if viewport.height > 0 else 1.0
+        span_width, span_height = device_view if device_view is not None else image.size
+        sx = span_width / viewport.width if viewport.width > 0 else 1.0
+        sy = span_height / viewport.height if viewport.height > 0 else 1.0
         masks = [(box, "field") for box in sensitive_boxes] + [(box, "frame") for box in frame_boxes]
         for box, kind in masks:
             mask_drawer(image, _image_rect(box, viewport, sx, sy, image.size), kind)
@@ -1119,6 +1128,8 @@ class _Reading:
     ax: dict[str, Any]
     dom: Dom
     png: bytes | None
+    # The view in device pixels, as the browser states it; read with the image, which is placed by it.
+    device_view: tuple[float, float] | None = None
     # False when the boxes to mask moved between the snapshot and the image.
     masks_stable: bool = True
 
@@ -1187,6 +1198,7 @@ class Perception:
                     marks=(),
                     mask_drawer=self._mask_drawer,
                     max_width=None,
+                    device_view=reading.device_view,
                 )
             except CaptureFailed:
                 raise ToolError("capture_unavailable", _CAPTURE_MESSAGE) from None
@@ -1285,7 +1297,16 @@ class Perception:
         after = await self._registry.main_frame_info(tab, stop_on_dialog=True)
         if after.origin != frame.origin or after.loader_id != frame.loader_id:
             raise _PageChanged()
-        return _Reading(frame=frame, origin=origin, viewport=viewport, ax=ax, dom=dom, png=png, masks_stable=masks_stable)
+        return _Reading(
+            frame=frame,
+            origin=origin,
+            viewport=viewport,
+            ax=ax,
+            dom=dom,
+            png=png,
+            device_view=_device_view(metrics) if png is not None else None,
+            masks_stable=masks_stable,
+        )
 
     # --- building outputs --------------------------------------------------------
 
@@ -1308,6 +1329,7 @@ class Perception:
                     frame_boxes=built.frame_boxes,
                     marks=marks,
                     mask_drawer=self._mask_drawer,
+                    device_view=reading.device_view,
                 )
             except CaptureFailed:
                 capture = "unavailable"
@@ -1437,18 +1459,27 @@ def _screenshot_clip(viewport: Box, zoom: float) -> dict[str, float]:
     return {"x": viewport.x * zoom, "y": viewport.y * zoom, "width": viewport.width * zoom, "height": viewport.height * zoom, "scale": 1}
 
 
+def _device_view(metrics: dict[str, Any]) -> tuple[float, float]:
+    """The size of the view in device pixels, as the browser states it; refused if it is not a usable size."""
+    try:
+        device = metrics["visualViewport"]
+        size = (float(device["clientWidth"]), float(device["clientHeight"]))
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SnapshotFormatError(type(exc).__name__) from None
+    if not all(math.isfinite(side) and side > 0 for side in size):
+        raise SnapshotFormatError("device_view")
+    return size
+
+
 def _image_fits_view(png: bytes, metrics: dict[str, Any]) -> bool:
     """True when the image has the size of the view in device pixels, give or take the rounding of the cut.
 
     Whatever the reason, an image of another size does not show the view the masks are laid on.
     """
     try:
-        device = metrics["visualViewport"]
-        wanted = (float(device["clientWidth"]), float(device["clientHeight"]))
+        wanted = _device_view(metrics)
         size = _decode_png(png).size
     except Exception:  # noqa: BLE001 - a size that cannot be read is a size that cannot be checked
-        return False
-    if not all(math.isfinite(side) and side > 0 for side in wanted):
         return False
     return all(abs(got - want) <= IMAGE_SIZE_SLACK_PX for got, want in zip(size, wanted, strict=True))
 
