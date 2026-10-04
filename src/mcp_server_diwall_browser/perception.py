@@ -63,6 +63,9 @@ VALUE_LIMIT = 120
 MIN_OPACITY = 0.01
 MIN_BOX_SIZE = 2.0
 MAX_IMAGE_WIDTH = 1600
+# How far, on either axis, the image the browser returns may be from the view in device pixels: the
+# browser rounds the cut it makes to whole pixels, and was measured one pixel short on one axis.
+IMAGE_SIZE_SLACK_PX = 2
 SNAPSHOTS_KEPT = 3
 POLL_INTERVAL_S = 0.3
 DEFAULT_WAIT_S = 10.0
@@ -1250,33 +1253,35 @@ class Perception:
         ax = await self._registry.read(tab, "Accessibility.getFullAXTree")
         raw = await self._registry.read(tab, "DOMSnapshot.captureSnapshot", SNAPSHOT_PARAMS if full else LIGHT_SNAPSHOT_PARAMS)
         png = None
-        if image:
+        zoom = _page_zoom(metrics) if image else None
+        if zoom is not None:
             shot = await self._registry.read(
                 tab,
                 "Page.captureScreenshot",
-                {
-                    "format": "png",
-                    "clip": {"x": viewport.x, "y": viewport.y, "width": viewport.width, "height": viewport.height, "scale": 1},
-                    "captureBeyondViewport": False,
-                },
+                {"format": "png", "clip": _screenshot_clip(viewport, zoom), "captureBeyondViewport": False},
             )
             try:
                 png = base64.b64decode(shot.get("data", ""), validate=True)
             except (binascii.Error, ValueError, TypeError):
+                png = None
+            if png is not None and not _image_fits_view(png, metrics):
                 png = None
         dom = Dom(raw, _device_scale(metrics))
         masks_stable = True
         if png is not None:
             # The image is taken after the snapshot: if a sensitive field or a
             # frame moved meanwhile, its mask would miss it. Read the boxes
-            # again and keep the image only if they did not move.
+            # again and keep the image only if they did not move, nor the zoom
+            # the cut was made at.
             metrics_after = await self._registry.read(tab, "Page.getLayoutMetrics")
             dom_after = Dom(
                 await self._registry.read(tab, "DOMSnapshot.captureSnapshot", LIGHT_SNAPSHOT_PARAMS), _device_scale(metrics_after)
             )
-            masks_stable = _viewport(metrics_after) == viewport and mask_boxes(
-                dom, viewport, field_verdicts(dom)
-            ) == mask_boxes(dom_after, viewport, field_verdicts(dom_after))
+            masks_stable = (
+                _viewport(metrics_after) == viewport
+                and _page_zoom(metrics_after) == zoom
+                and mask_boxes(dom, viewport, field_verdicts(dom)) == mask_boxes(dom_after, viewport, field_verdicts(dom_after))
+            )
         after = await self._registry.main_frame_info(tab, stop_on_dialog=True)
         if after.origin != frame.origin or after.loader_id != frame.loader_id:
             raise _PageChanged()
@@ -1408,6 +1413,44 @@ def _device_scale(metrics: dict[str, Any]) -> float:
     if not (math.isfinite(device) and math.isfinite(css)) or device <= 0 or css <= 0:
         raise SnapshotFormatError("device_scale")
     return device / css
+
+
+def _page_zoom(metrics: dict[str, Any]) -> float | None:
+    """The page zoom (the browser's Ctrl + key), or None when the metrics do not give a usable one.
+
+    The cut an image is made with is in CSS pixels times this number. Reading it as 1 when it is
+    missing would cut another part of the page than the one the masks are laid on, and the image
+    would leave with its sensitive fields in view: without a zoom there is no image.
+    """
+    try:
+        zoom = metrics["visualViewport"]["zoom"]
+    except (KeyError, TypeError):
+        return None
+    if isinstance(zoom, bool) or not isinstance(zoom, (int, float)):
+        return None
+    zoom = float(zoom)
+    return zoom if math.isfinite(zoom) and zoom > 0 else None
+
+
+def _screenshot_clip(viewport: Box, zoom: float) -> dict[str, float]:
+    """The part of the page to capture, in the unit the browser reads a cut in: CSS pixels times the zoom."""
+    return {"x": viewport.x * zoom, "y": viewport.y * zoom, "width": viewport.width * zoom, "height": viewport.height * zoom, "scale": 1}
+
+
+def _image_fits_view(png: bytes, metrics: dict[str, Any]) -> bool:
+    """True when the image has the size of the view in device pixels, give or take the rounding of the cut.
+
+    Whatever the reason, an image of another size does not show the view the masks are laid on.
+    """
+    try:
+        device = metrics["visualViewport"]
+        wanted = (float(device["clientWidth"]), float(device["clientHeight"]))
+        size = _decode_png(png).size
+    except Exception:  # noqa: BLE001 - a size that cannot be read is a size that cannot be checked
+        return False
+    if not all(math.isfinite(side) and side > 0 for side in wanted):
+        return False
+    return all(abs(got - want) <= IMAGE_SIZE_SLACK_PX for got, want in zip(size, wanted, strict=True))
 
 
 def _walk_names(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> list[tuple[str, str]]:
