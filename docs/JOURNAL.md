@@ -1905,3 +1905,47 @@ makes its page move by wrapping the mouse handler. The probes of the integration
   `test_click_lookup_point.py` that counts lookups, and a test holds a target covered without moving.
 - The window between the second reading and the press. Complete when the operator accepts the measured 7 of 144, or asks
   for a different gesture (a single dispatch of the three events is not in the protocol the list allows).
+
+## 2026-10-04 — The second lookup before the press is made every time
+
+Point of departure: `62a3a0c`. Chrome 154.0.8037.97, Python 3.12, `.venv` of the repository.
+
+### What was replayed first
+
+`pytest -q -m "not browser"`: 1653 passed, 1 skipped, 532 deselected. `pytest -q -m browser`: 532 passed in 232.79 s.
+The diff of `4997ee1..62a3a0c` touches `tests/` by additions only (5 files, 498 insertions, no deletion).
+
+### The change and its decision
+
+The operator decided to make the second lookup systematic. `_recheck_before_press` no longer compares the box and the
+offset with the first reading: after `mouseMoved` it reads the box (an element with no box is refused), reads the offset,
+and asks `DOM.getNodeForLocation` at the point of the pointer, refusing with `element_obscured` unless the node is the
+target or one of its descendants. Reason: a menu that opens over the target on hover leaves its box and the offset of the
+view as they were, so the conditional check of the previous entry let that click through. Cost: one lookup more per click, a
+method and a script that the click already uses; no method added to `ALLOWED_METHODS`, no internal script added, so
+`tests/test_cdp.py` is unchanged (the previous entry expected it to be touched; it is not). Rejected: an internal script
+for `document.elementFromPoint` (changes the set that `test_cdp.py` pins); keeping the conditional check and accepting the gap.
+
+The contract the tests held was "a click asks the lookup once". It is replaced, not loosened: a click asks it twice, both
+times at the middle of the box in the document (`test_click_lookup_point.py`, 7 tests, the offset-defect counter-proofs
+unchanged and still failing where they must). `test_click_moving_page.py` counts two lookups on a page that does not move.
+
+### What was measured after
+
+- `tests/test_click_moving_page.py`, no browser: a target covered at the first movement without moving is refused and
+  nothing is pressed; a server that asks again only when the box or the offset changed (the previous design, rebuilt as a
+  test double) fails that test and still refuses the two pages that move.
+- `tests/test_click_covering_integration.py`, Chrome 154, new page `tests/fixtures/pages/click-covering.html`: the click is
+  refused as covered and neither button receives anything; with the check neutralised, or with the conditional check, the
+  cover receives the click and the target none: 3 passed.
+- `pytest -q`: 2192 passed, 1 skipped in 309.26 s. `python -m compileall -q src`: no output.
+- The page that scrolls without stopping (1000 CSS pixels a second, 144 clicks at the eight combinations, six per
+  combination and button, a fresh tab each): 90 landed, 48 refused, 6 returned no error with the click landing nowhere, none on
+  another button. The conditional check measured 55, 82 and 7 on Chromium 141 on another machine; the unconditional lookup
+  does not widen the window in a measurable way (6 of 144). The script of this measure is not kept in the repository.
+
+### What remains
+
+- The window between the last lookup and the press: 6 of 144 here. Complete when the operator accepts it or asks for a
+  different gesture (a single dispatch of the three events is not in the protocol the list allows).
+- The zoom of the Ctrl + keys in a headed browser, and a screen whose scale really is 1.5: they need a person and a screen.

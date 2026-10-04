@@ -99,7 +99,7 @@ async def test_a_second_click_after_the_refusal_on_a_new_observation_lands_on_th
     assert outcome.received.error == "element_obscured", outcome.received
 
 
-async def no_recheck(self: Actions, tab: Tab, backend: int, before: tuple[float, float, float, float], x: int, y: int) -> None:
+async def no_recheck(self: Actions, tab: Tab, backend: int, x: int, y: int) -> None:
     """Defective: the press goes to the point the first check was made for, whatever the movement did."""
 
 

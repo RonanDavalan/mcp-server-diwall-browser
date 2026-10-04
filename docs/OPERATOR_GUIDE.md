@@ -581,26 +581,25 @@ of page zoom (100, 125, 150, 200 %) and screen scale (1, 1.5), for each of three
 clicks returned no error and none reached the target; each landed on the button put in its place.
 
 Now, after the movement and before the press, the server reads the box of the target and the scroll
-offset again. If either changed, it asks the browser again what lies under the point it is about to
-press, and refuses with `element_obscured` unless that is still the target or one of its
-descendants. On that page the 24 clicks are all refused and no button, the one put in its place
-included, receives anything; a second click on a new observation (the page has moved and moves no
-more) lands. A page that did not move costs two more readings and no more lookup; the median
-duration of a click on the test page was 318.41 ms before and 318.42 ms after (20 clicks, Chromium
-141, the delay between two actions left out), almost all of it the wait for a load that a click may
-start. An observation you ask for after a refusal shows the page as it now is.
+offset again and asks the browser again what lies under the point it is about to press, every time. It
+refuses with `element_obscured` unless that is still the target or one of its descendants. The question
+is not asked only when the box or the offset changed, because something that opens over the target
+leaves both as they were. On the page that shifts, the 24 clicks are all refused and no button, the one
+put in its place included, receives anything; on a page that shows a button over the target at the first
+movement, the click is refused and neither button receives anything; a second click on a new observation
+(the page has moved and moves no more) lands. A click costs one reading of the box, one of the offset
+and one lookup more than before; their duration was not measured apart. An observation you ask for after
+a refusal shows the page as it now is.
 
 What remains, measured: on the same test page with a script that scrolls the document by 4 CSS
 pixels every 4 ms, back and forth (1000 pixels a second, 144 clicks at the eight combinations, six
 per combination and button), 64 clicks landed and 80 returned no error with the click landing
-nowhere before the change; after it 55 landed, 82 were refused and 7 returned no error with the
-click landing nowhere. None landed on another button. A page that moves in the instant between the
-second reading and the press is not covered, nor is a page that opens something over the target
-without moving the target or the view, since the lookup is not repeated when nothing moved. To
-replay the first measure:
+nowhere before the change; after it, on Chrome 154.0.8037.97, 90 landed, 48 were refused and 6 returned
+no error with the click landing nowhere. None landed on another button. A page that moves in the
+instant between the last lookup and the press is not covered. To replay the measures:
 
 ```
-.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 

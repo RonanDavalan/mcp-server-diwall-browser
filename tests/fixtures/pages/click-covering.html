@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A target that gets covered</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { height: 200vh; }
+  button { position: absolute; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid #333; background: #eee; font: 14px sans-serif; }
+  #target { left: 200px; top: 200px; width: 140px; height: 40px; }
+  /* What a menu that opens over a button does when the pointer arrives: the button keeps its box
+     and the offset of the view does not change, but something else lies over it. */
+  #cover { left: 190px; top: 190px; width: 160px; height: 60px; display: none; z-index: 10; }
+</style>
+</head>
+<body>
+<button id="target" type="button">Covered target</button>
+<button id="cover" type="button">Cover</button>
+<script>
+  window.__clicks = { target: 0, cover: 0 };
+  Object.keys(window.__clicks).forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () { window.__clicks[id] += 1; });
+  });
+  document.addEventListener("mousemove", function () {
+    document.getElementById("cover").style.display = "block";
+  }, { once: true });
+</script>
+</body>
+</html>

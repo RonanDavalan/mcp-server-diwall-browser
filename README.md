@@ -121,11 +121,13 @@ Tested:
   down), a click of the server either lands once on the target or is refused as covered
   (`element_obscured`) with nothing clicked, and in the 24 attempts it is refused every time
   (`tests/test_click_shifting_integration.py`, 80 tests; `tests/test_click_shifting_page.py`, 30, and
-  `tests/test_click_moving_page.py`, 6, need no browser). Before the change the same 24 attempts returned
+  `tests/test_click_moving_page.py`, 10, need no browser). Before the change the same 24 attempts returned
   no error and the click landed on the intruder. After a refusal, a click on a new observation lands.
-  The server now reads the box and the scroll offset again after the movement and before the press, and
-  asks the browser again what lies under the point when either changed. Chromium 141.0.7390.37, not
-  Chrome 154. The measures, and those of a page that scrolls without stopping, are in `docs/JOURNAL.md`.
+  The server now asks the browser again what lies under the point after the movement and before the press,
+  every time, so a target that is covered where it stands, by a button shown at the first movement, is
+  refused too (`tests/test_click_covering_integration.py`, 3 tests, on Chrome 154.0.8037.97). The 24
+  attempts above were measured on Chromium 141.0.7390.37. The measures, and those of a page that scrolls
+  without stopping, are in `docs/JOURNAL.md`.
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
@@ -160,10 +162,9 @@ Not tested:
   on Chromium 141 (it answers for a point of the document, not of the view): if it differs on another
   version, the tests of a click on a scrolled page fail there. A click on an element inside a frame of a
   scrolled page was not measured.
-- A page that moves after the second reading of a click and before the press, or that covers the target
-  without moving it or the view (an overlay that opens on hover): the second lookup is made only when the
-  box or the offset changed. On a page that scrolls by 1000 CSS pixels a second, 7 of 144 clicks gave no
-  error and landed nowhere; none landed on another button (Chromium 141, `docs/JOURNAL.md`).
+- A page that moves after the second lookup of a click and before the press. On a page that scrolls by
+  1000 CSS pixels a second, 6 of 144 clicks gave no error and landed nowhere; none landed on another
+  button (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
 - A refusal in the confirmation window, answered by a person.
 
 Known limits:

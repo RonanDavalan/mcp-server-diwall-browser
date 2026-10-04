@@ -162,7 +162,7 @@ class Actions:
         )
         if run.dialog_opened:
             return
-        await self._recheck_before_press(tab, backend, (centre_x, centre_y, scroll_x, scroll_y), x, y)
+        await self._recheck_before_press(tab, backend, x, y)
         await self._gesture(
             run,
             tab,
@@ -173,24 +173,21 @@ class Actions:
             started=True,
         )
 
-    async def _recheck_before_press(
-        self, tab: Tab, backend: int, before: tuple[float, float, float, float], x: int, y: int
-    ) -> None:
-        """Refuse the press if the pointer's movement left something else than the target under the pointer.
+    async def _recheck_before_press(self, tab: Tab, backend: int, x: int, y: int) -> None:
+        """Refuse the press unless the target, or one of its descendants, still lies under the pointer.
 
-        The movement is what makes some pages move (a menu that opens, a banner that slides in), and the
-        press goes where the pointer is. The box and the offset are read again: when either changed, ask
-        again what lies under the point and refuse unless it is still the target. A page that did not
-        change keeps the answer already had.
+        The pointer's movement is what makes some pages move (a menu that opens, a banner that slides in)
+        or cover the target without moving it, and the press goes where the pointer is. So the question
+        is asked again every time, never only when the box or the offset changed: a target covered where
+        it stands has the same box and the same offset.
         """
         try:
-            centre_x, centre_y = await self._centre(tab, backend)
+            await self._centre(tab, backend)
         except CdpError:
             # The movement took the element away, or its box: nothing is there to press.
             raise ToolError("element_obscured", _OBSCURED) from None
         scroll_x, scroll_y = await self._viewport(tab, strict=True)
-        if (centre_x, centre_y, scroll_x, scroll_y) != before:
-            await self._require_target_at(tab, backend, round(x + scroll_x), round(y + scroll_y))
+        await self._require_target_at(tab, backend, round(x + scroll_x), round(y + scroll_y))
 
     async def _centre(self, tab: Tab, backend: int) -> tuple[float, float]:
         """The middle of the box of an element, in the view; refuse an element with no box."""

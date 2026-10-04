@@ -56,11 +56,12 @@ async def check_the_click_lands_and_the_lookup_is_about_the_middle_of_the_box(be
         raise AssertionError(f"the click was refused: {caught.code}") from None
     assert [hit for _, hit in bench.browser.clicks] == [page.body[0].backend_id]
     asked = [(message["params"]["x"], message["params"]["y"]) for message in bench.cdp.received if message.get("method") == "DOM.getNodeForLocation"]
-    assert asked == [CENTRES[name]], asked
+    # Once before the pointer moves and once before it presses, at the same point of the document.
+    assert asked == [CENTRES[name], CENTRES[name]], asked
 
 
 @pytest.mark.parametrize("name", PAGES)
-async def test_a_click_asks_the_node_lookup_about_the_middle_of_the_box_in_the_document(bench: Bench, name: str) -> None:
+async def test_a_click_asks_the_node_lookup_twice_about_the_middle_of_the_box_in_the_document(bench: Bench, name: str) -> None:
     await check_the_click_lands_and_the_lookup_is_about_the_middle_of_the_box(bench, name)
 
 

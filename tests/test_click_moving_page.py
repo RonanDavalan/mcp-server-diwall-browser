@@ -85,7 +85,7 @@ async def test_a_click_on_a_page_that_moves_at_the_first_pointer_movement_is_ref
     await check_a_click_on_a_page_that_moves_is_refused_and_nothing_is_pressed(bench, name)
 
 
-async def no_recheck(self: Actions, tab: Tab, backend: int, before: tuple[float, float, float, float], x: int, y: int) -> None:
+async def no_recheck(self: Actions, tab: Tab, backend: int, x: int, y: int) -> None:
     """Defective: the press goes ahead on the answer given before the movement."""
 
 
@@ -98,12 +98,14 @@ async def test_the_check_fails_on_a_server_that_does_not_check_again_after_the_p
         await check_a_click_on_a_page_that_moves_is_refused_and_nothing_is_pressed(bench, name)
 
 
-async def test_a_click_on_a_page_that_does_not_move_presses_after_the_movement_and_looks_the_node_up_once(bench: Bench) -> None:
+async def test_a_click_on_a_page_that_does_not_move_presses_after_the_movement_and_looks_the_node_up_before_and_after(
+    bench: Bench,
+) -> None:
     page = Page("Page", [button("Go", (100, 100, 120, 30))])
     tab, snapshot = await bench.show(page)
     await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Go"))
     assert [params["type"] for _, params in bench.browser.mouse] == ["mouseMoved", "mousePressed", "mouseReleased"]
-    assert bench.cdp.methods().count("DOM.getNodeForLocation") == 1
+    assert bench.cdp.methods().count("DOM.getNodeForLocation") == 2
 
 
 async def test_an_element_with_no_box_after_the_movement_is_refused_and_nothing_is_pressed(bench: Bench) -> None:
@@ -115,3 +117,75 @@ async def test_an_element_with_no_box_after_the_movement_is_refused_and_nothing_
         await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Go"))
     assert caught.value.code == "element_obscured"
     assert [params["type"] for _, params in bench.browser.mouse] == ["mouseMoved"]
+
+
+def covering_page() -> tuple[Page, Callable[[], None]]:
+    """A target and a hidden cover; the move shows the cover over the target, which keeps its box."""
+    cover = button("Cover", None)
+    page = Page("Page", [button("Go", (100, 100, 120, 30)), cover], content_size=(800, 1200))
+
+    def move() -> None:
+        cover.box = (90, 90, 140, 50)
+
+    return page, move
+
+
+async def check_a_target_covered_without_moving_is_refused_and_nothing_is_pressed(bench: Bench) -> None:
+    page, move = covering_page()
+    tab, snapshot = await bench.show(page)
+    move_at_the_first_pointer_movement(bench, move)
+    try:
+        await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Go"))
+    except ToolError as caught:
+        assert caught.code == "element_obscured", caught.code
+    else:
+        raise AssertionError("the click went through although something covered the target at the first movement")
+    assert [params["type"] for _, params in bench.browser.mouse] == ["mouseMoved"], bench.browser.mouse
+    assert bench.browser.clicks == []
+
+
+async def test_a_target_covered_at_the_first_movement_without_moving_is_refused_and_nothing_is_pressed(bench: Bench) -> None:
+    await check_a_target_covered_without_moving_is_refused_and_nothing_is_pressed(bench)
+
+
+def ask_again_only_when_the_box_or_the_offset_changed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Defective: the question is asked again only when the box or the offset read again differ from the first reading."""
+    real_centre, real_viewport, real_require = Actions._centre, Actions._viewport, Actions._require_target_at
+    first_centre: list[tuple[float, float]] = []
+    first_viewport: list[tuple[float, float]] = []
+
+    async def centre(self: Actions, tab: Tab, backend: int) -> tuple[float, float]:
+        value = await real_centre(self, tab, backend)
+        first_centre.append(value)
+        return value
+
+    async def viewport(self: Actions, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
+        value = await real_viewport(self, tab, strict=strict)
+        first_viewport.append(value)
+        return value
+
+    async def conditional(self: Actions, tab: Tab, backend: int, x: int, y: int) -> None:
+        if (await self._centre(tab, backend), await self._viewport(tab, strict=True)) != (first_centre[0], first_viewport[0]):
+            scroll_x, scroll_y = first_viewport[-1]
+            await real_require(self, tab, backend, round(x + scroll_x), round(y + scroll_y))
+
+    monkeypatch.setattr(Actions, "_centre", centre)
+    monkeypatch.setattr(Actions, "_viewport", viewport)
+    monkeypatch.setattr(Actions, "_recheck_before_press", conditional)
+
+
+async def test_the_check_fails_on_a_server_that_asks_again_only_when_the_box_or_the_offset_changed(
+    bench: Bench, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ask_again_only_when_the_box_or_the_offset_changed(monkeypatch)
+    with pytest.raises(AssertionError):
+        await check_a_target_covered_without_moving_is_refused_and_nothing_is_pressed(bench)
+
+
+@pytest.mark.parametrize("name", PAGES)
+async def test_the_server_that_asks_again_only_on_a_change_still_refuses_a_page_that_moves(
+    bench: Bench, monkeypatch: pytest.MonkeyPatch, name: str
+) -> None:
+    """The defective server above is the one of the first change: it holds where the page moves, and fails only on a cover."""
+    ask_again_only_when_the_box_or_the_offset_changed(monkeypatch)
+    await check_a_click_on_a_page_that_moves_is_refused_and_nothing_is_pressed(bench, name)
