@@ -69,10 +69,47 @@ async def attempt(rig: Rig, screen: ZoomedScreen, target: str, *, then: Callable
 
 
 @pytest.mark.parametrize("target", TARGETS)
-@pytest.mark.xfail(strict=True, reason="le contrôle précède le mouvement")
 async def test_a_click_of_the_server_on_a_page_that_moves_at_the_first_movement_lands_or_is_refused_and_nothing_else_happens(
     screen: ZoomedScreen, rig: Rig, target: str
 ) -> None:
     outcome = await attempt(rig, screen, target)
     assert outcome.shifted, "the page did not move its target: the attempt proves nothing"
     assert_landed_or_refused(outcome.received, target)
+
+
+async def test_the_server_refuses_the_click_on_a_page_that_moves_and_clicks_nothing(screen: ZoomedScreen, rig: Rig) -> None:
+    """The issue the server takes: a refusal, with the intruder, the decoys and the page all untouched."""
+    for target in TARGETS:
+        outcome = await attempt(rig, screen, target)
+        assert outcome.received.error == "element_obscured", (target, outcome.received)
+        assert not any(outcome.received.clicks.values()) and outcome.received.stray == 0, (target, outcome.received)
+
+
+@pytest.mark.parametrize("target", TARGETS)
+async def test_a_second_click_after_the_refusal_on_a_new_observation_lands_on_the_target(
+    screen: ZoomedScreen, rig: Rig, target: str
+) -> None:
+    """The page has moved and moves no more: what the first attempt left is a page a click can land on."""
+
+    async def again(rig: Rig, tab: Tab, raw: RawSession) -> None:
+        second = await click(rig, tab, raw, target)
+        assert_landed(second, target)
+
+    outcome = await attempt(rig, screen, target, then=again)
+    assert outcome.received.error == "element_obscured", outcome.received
+
+
+async def no_recheck(self: Actions, tab: Tab, backend: int, before: tuple[float, float, float, float], x: int, y: int) -> None:
+    """Defective: the press goes to the point the first check was made for, whatever the movement did."""
+
+
+@pytest.mark.parametrize("target", TARGETS)
+async def test_the_shifting_click_check_fails_on_a_server_that_checks_only_before_the_movement(
+    screen: ZoomedScreen, rig: Rig, target: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(Actions, "_recheck_before_press", no_recheck)
+    outcome = await attempt(rig, screen, target)
+    assert outcome.shifted, "the page did not move its target: the attempt proves nothing"
+    assert outcome.received.error is None and outcome.received.clicks[f"{target}-intruder"] == 1, outcome.received
+    with pytest.raises(AssertionError):
+        assert_landed_or_refused(outcome.received, target)

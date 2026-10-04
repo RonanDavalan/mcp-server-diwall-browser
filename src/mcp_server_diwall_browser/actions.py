@@ -151,34 +151,62 @@ class Actions:
     async def _click_at(self, run: _Run, tab: Tab, ref: ElementRef) -> None:
         backend = ref.backend_node_id
         await self._read(tab, "DOM.scrollIntoViewIfNeeded", {"backendNodeId": backend})
-        quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": backend})).get("quads") or []
-        if not quads or len(quads[0]) != 8:
-            raise ToolError("element_obscured", _OBSCURED)
-        xs, ys = quads[0][0::2], quads[0][1::2]
-        centre_x, centre_y = sum(xs) / 4, sum(ys) / 4
+        centre_x, centre_y = await self._centre(tab, backend)
         x, y = round(centre_x), round(centre_y)
         # The quads and the mouse events are in the view, but the node lookup reads a point of the
         # document: asked at a view point of a scrolled page, it answers for another place, or for none.
         scroll_x, scroll_y = await self._viewport(tab, strict=True)
-        hit = await self._read(
-            tab,
-            "DOM.getNodeForLocation",
-            {"x": round(centre_x + scroll_x), "y": round(centre_y + scroll_y), "includeUserAgentShadowDOM": False},
+        await self._require_target_at(tab, backend, round(centre_x + scroll_x), round(centre_y + scroll_y))
+        await self._gesture(
+            run, tab, [("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "button": "none", "clickCount": 0})]
         )
+        if run.dialog_opened:
+            return
+        await self._recheck_before_press(tab, backend, (centre_x, centre_y, scroll_x, scroll_y), x, y)
+        await self._gesture(
+            run,
+            tab,
+            [
+                ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1}),
+                ("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1}),
+            ],
+            started=True,
+        )
+
+    async def _recheck_before_press(
+        self, tab: Tab, backend: int, before: tuple[float, float, float, float], x: int, y: int
+    ) -> None:
+        """Refuse the press if the pointer's movement left something else than the target under the pointer.
+
+        The movement is what makes some pages move (a menu that opens, a banner that slides in), and the
+        press goes where the pointer is. The box and the offset are read again: when either changed, ask
+        again what lies under the point and refuse unless it is still the target. A page that did not
+        change keeps the answer already had.
+        """
+        try:
+            centre_x, centre_y = await self._centre(tab, backend)
+        except CdpError:
+            # The movement took the element away, or its box: nothing is there to press.
+            raise ToolError("element_obscured", _OBSCURED) from None
+        scroll_x, scroll_y = await self._viewport(tab, strict=True)
+        if (centre_x, centre_y, scroll_x, scroll_y) != before:
+            await self._require_target_at(tab, backend, round(x + scroll_x), round(y + scroll_y))
+
+    async def _centre(self, tab: Tab, backend: int) -> tuple[float, float]:
+        """The middle of the box of an element, in the view; refuse an element with no box."""
+        quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": backend})).get("quads") or []
+        if not quads or len(quads[0]) != 8:
+            raise ToolError("element_obscured", _OBSCURED)
+        return sum(quads[0][0::2]) / 4, sum(quads[0][1::2]) / 4
+
+    async def _require_target_at(self, tab: Tab, backend: int, x: int, y: int) -> None:
+        """Refuse unless the target, or one of its descendants, is what lies at a point of the document."""
+        hit = await self._read(tab, "DOM.getNodeForLocation", {"x": x, "y": y, "includeUserAgentShadowDOM": False})
         hit_id = hit.get("backendNodeId")
         if hit_id != backend:
             # The click lands on what the human sees there, never on what lies under it.
             if not isinstance(hit_id, int) or not await self._contains(tab, backend, hit_id):
                 raise ToolError("element_obscured", _OBSCURED)
-        await self._gesture(
-            run,
-            tab,
-            [
-                ("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "button": "none", "clickCount": 0}),
-                ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1}),
-                ("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1}),
-            ],
-        )
 
     # --- filling and choosing ---------------------------------------------------------------
 
@@ -675,13 +703,19 @@ class Actions:
         if _script_value(inside) is not True:
             raise ToolError("element_obscured", _FOCUS_MOVED)
 
-    async def _gesture(self, run: _Run, tab: Tab, calls: list[tuple[str, dict[str, Any]]]) -> None:
-        """Send the events of a gesture; a dialog it opens stops it, the gesture being done."""
+    async def _gesture(
+        self, run: _Run, tab: Tab, calls: list[tuple[str, dict[str, Any]]], *, started: bool = False
+    ) -> None:
+        """Send the events of a gesture; a dialog it opens stops it, the gesture being done.
+
+        ``started`` says that events of the same gesture were already sent: a dialog is then never
+        a refusal, since the gesture is under way.
+        """
         for number, (method, params) in enumerate(calls):
             try:
                 await self._context.registry.read(tab, method, params)
             except DialogBlocking:
-                if number == 0 and not run.dialog_opened:
+                if number == 0 and not started and not run.dialog_opened:
                     raise dialog_refusal() from None
                 run.dialog_opened = True
                 run.notices.append("une boîte de dialogue s'est ouverte : la traiter (handle_dialog)")
