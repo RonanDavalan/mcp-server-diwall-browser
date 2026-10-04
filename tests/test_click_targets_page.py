@@ -113,6 +113,8 @@ DEFECTS = {
     "a decoy too far": (swapped("#decoy-right { left: 540px;", "#decoy-right { left: 560px;"), "4 pixels"),
     "a far button within one view": (swapped("top: 250vh;", "top: 150vh;"), "far button"),
     "a far button in pixels": (swapped("top: 250vh;", "top: 2500px;"), "far button"),
+    "a body with no height": (swapped("body { height: 300vh; }", ""), "body has no height"),
+    "a body shorter than the far button is deep": (swapped("body { height: 300vh; }", "body { height: 200vh; }"), "body has no height"),
 }
 
 

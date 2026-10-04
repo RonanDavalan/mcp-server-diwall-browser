@@ -7,6 +7,9 @@
   /* Every box is placed in CSS pixels from the corner, so that where a click lands
      is a matter of the point alone and not of the flow of the page. */
   html, body { margin: 0; padding: 0; }
+  /* The buttons are placed out of the flow, so the body needs a height of its own: a node with no box
+     is taken for hidden by the observation, and what lies under it is left out. */
+  body { height: 300vh; }
   button { position: absolute; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid #333; background: #eee; font: 14px sans-serif; }
   /* A button of ordinary size, far from the corner. Its centre lies below the middle of the view at
      every zoom, so that a scroll can bring it to the middle of the view. */

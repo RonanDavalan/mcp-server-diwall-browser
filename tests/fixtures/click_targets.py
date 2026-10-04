@@ -128,4 +128,8 @@ def page_problems(source: str) -> list[str]:
     far = boxes.get("far", {}).get("top")
     if far is None or far[1] != "vh" or far[0] < 200:
         found.append("the far button is not placed at two heights of the view or more")
+    # Without a box of its own the body is taken for hidden, and the observation leaves out all its buttons.
+    body = re.search(r"(?<![\w-])body\s*\{[^}]*?\bheight:\s*(\d+(?:\.\d+)?)vh", source)
+    if body is None or far is None or float(body.group(1)) <= far[0]:
+        found.append("the body has no height that holds the far button")
     return found
