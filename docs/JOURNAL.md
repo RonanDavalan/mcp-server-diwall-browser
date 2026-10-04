@@ -1949,3 +1949,11 @@ unchanged and still failing where they must). `test_click_moving_page.py` counts
 - The window between the last lookup and the press: 6 of 144 here. Complete when the operator accepts it or asks for a
   different gesture (a single dispatch of the three events is not in the protocol the list allows).
 - The zoom of the Ctrl + keys in a headed browser, and a screen whose scale really is 1.5: they need a person and a screen.
+
+## 2026-10-04 — The window between the last lookup and the press is accepted
+
+Decision (the operator delegated it): accepted. Reason: measured 6 of 144 clicks lost with no error on a page that
+scrolls 1000 CSS pixels a second, none on another button, and the protocol the allow-list permits has no single dispatch of
+the three mouse events. A lost click is a click that did nothing; the harm to avoid is a click on the wrong element, and
+none was seen. Check that it still holds: replay the measure of the previous entry; reopen if a click ever lands on another
+element, or if one dispatch of the three events becomes allowed.
