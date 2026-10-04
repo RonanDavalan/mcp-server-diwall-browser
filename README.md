@@ -76,8 +76,19 @@ Tested:
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
   password field of the demo page is under its mask, and the mask goes no further than two pixels
   beyond it (`tests/test_scale_integration.py`). Before the correction of this, a mask did not
-  cover its field at a scale above 1. A real screen at 1.5 was not measured. The page zoom was, and
-  it does not hold for the image (see the limits).
+  cover its field at a scale above 1. A real screen at 1.5 was not measured.
+- The page zoom, at 100, 125, 150 and 200 % and at screen scales of 1 and 1.5, on a headless Chromium
+  141 whose blank profile holds the zoom as its default: the image the model receives is the whole
+  view, the password field of the demo page is under its mask, and so is the field of a page scrolled
+  so that it sits near the bottom or in the middle of the view; the mask goes no further than two
+  pixels beyond the field, and in the 16 placements measured no edge of a mask lay inside its field
+  (`tests/test_zoom_integration.py`, `tests/test_zoom_scrolled_integration.py`). Before the
+  correction, at 125, 150 and 200 %, 0 % of the field was covered and `capture` read `ok`. No image is
+  published (`capture` reads `unavailable`, the tree is still served) when the browser gives no usable
+  zoom, when the zoom changes during the capture, or when the image is more than two pixels from the
+  size of the view on either axis (`tests/test_perception_zoom.py`, which needs no browser). On Chrome
+  154 the operator measured the size of the image cut as the browser reads it (the view at each zoom, a
+  pixel short in height at 125 %); the browser tests of this revision were not replayed on it.
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
@@ -104,6 +115,10 @@ Not tested:
 - The confirmation asked through a desktop MCP client (elicitation): tested with the client of
   the MCP SDK only.
 - Chrome 154 with its profile kept inside the operator's own encrypted directory.
+- The page zoom made by the Ctrl + key of a browser that is not headless. The protocol has no command
+  for a zoom, so the tests write the default zoom of a blank profile; whether the browser keeps the
+  two kinds in the same way is not confirmed. A screen whose scale really is 1.5, and a click at a page
+  zoom, were not measured either.
 - A refusal in the confirmation window, answered by a person.
 
 Known limits:
@@ -123,11 +138,6 @@ Known limits:
   `overlay` line in the tree, then what is in view and clear, then what is in view under a layer
   (`covered: true`, and a click on it is refused), then the rest. A banner that overlaps nothing in
   view is not a layer and can still be cut.
-- At a page zoom other than 100 % (the browser's Ctrl +), the published image shows another part
-  of the page and the masks do not cover their fields: measured at 125, 150 and 200 %, at screen
-  scales of 1 and 1.5, on Chromium 141, 0 % of a password field was covered and `capture` still read
-  `ok`. The sizes, the boxes and the clicks are right. Keep the zoom of the browser at 100 % until
-  this is decided (`docs/JOURNAL.md`). Not measured on Chrome 154.
 - The content of frames is never read; frames are masked in the image.
 - What the model provider keeps of what it receives is not confirmed by this project.
 

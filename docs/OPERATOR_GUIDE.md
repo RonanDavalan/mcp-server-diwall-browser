@@ -489,7 +489,43 @@ element. To replay it with a browser on your `PATH`:
 .venv/bin/python -m pytest -q tests/test_scale_integration.py
 ```
 
-A browser zoom (Ctrl and +) was not measured, and neither was your own screen.
+Your own screen was not measured.
+
+### Marks and masks at any page zoom
+
+The page zoom of the browser (Ctrl and +) changes the size of a CSS pixel. The browser reads the cut
+of a screenshot in CSS pixels times that zoom, so the server gives its cut in that unit: it
+multiplies the place the view starts at and its size by the `zoom` that `Page.getLayoutMetrics`
+reports. An image is not published, and `observe` says `capture: unavailable` with the tree still
+served, when:
+
+- the browser gives no zoom, or one that is not a number above zero;
+- the zoom changes between the first reading of the page and the second one that follows the image;
+- the image is more than two pixels, on either axis, from the size of the view in device pixels
+  that the browser reports (its cut is rounded to whole pixels, and was one pixel short on one axis).
+
+A box is placed on the image with the ratio of the view in device pixels to the view in CSS pixels,
+not with the size of the image, which can be a pixel short.
+
+It was measured on a headless Chromium 141 whose blank profile holds the zoom as its default, at
+zooms of 100, 125, 150 and 200 % and screen scales of 1 and 1.5, on the demo page and on a page
+scrolled so that its password field sits near the bottom or in the middle of the view. At every one
+of the combinations the image is the whole view (a block of a colour found nowhere else on the page
+is where the browser paints it), every pixel of the password field is under its mask, and the mask
+goes no further than two pixels beyond it. Before this, at 125, 150 and 200 %, the image was the top
+left part of the view, 0 % of the password field was covered and `capture` still read `ok`. To
+replay it with a browser on your `PATH`:
+
+```
+.venv/bin/python -m pytest -q tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py
+.venv/bin/python -m pytest -q tests/test_perception_zoom.py
+```
+
+The second command needs no browser. Not measured: the zoom made by the Ctrl and + keys of a browser
+that is not headless (the protocol has no command for a zoom, so the tests write the default zoom of
+the profile, and whether the browser keeps the two kinds of zoom in the same way is not confirmed),
+a screen whose scale really is 1.5, a click at a page zoom, and the browser tests on your Chrome 154
+after this change (the sizes of the cut were measured there, the tests were not replayed).
 
 ## 8. What the server never does
 
@@ -674,7 +710,10 @@ The model observes again.
 `capture_unavailable`: `l'image n'est pas publiée : un masque n'a pas pu être posé`. No image with
 every mask in place could be made, so none is published or kept as evidence. Accepting a dialog
 that asks for a payment, a deletion or a change of secret also ends here: answer that dialog
-yourself in the browser.
+yourself in the browser. An image that cannot be trusted to show the view the masks are laid on (no
+usable page zoom, a zoom that changed, an image of another size than the view) ends the same way:
+`observe` reads `capture: unavailable` and serves its tree, and `save_evidence` is refused with this
+code.
 
 `sensitive_value_refused`: `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
 Write a credential file for this origin (section 6).
@@ -732,10 +771,6 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   yourself.
 - A download that a page starts more than half a second after a load ends is refused; download it
   yourself.
-- Keep the page zoom of the browser at 100 %. At 125, 150 or 200 % the image the model receives
-  shows another part of the page and the masks do not cover their fields (a password field was
-  covered 0 %, and `capture` still read `ok`); the sizes, the boxes and the clicks are right. Measured
-  on Chromium 141, not on Chrome 154.
 - Accepting a dialog whose message asks for a payment, a deletion or a change of secret is always
   refused (`capture_unavailable`): no evidence can be taken while a dialog is open. Answer it
   yourself.
@@ -775,7 +810,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   simulated volume; its publication of the new file by a hard link was not tried on a real gocryptfs
   volume (if the file system cannot link, it takes the name first and fills it).
 - The scale of the screen was measured on a headless Chromium 141 at 1, 1.5 and 2, not on a screen
-  of the operator's, and a browser zoom was not measured.
+  of the operator's. The page zoom was measured at 100 to 200 % in the same browser, with the zoom
+  written in a blank profile; the zoom of the Ctrl and + keys in a browser that is not headless was
+  not.
 - Not tested: a real `kdialog` or `zenity` window answered by a person, the operator's own
   gocryptfs volume, Brave, Chrome 154 with its profile kept in the encrypted directory, and the
   confirmation asked through a desktop MCP client. Opera 136 with its profile in a throw-away
