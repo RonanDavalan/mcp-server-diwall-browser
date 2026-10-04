@@ -17,6 +17,7 @@ import pytest
 from conftest import FAKE_PASSWORD, FakeMount, VolumePaths, mounted_volume, write_credential
 from fixtures.action_support import FakeChannel, FakeClock, make_profile
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
+from fixtures.download_probe import holds
 from fixtures.page_server import LATE_FILE_BODY, LATE_FILE_DELAY_S, SLOW_FILE_SIZE, PageServer
 from fixtures.raw_cdp import RawSession
 
@@ -370,7 +371,7 @@ async def test_a_download_begun_by_the_click_ends_in_the_volume_after_the_settin
     downloads = rig.paths.project / "downloads"
 
     async def complete() -> bool:
-        return any(path.is_file() and path.stat().st_size == SLOW_FILE_SIZE for path in downloads.rglob("*"))
+        return any(holds(path, lambda file: file.stat().st_size == SLOW_FILE_SIZE) for path in downloads.rglob("*"))
 
     await until_true(complete, timeout=10)
 
@@ -383,7 +384,7 @@ async def test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volum
     downloads = rig.paths.project / "downloads"
 
     async def complete() -> bool:
-        return any(path.is_file() and path.read_bytes() == LATE_FILE_BODY for path in downloads.rglob("*"))
+        return any(holds(path, lambda file: file.read_bytes() == LATE_FILE_BODY) for path in downloads.rglob("*"))
 
     await until_true(complete, timeout=10)
 
