@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click targets</title>
+<style>
+  /* Every box is placed in CSS pixels from the corner, so that where a click lands
+     is a matter of the point alone and not of the flow of the page. */
+  html, body { margin: 0; padding: 0; }
+  button { position: absolute; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid #333; background: #eee; font: 14px sans-serif; }
+  /* A button of ordinary size, far from the corner. Its centre lies below the middle of the view at
+     every zoom, so that a scroll can bring it to the middle of the view. */
+  #large { left: 320px; top: 500px; width: 120px; height: 32px; }
+  /* A small target between two decoys of its size, 4 CSS pixels away on each side. Wholly in view
+     at every zoom while the page is not scrolled. */
+  #decoy-left { left: 500px; top: 310px; width: 16px; height: 16px; }
+  #small { left: 520px; top: 310px; width: 16px; height: 16px; }
+  #decoy-right { left: 540px; top: 310px; width: 16px; height: 16px; }
+  /* A button that only a scroll brings into view: 2.5 heights of the view down, at any zoom. */
+  #far { left: 320px; top: 250vh; width: 120px; height: 40px; }
+</style>
+</head>
+<body>
+<button id="large" type="button">Large target</button>
+<button id="decoy-left" type="button" aria-label="Left decoy"></button>
+<button id="small" type="button" aria-label="Small target"></button>
+<button id="decoy-right" type="button" aria-label="Right decoy"></button>
+<button id="far" type="button">Far target</button>
+<script>
+  // What each button received, read from outside by the test; a click that reaches no button is counted apart.
+  window.__clicks = {};
+  window.__stray_clicks = 0;
+  document.querySelectorAll("button").forEach(function (button) {
+    window.__clicks[button.id] = 0;
+    button.addEventListener("click", function () { window.__clicks[button.id] += 1; });
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest("button")) { window.__stray_clicks += 1; }
+  });
+</script>
+</body>
+</html>
