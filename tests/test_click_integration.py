@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 import pytest
 from fixtures.browser_launcher import LaunchedBrowser
-from fixtures.click_targets import NAMES, PAGE, Received, assert_landed
+from fixtures.click_targets import NAMES, PAGE, SCROLLED_NAMES, SCROLLED_PAGE, Received, assert_landed, assert_refused
 from fixtures.raw_cdp import RawSession
 from test_actions_integration import Rig, mark_of, other_pages, pages, rig  # noqa: F401 - fixtures
 from test_zoom_integration import BOX_SCRIPT, ZoomedScreen, screen  # noqa: F401 - fixture
@@ -51,6 +51,9 @@ class Case:
 
 CASES = (Case("large"), Case("small"), Case("far"), Case("large", scrolled=True))
 
+# The accessible name of every button of both pages, by id.
+ACCESSIBLE_NAMES = {**NAMES, **SCROLLED_NAMES}
+
 # What a clicker is: the click itself, with the error code it returned if it returned one.
 Clicker = Callable[[Rig, Tab, Snapshot, RawSession, str], Awaitable[str | None]]
 
@@ -66,23 +69,33 @@ async def assert_view(raw: RawSession, screen: ZoomedScreen) -> None:
     assert abs(zoom - screen.zoom / 100) < SLACK, (zoom, screen.zoom)
 
 
-async def scroll_to_the_middle(raw: RawSession, element_id: str) -> None:
-    """Scroll so that the element is in the middle of the view, wait for the scroll to stop, check where it stopped."""
-    _left, top, _right, bottom = await raw.evaluate(f"({BOX_SCRIPT})('{element_id}')")
-    height, offset = await raw.evaluate("[innerHeight, scrollY]")
-    await raw.evaluate(f"window.scrollTo(0, {(top + bottom) / 2 + offset - height / 2})")
+async def wait_for_the_scroll_to_stop(raw: RawSession) -> tuple[float, float]:
     previous = None
     for _ in range(20):
         await asyncio.sleep(0.15)
-        position = await raw.evaluate("window.scrollY")
+        position = await raw.evaluate("[scrollX, scrollY]")
         if position == previous:
-            break
+            return position[0], position[1]
         previous = position
-    else:
-        raise AssertionError("the page keeps scrolling")
-    assert position > 0, "the page is not scrolled: its offset does not enter the point of the click"
-    _left, top, _right, bottom = await raw.evaluate(f"({BOX_SCRIPT})('{element_id}')")
-    assert abs((top + bottom) / 2 - height / 2) <= 1, (top, bottom, height)
+    raise AssertionError("the page keeps scrolling")
+
+
+async def scroll_to_the_middle(raw: RawSession, element_id: str, *, both: bool = False) -> None:
+    """Scroll so that the element is in the middle of the view (of its height, or of both sizes), then check where it is."""
+    left, top, right, bottom = await raw.evaluate(f"({BOX_SCRIPT})('{element_id}')")
+    width, height, offset_x, offset_y = await raw.evaluate("[innerWidth, innerHeight, scrollX, scrollY]")
+    x = (left + right) / 2 + offset_x - width / 2 if both else offset_x
+    await raw.evaluate(f"window.scrollTo({x}, {(top + bottom) / 2 + offset_y - height / 2})")
+    scroll_x, scroll_y = await wait_for_the_scroll_to_stop(raw)
+    assert scroll_y > 0 and (scroll_x > 0 or not both), "the page is not scrolled: its offset does not enter the point of the click"
+    left, top, right, bottom = await raw.evaluate(f"({BOX_SCRIPT})('{element_id}')")
+    assert abs((top + bottom) / 2 - height / 2) <= 1 and (abs((left + right) / 2 - width / 2) <= 1 or not both), (left, top, right, bottom)
+
+
+async def scroll_by_a_hundred_each_way(raw: RawSession) -> None:
+    await raw.evaluate("window.scrollTo(100, 100)")
+    scroll_x, scroll_y = await wait_for_the_scroll_to_stop(raw)
+    assert abs(scroll_x - 100) <= 1 and abs(scroll_y - 100) <= 1, (scroll_x, scroll_y)
 
 
 # --- the click, and what the page received ------------------------------------------------------
@@ -94,7 +107,7 @@ async def server_click(rig: Rig, tab: Tab, snapshot: Snapshot, raw: RawSession, 
     What it returns is the code of the error the click gave, or the name of the exception it let out
     (the tool layer would report that one as an internal error): either is data for the check.
     """
-    mark = mark_of(snapshot, NAMES[target])
+    mark = mark_of(snapshot, ACCESSIBLE_NAMES[target])
     try:
         await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark)
     except ToolError as caught:
@@ -129,18 +142,30 @@ class Outcome:
     scroll: tuple[float, float]
 
 
-async def attempt(rig: Rig, screen: ZoomedScreen, case: Case, clicker: Clicker) -> Outcome:
-    """Open the page, observe it, click with ``clicker``, and read what the page received."""
-    tab = await rig.registry.open_tab(rig.pages.url(PAGE))
+Prepare = Callable[[RawSession], Awaitable[None]]
+
+
+async def attempt_on(rig: Rig, screen: ZoomedScreen, address: str, prepare: Prepare | None, target: str, clicker: Clicker) -> Outcome:
+    """Open the page, ``prepare`` it, observe it, click with ``clicker``, and read what the page received."""
+    tab = await rig.registry.open_tab(address)
     async with rig.raw(tab) as raw:
         await assert_view(raw, screen)
-        if case.scrolled:
-            await scroll_to_the_middle(raw, case.target)
+        if prepare is not None:
+            await prepare(raw)
         snapshot = await rig.observe(tab)
-        error = await clicker(rig, tab, snapshot, raw, case.target)
+        error = await clicker(rig, tab, snapshot, raw, target)
         received = Received(await raw.evaluate("window.__clicks"), await raw.evaluate("window.__stray_clicks"), error)
         scroll_x, scroll_y = await raw.evaluate("[scrollX, scrollY]")
     return Outcome(received, (scroll_x, scroll_y))
+
+
+async def attempt(rig: Rig, screen: ZoomedScreen, case: Case, clicker: Clicker) -> Outcome:
+    """The attempt of a case of the first page: scrolled to the middle first when the case says so."""
+
+    async def prepare(raw: RawSession) -> None:
+        await scroll_to_the_middle(raw, case.target)
+
+    return await attempt_on(rig, screen, rig.pages.url(PAGE), prepare if case.scrolled else None, case.target, clicker)
 
 
 # --- the page is what the checks assume -------------------------------------------------------------
@@ -246,3 +271,65 @@ async def test_a_click_one_button_away_from_the_small_target_lands_on_the_decoy_
     assert outcome.received.stray == 0
     with pytest.raises(AssertionError):
         assert_landed(outcome.received, "small")
+
+
+# --- a page scrolled in both directions ---------------------------------------------------------------
+
+
+async def to_the_distant_button(raw: RawSession) -> None:
+    await scroll_to_the_middle(raw, "distant", both=True)
+
+
+async def test_the_banner_covers_the_middle_of_the_tall_button_once_the_page_is_scrolled_by_a_hundred_each_way(
+    screen: ZoomedScreen, rig: Rig
+) -> None:
+    """The premise of the covered-button checks, read from the page: the point the server clicks is under the banner."""
+    tab = await rig.registry.open_tab(rig.pages.url(SCROLLED_PAGE) + "#covered")
+    async with rig.raw(tab) as raw:
+        await assert_view(raw, screen)
+        await scroll_by_a_hundred_each_way(raw)
+        left, top, right, bottom = await raw.evaluate(f"({BOX_SCRIPT})('tall')")
+        x, y = round((left + right) / 2), round((top + bottom) / 2)
+        topmost = await raw.evaluate(f"document.elementFromPoint({x}, {y}).id")
+    assert (x, y) == (300, 250) and topmost == "cover", (x, y, topmost)
+
+
+async def test_a_click_of_the_server_lands_on_a_button_of_a_page_scrolled_in_both_directions(screen: ZoomedScreen, rig: Rig) -> None:
+    outcome = await attempt_on(rig, screen, rig.pages.url(SCROLLED_PAGE), to_the_distant_button, "distant", server_click)
+    assert_landed(outcome.received, "distant")
+
+
+REAL_VIEWPORT = Actions._viewport
+
+
+async def vertical_scroll_offset_only(self: Actions, tab: Tab) -> tuple[float, float]:
+    """The horizontal offset left out: right on a page scrolled down, wrong on one scrolled across as well."""
+    return 0.0, (await REAL_VIEWPORT(self, tab))[1]
+
+
+@pytest.mark.parametrize("offset", (no_scroll_offset, vertical_scroll_offset_only), ids=("none", "vertical-only"))
+async def test_the_click_check_fails_on_a_server_that_leaves_out_a_part_of_the_scroll_offset(
+    screen: ZoomedScreen, rig: Rig, offset: Callable[[Actions, Tab], Awaitable[tuple[float, float]]], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(Actions, "_viewport", offset)
+    outcome = await attempt_on(rig, screen, rig.pages.url(SCROLLED_PAGE), to_the_distant_button, "distant", server_click)
+    with pytest.raises(AssertionError):
+        assert_landed(outcome.received, "distant")
+
+
+async def test_a_button_covered_on_a_scrolled_page_is_refused_and_nothing_is_clicked(screen: ZoomedScreen, rig: Rig) -> None:
+    address = rig.pages.url(SCROLLED_PAGE) + "#covered"
+    outcome = await attempt_on(rig, screen, address, scroll_by_a_hundred_each_way, "tall", server_click)
+    assert_refused(outcome.received, "element_obscured")
+
+
+async def test_a_server_that_asks_for_the_node_at_the_view_point_clicks_the_banner_over_a_covered_button(
+    screen: ZoomedScreen, rig: Rig, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The defect the covered check guards against: the click is accepted, and lands on what covers the button."""
+    monkeypatch.setattr(Actions, "_viewport", no_scroll_offset)
+    address = rig.pages.url(SCROLLED_PAGE) + "#covered"
+    outcome = await attempt_on(rig, screen, address, scroll_by_a_hundred_each_way, "tall", server_click)
+    assert outcome.received.error is None and outcome.received.clicks["cover"] == 1, outcome.received
+    with pytest.raises(AssertionError):
+        assert_refused(outcome.received, "element_obscured")

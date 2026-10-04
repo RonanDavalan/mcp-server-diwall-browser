@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Click on a scrolled page</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  /* A document larger than the view in both directions. The body has a box of its own: a node with no
+     box is taken for hidden by the observation, and what lies under it is left out. */
+  body { width: 4000px; height: 3000px; }
+  button { position: absolute; box-sizing: border-box; margin: 0; padding: 0; border: 1px solid #333; background: #eee; font: 14px sans-serif; }
+  /* Far from the origin in both directions: only a scroll in both brings it into view. */
+  #distant { left: 1500px; top: 900px; width: 120px; height: 32px; }
+  /* A tall button. Once the page is scrolled by 100 pixels each way, the middle of its box is at (300, 250)
+     in the view, and the point of the document that has the same numbers lies on the button too. */
+  #tall { left: 200px; top: 150px; width: 400px; height: 400px; }
+  /* A banner fixed to the view, over the point (300, 250) of the view; there only when the address asks for it. */
+  #cover { display: none; position: fixed; left: 0; top: 200px; width: 100%; height: 100px; background: rgba(200, 200, 200, 0.9); }
+</style>
+</head>
+<body>
+<button id="distant" type="button">Distant target</button>
+<button id="tall" type="button">Tall target</button>
+<div id="cover"></div>
+<script>
+  // What each element received, read from outside by the test; a click that reaches none is counted apart.
+  window.__clicks = {};
+  window.__stray_clicks = 0;
+  document.querySelectorAll("button, #cover").forEach(function (element) {
+    window.__clicks[element.id] = 0;
+    element.addEventListener("click", function () { window.__clicks[element.id] += 1; });
+  });
+  document.addEventListener("click", function (event) {
+    if (!event.target.closest("button, #cover")) { window.__stray_clicks += 1; }
+  });
+  if (location.hash === "#covered") { document.getElementById("cover").style.display = "block"; }
+</script>
+</body>
+</html>

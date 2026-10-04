@@ -25,6 +25,10 @@ NAMES = {
 }
 TARGETS = ("large", "small", "far")
 
+# The page scrolled in both directions, and the elements whose clicks it counts: two buttons and a banner.
+SCROLLED_PAGE = "click-scrolled.html"
+SCROLLED_NAMES = {"distant": "Distant target", "tall": "Tall target"}
+
 
 @dataclass(frozen=True)
 class Received:
@@ -52,6 +56,23 @@ def landing_problems(received: Received, target: str) -> list[str]:
 
 def assert_landed(received: Received, target: str) -> None:
     problems = landing_problems(received, target)
+    if problems:
+        raise AssertionError("; ".join(problems))
+
+
+def refusal_problems(received: Received, code: str) -> list[str]:
+    """What is wrong with a click that had to be refused with ``code``; empty when it was, and nothing was clicked."""
+    found = []
+    if received.error != code:
+        found.append(f"the click returned {received.error!r}, the refusal {code} is expected")
+    found += [f"{name} received {number} clicks" for name, number in received.clicks.items() if number]
+    if received.stray:
+        found.append(f"{received.stray} clicks reached no button")
+    return found
+
+
+def assert_refused(received: Received, code: str) -> None:
+    problems = refusal_problems(received, code)
     if problems:
         raise AssertionError("; ".join(problems))
 
@@ -132,4 +153,25 @@ def page_problems(source: str) -> list[str]:
     body = re.search(r"(?<![\w-])body\s*\{[^}]*?\bheight:\s*(\d+(?:\.\d+)?)vh", source)
     if body is None or far is None or float(body.group(1)) <= far[0]:
         found.append("the body has no height that holds the far button")
+    return found
+
+
+def scrolled_page_problems(source: str) -> list[str]:
+    """What is wrong with the text of the scrolled page; empty when it holds what the scrolled-click tests rely on."""
+    found = []
+    parser = _Buttons()
+    parser.feed(source)
+    if parser.found != SCROLLED_NAMES:
+        found.append(f"the buttons and their names are {parser.found}, the tests ask for {SCROLLED_NAMES}")
+    for needle in (*_COUNTING, 'location.hash === "#covered"'):
+        if needle not in source:
+            found.append(f"the page does not count its clicks or show its banner: {needle} is missing")
+    if _OUTSIDE_WORLD.search(source):
+        found.append("the page refers to something outside itself")
+    body = re.search(r"(?<![\w-])body\s*\{[^}]*?\bwidth:\s*(\d+)px;\s*height:\s*(\d+)px", source)
+    if body is None or min(int(body.group(1)), int(body.group(2))) < 2000:
+        found.append("the body is not larger than the view in both directions, with a box of its own")
+    banner = re.search(r"#cover\s*\{([^}]*)\}", source)
+    if banner is None or not (re.search(r"display:\s*none", banner.group(1)) and re.search(r"position:\s*fixed", banner.group(1))):
+        found.append("the banner is not fixed and hidden until the address asks for it")
     return found
