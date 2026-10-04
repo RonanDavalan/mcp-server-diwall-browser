@@ -153,8 +153,16 @@ class Actions:
         if not quads or len(quads[0]) != 8:
             raise ToolError("element_obscured", _OBSCURED)
         xs, ys = quads[0][0::2], quads[0][1::2]
-        x, y = round(sum(xs) / 4), round(sum(ys) / 4)
-        hit = await self._read(tab, "DOM.getNodeForLocation", {"x": x, "y": y, "includeUserAgentShadowDOM": False})
+        centre_x, centre_y = sum(xs) / 4, sum(ys) / 4
+        x, y = round(centre_x), round(centre_y)
+        # The quads and the mouse events are in the view, but the node lookup reads a point of the
+        # document: asked at a view point of a scrolled page, it answers for another place, or for none.
+        scroll_x, scroll_y = await self._viewport(tab)
+        hit = await self._read(
+            tab,
+            "DOM.getNodeForLocation",
+            {"x": round(centre_x + scroll_x), "y": round(centre_y + scroll_y), "includeUserAgentShadowDOM": False},
+        )
         hit_id = hit.get("backendNodeId")
         if hit_id != backend:
             # The click lands on what the human sees there, never on what lies under it.
