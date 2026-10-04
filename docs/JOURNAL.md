@@ -1611,3 +1611,203 @@ Remains:
   element at the four zooms and two scales and reaches it (the probe of the earlier entry did, 24 of 24).
 - A screen whose scale really is 1.5 and not forced by `--force-device-scale-factor`. Complete when the
   scale tests are replayed on one.
+
+## 2026-10-04 — A click lands on its target at every page zoom; the node lookup of a click reads a point of the document
+
+Measured on Chromium 141.0.7390.37 (headless, as root in a container, Python 3.13.14 and 3.12.3). No browser was on
+the `PATH` (`command -v chromium chromium-browser google-chrome google-chrome-stable brave-browser` printed nothing,
+exit code 1). This environment provides a Chromium outside the `PATH`; a link named `chromium` on the `PATH` of the
+session's shell, outside the repository, let the launcher of the tests find it, and the launcher is unchanged.
+Chrome 154 was not available here: what the operator reported on it is quoted as such, and what was not replayed on it
+is said under each heading.
+
+Starting point: `realisation/p9-masque-et-zoom` at `919ed8c`, as the brief said; the environment named another branch and
+the brief was followed. On that revision here: `pytest -q -m "not browser"` 1547 passed and 188 deselected (as root, so
+the test that runs as root only passes), and `pytest -q -m browser` 188 passed in 116.51 s. The operator's own measure of
+the same revision, as given with the brief: 1546 passed, 1 skipped and 188 deselected without a browser; 125 passed in
+the three zoom and scale files and 188 of 188 browser tests on Google Chrome 154.0.8037.97 (Debian, Python 3.13.5); the
+two download tests and the two tests of `tests/test_download_acknowledgement.py` that replace the unstable one, each
+alone, 0 failures in 40 runs; with the cut of the screenshot made to leave the zoom out, 30 of the 104 cases of the two
+zoom files failed.
+
+### The click had no test; the first one found that it did not work on a scrolled page
+
+The earlier entry recorded a probe that reached the right element 24 times out of 24 at the eight combinations of page
+zoom and screen scale, and said no test replays it. That result agrees with what follows: every attempt that needs no
+scroll passed on the server as it was. The new test, `tests/test_click_integration.py`, clicks by `Actions.click`, on the rig of
+`tests/test_actions_integration.py` (the class and the fixture imported, with its `launched` fixture replaced by the
+browser of the zoom and scale under test), the buttons of `tests/fixtures/pages/click-targets.html`: a button of 120 by
+32 CSS pixels at (320, 500), one of 16 by 16 between two decoys of its size 4 pixels away on each side, and one placed at
+2.5 heights of the view down (`250vh`, so at least two heights at every zoom). The page counts the clicks of each button
+and, apart, the clicks that reach none (`window.__clicks`, `window.__stray_clicks`); a separate session reads them. A
+click landed when its target received exactly one click, no other button any, none fell outside a button, and the click
+returned no error (`assert_landed`, a function of those counts alone, `tests/fixtures/click_targets.py`). The fourth
+case is the large button after the page was scrolled to put it in the middle of the view, before the observation.
+
+On the server as it was (the production file of `919ed8c`), 8 combinations by 4 cases, 20 of the 32 attempts failed:
+
+| case | what it is | failed at | passed at |
+|---|---|---|---|
+| `small` | 16 by 16, between its decoys; in view at every zoom | none | 8 of 8 |
+| `large` | 120 by 32 at (320, 500) | 150 % and 200 %, at both scales (4) | 100 % and 125 %, at both scales (4) |
+| `far` | at 2.5 heights of the view | 8 of 8 | none |
+| `large-after-scroll` | `large`, the page scrolled first | 8 of 8 | none |
+
+`large` fails at 150 and 200 % because the view is then 475 and 356 CSS pixels high and the button ends at 532: the
+server has to scroll it in. The 12 attempts that passed are the 12 that needed no scroll, which is why the probe saw
+24 of 24. Nothing was clicked in any failure: the server fails closed, but on a scrolled page it could not click.
+
+What the browser said at a zoom of 100 % and a scale of 1, from a trace added for one run to `_click_at` and removed:
+
+- `far`: quads `[320, 356.5, 440, 356.5, 440, 396.5, 320, 396.5]`, point (380, 376), scroll offset (0, 1426), the
+  greatest the page allows. `DOM.getNodeForLocation(380, 376)` answered `No node found at given location`; the
+  resulting `CdpError` left `Actions.click` (the exit point reports an exception it does not expect as
+  `internal_error`; that was not run here). `document.elementFromPoint(380, 376)` gave `BUTTON#far`.
+- `large-after-scroll`: quads `[320, 340, 440, 340, 440, 372, 320, 372]`, point (380, 356), offset (0, 160). The lookup
+  gave node 8, the `body`; the target is 9: `element_obscured`.
+
+Which point the lookup reads, on probes with a connection of their own (outside the server's list):
+
+- A scan down a column at a scroll of 150 CSS pixels: the lookup says `small` for y in [310, 326), the box of the button
+  in the document, at the five combinations scanned (100/1, 125/1, 150/1, 125/1.5, 150/1.5), where the box lies at view
+  y [160.00, 176.00), [159.60, 175.60), [160.00, 176.00), [160.13, 176.13) and [159.78, 175.78). It is a point of the
+  document in CSS pixels, at fractional zooms and scales too.
+- On a page of 4000 by 2000 CSS pixels scrolled to (1300, 700), at the eight combinations: the view point gave no node
+  8 times of 8, the view point plus the scroll offset, rounded once, gave the right button 8 times of 8, and the view
+  point with only x moved gave no node 8 times of 8. Both axes are document coordinates.
+- `cssVisualViewport.pageX` and `pageY` give the scroll offset exactly (1300.27, 700.27 at 125 % and 1.5);
+  `cssLayoutViewport.pageX` and `pageY` are whole numbers (1301, 701). The server's `_viewport` reads the first.
+- A first probe passed a point that was not a whole number (318.4) and did not find the button at the three combinations
+  where the scroll offset is fractional (125/1, 125/1.5, 150/1.5); the cause was not examined, the server rounds its point.
+
+The old reading was not only a refusal. On a page scrolled by 100 CSS pixels each way, with a banner fixed to the view
+over the middle of a tall button, the server asked about the document point (300, 250), which lies on the button and
+under no banner, accepted, and the click landed on the banner. That is `test_a_server_that_asks_for_the_node_at_the_view_point_clicks_the_banner_over_a_covered_button`, 8 of 8 combinations.
+
+### Decided: the lookup is asked at the point of the document, and the offset is read strictly
+
+Decided (production, `actions.py`): in `_click_at`, `DOM.getNodeForLocation` is asked at the middle of the box plus
+the scroll offset of the view, rounded once; the mouse events keep the view point (with the offset in the lookup only,
+the click lands in all 32 attempts of the first page and the 8 of the page scrolled in both directions). The offset is
+`Actions._viewport`, which already read it for `scroll`, now with `strict=True` for the click: an offset that is
+missing, null, a boolean, text or not finite is refused with `element_obscured` and a message that says the position
+of the page could not be read, before any lookup or mouse event. The scroll keeps its lenient reading (an absent
+offset reads 0, enough to see whether the view moved).
+
+Why: the lookup answers for a point of the document and the box and the mouse events are in the view; on a page that is
+not scrolled they coincide, which is all the earlier probe could see. Why strict: a click that cannot place its lookup
+does not know what lies under the point it would click; reading 0 would ask at the view point again, silently.
+
+The contract does not change: `Page.getLayoutMetrics` is already in `ALLOWED_METHODS` (nothing was added to it), no
+error code, no shape of a result. The cost is one more `Page.getLayoutMetrics` per click.
+
+Controls, each also run on a defective version that must fail:
+
+- `pytest -q -m browser tests/test_click_integration.py` (264 tests). Against the production file of `919ed8c`, 36 of
+  them fail: the three tests of the real path, 20 + 8 + 8 (the four cases, the page scrolled in both directions, the
+  covered button); the 228 others, the counter-proofs included, pass. With the fix, all 264 pass.
+- The counter-proof of the fix: the same check on a server whose offset reads 0 fails exactly where the page ends
+  scrolled (20 of the 32 attempts of the first page, all 8 on the page scrolled in both directions) and passes where it
+  does not; with the defect neutralised (the "defective" server reading the real offset) the 20 turn into
+  `DID NOT RAISE`. A server that leaves out only the horizontal offset fails on the page scrolled in both directions, at the 8
+  combinations.
+- `pytest -q tests/test_click_lookup_point.py` (20 tests, no browser, so that the suite the continuous integration runs
+  guards the fix): a simulated browser whose node lookup is wrapped to answer for a point of the document, as measured,
+  on four pages (not scrolled, scrolled down, across, both ways); on the production file of `919ed8c` the three
+  scrolled ones fail. A missing, text, null or boolean offset gives `element_obscured` with neither the lookup nor a
+  mouse event sent; with the strict reading ignored, a missing, text or boolean one clicks.
+
+Rejected: a lookup by `document.elementFromPoint` in an internal script (it reads a point of the view by the DOM
+specification and would need no offset, but by that specification it does not enter frames, which was not tried, and it
+replaces the method the written design of the click names; kept as the alternative if the lookup reads another point
+on Chrome 154); adding the offset to y alone (x was measured to be a document
+coordinate too, and a test fails on it); fixing the page or the test instead of the server.
+
+Not measured: a click on an element inside a frame of a scrolled page; the two reads (the box, then the offset) are not
+one atomic call, as the box and the lookup were not, and a page that scrolls itself between them was not tried; Chrome
+154. If the lookup reads a point of the view on a version, the tests of the real path fail there for every scrolled
+case, and so does the counter-proof that neutralises the offset.
+
+### The tests
+
+Pages and checks (`tests/fixtures/click_targets.py`, `tests/test_click_targets_page.py`, 51 tests, no browser): the page
+is held to what the browser tests rely on (names, counters, sizes, places, no reference to anything outside it), each
+check with variants that have the defect and are refused; the check that a click landed is refused on a click that
+missed, doubled, hit a decoy, hit the page, or came back with an error.
+
+The wrong points (`tests/test_click_integration.py`): a raw session sends the click to the point of the box, which it
+reads as the server does, multiplied by the zoom, divided by it, and multiplied by the screen scale. At every
+combination where the factor is not 1, 64 attempts, the click reached the page and no button (64 of 64) and the check
+refused it; where the factor is 1 (32 attempts) the point is the right one and the check accepts it, and the raw
+clicker at the point of the box lands at all 32 (case by combination), so that "all the wrong points fail" is not a
+clicker that always misses. A click one button away from the small target (20 pixels either side) lands on the decoy
+there, at the 8 combinations: the decoys are live.
+
+Decisions, with their reason, their control and what was rejected:
+
+- The large button is below the middle of the view. Two requirements pull one button apart: at 100 % the view is 713 CSS
+  pixels high, so the button has to lie below 357 to be brought to the middle by a scroll; at 200 % it is 356, so it has
+  to lie above to be wholly in view. Control: `test_the_target_page_is_laid_out_at_every_zoom_and_scale_as_the_click_checks_assume`
+  and the premise of the scrolled case, which fails when the page is not scrolled. Rejected: keeping it at 310 and
+  scrolling as far as the page allows (the offset is 0 at 100 %, and the offset is the point).
+- `scrolled` of `tests/test_zoom_scrolled_integration.py` is not imported, as the brief said it would be: it scrolls to
+  the element `password`, which the page must not have. `scroll_to_the_middle` repeats its method (scroll, wait until
+  the position stops, then check where it stopped). Rejected: a `password` field in the page; patching `scroll_script`.
+- `pytest.raises(AssertionError)` wraps `assert_landed`, a function of the counts, and not the whole attempt; the
+  browser work and the premises (the zoom and the scale reached the page, the page is scrolled) run outside it. Reason:
+  inside, a premise that fails or a probe that errors would make a counter-proof pass for the wrong reason.
+- The observation of the click tests is made without an image (`Rig.observe`): the image is not part of the click, and
+  the zoom files cover it.
+- A second page, `tests/fixtures/pages/click-scrolled.html` (two buttons and a banner fixed to the view, shown by the
+  address), is beyond the three buttons the brief listed. Reason: the fix touches the check that keeps a click from
+  landing on what covers its target, and that check, and the horizontal offset, had to be shown to hold. Rejected:
+  stopping at the three buttons and leaving the change to that check unguarded.
+- `server_click` turns any exception of `Actions.click` into data for the check (the code of a `ToolError`, else the
+  name of the exception), because the defect let a `CdpError` out; the mark is looked up before, outside the `try`, so a
+  missing mark still fails as itself.
+- The probes use the connection of `tests/fixtures/raw_cdp.py`, which the server's list does not bound. Among the methods
+  they call, `DOM.querySelector` is not in `ALLOWED_METHODS`; `Runtime.evaluate` is, but with scripts of their own.
+  Nothing was added to the list.
+
+### Findings outside the click
+
+- The observation leaves out a node that has no box of its own, with all that lies under it (`_walk` in `perception.py`,
+  written so). Measured on Chromium 141: a page whose body has no height because its children are placed out of the flow
+  gave `omitted_not_visible: 1` and no mark, though its buttons were on screen (the first draft of the click page did
+  that, and its body now has a height of its own); and a page with a wrapper of no height holding a dialog fixed to the
+  view,
+  `<div id="modal-root"><div role="dialog" aria-label="Dialog" style="position:fixed;left:200px;top:200px;width:300px;height:120px"><button type="button" style="position:absolute;left:20px;top:20px">Confirm</button></div></div>`
+  after a paragraph, gave `marks: 0`, and the same page with `style="height:40px"` on the wrapper gave `marks: 1`. This
+  is not changed here: it is a decision of the perception, outside the click. How often real sites do it is not
+  confirmed. The operator decides; the guide lists it among the known limits.
+- The simulated browser of the action tests (`tests/fixtures/fake_cdp.py`, `hit`) reads the point of the node lookup as
+  one of the view, which is the reading that was wrong. No existing test clicks on a scrolled simulated page, which is
+  why they passed; they are unchanged. `tests/test_click_lookup_point.py` wraps the lookup instead of changing the
+  fixture. A future test of a click on a scrolled simulated page in `tests/test_actions.py` has to take this into account.
+
+### What is done, with the command that shows it, and what remains
+
+Done (Chromium 141.0.7390.37; Python 3.12.3 on a fresh clone of the branch, with `requirements.lock`):
+
+- A click of the server lands on its target at the four zooms and two scales, on a page that needs no scroll, one that
+  needs the click to scroll, and one scrolled first, in both directions, and a covered button is refused:
+  `pytest -q -m browser tests/test_click_integration.py` (264 passed).
+- The page and the check have their own tests: `pytest -q tests/test_click_targets_page.py` (51 passed, no browser).
+- The node lookup of a click is guarded without a browser: `pytest -q tests/test_click_lookup_point.py` (20 passed).
+- `pytest -q -m "not browser"`: 1618 passed, 452 deselected in 72.08 s. `pytest -q`: 2070 passed in 271.63 s (Python 3.12.3, fresh clone at `0619fa3`). `python -m compileall -q src`: no output.
+  No method was added to `ALLOWED_METHODS`.
+
+Remains:
+
+- Replay on Chrome 154: `pytest -q -m browser tests/test_click_integration.py`, then `pytest -q -m browser`. Complete when
+  the 452 tests of `-m browser` pass there. If the real-path tests fail on every scrolled case, the lookup reads another
+  point on that version; the alternative is the lookup by an internal script (above).
+- The zoom of the Ctrl + keys in a browser that is not headless, and a screen whose scale really is 1.5: the click tests
+  have the same two limits as the zoom tests. Complete when the click tests are replayed after pressing the keys in a
+  headed browser and on such a screen.
+- A click on an element inside a frame of a scrolled page. Complete when a browser test scrolls `iframe.html` and clicks
+  an element of its frame, and either lands or is refused.
+- A page that scrolls itself between the read of the box and the read of the offset. Complete when a browser test makes
+  the page scroll at that moment and the click is refused or lands, never lands elsewhere.
+- The rule of the observation about a node with no box. Complete when the operator has decided to keep it or to change
+  it, and a test holds the decision on the two pages above.

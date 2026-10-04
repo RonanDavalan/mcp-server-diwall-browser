@@ -59,10 +59,10 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14
-  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1547
-  tests pass and the 188 that need a browser are skipped with the reason (as a user other than root,
-  one of the 1547 is skipped: a test that runs as root only); with Chromium 141.0.7390.37 (headless,
-  blank temporary profile), 1735 pass, with no expected failure.
+  and, with its dependencies from `requirements.lock`, with Python 3.12.3: without a browser, 1618
+  tests pass and the 452 that need a browser are skipped with the reason (as a user other than root,
+  one of the 1618 is skipped: a test that runs as root only); with Chromium 141.0.7390.37 (headless,
+  blank temporary profile), 2070 pass, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
   change they failed 3 and 1 times in 130 runs of each alone; the 3 were a read, in the test itself, of
@@ -71,10 +71,14 @@ Tested:
   expected a late download to be refused, failed 4 times in 200 alone: the real browser can choose
   before the server closes the setting, so the test is replaced by tests on a simulated browser. The
   measures and what remains are in `docs/JOURNAL.md`.
-- The operator replayed the revision before this one on Debian (Python 3.13.5) with Chrome
+- The operator replayed an earlier revision on Debian (Python 3.13.5) with Chrome
   154.0.8037.97: without a browser 1450 passed and 1 was skipped (a test that runs as root only);
-  with it 119 passed and 6 failed as expected, the six of the page zoom that this revision closes;
-  the two download tests alone, 0 failures in 40 runs each. Not replayed on it since.
+  with it 119 passed and 6 failed as expected, the six of the page zoom, closed since;
+  the two download tests alone, 0 failures in 40 runs each. The operator then replayed `919ed8c`
+  (the revision before the click tests) on the same browser: without a browser 1546 passed, 1 was
+  skipped and 188 were deselected; the three zoom and scale files, 125 passed; all 188 browser tests
+  passed; the two download tests and the two tests that replace the unstable one, each alone, 0
+  failures in 40 runs. The click tests were not replayed on it.
 - `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
@@ -92,7 +96,24 @@ Tested:
   zoom, when the zoom changes during the capture, or when the image is more than two pixels from the
   size of the view on either axis (`tests/test_perception_zoom.py`, which needs no browser). On Chrome
   154 the operator measured the size of the image cut as the browser reads it (the view at each zoom, a
-  pixel short in height at 125 %); the browser tests of this revision were not replayed on it.
+  pixel short in height at 125 %); the zoom tests were replayed on it later (below).
+- A click of the server lands on its target at page zooms of 100, 125, 150 and 200 % and screen scales
+  of 1 and 1.5, on a headless Chromium 141 whose blank profile holds the zoom as its default. The click
+  is the server's own (`Actions.click`, with its gate and its limits); the test page counts what each of
+  its buttons receives and a separate session reads the counts. At each of the eight combinations a
+  button of 120 by 32 CSS pixels, a button of 16 by 16 between two decoys 4 pixels from it, a button two
+  and a half views down, and the large button after the page was scrolled to put it in the middle of the
+  view, each received exactly one click, no decoy received any and none fell outside a button. On a page
+  scrolled in both directions the click lands on the button put in the middle of the view, and a button
+  covered by a banner fixed to the view is refused (`element_obscured`) with nothing clicked
+  (`tests/test_click_integration.py`, 264 tests; `tests/test_click_targets_page.py`, 51, and
+  `tests/test_click_lookup_point.py`, 20, need no browser). The same check refuses a click sent to the
+  point of the box multiplied by the zoom, divided by it, or multiplied by the screen scale (64 of 64
+  such clicks reached no button), and a server that asks the browser about the point of the view. Before
+  the correction, 20 of the 32 attempts at the first page failed, those that needed a scroll, and a button
+  covered by the banner was accepted and the banner was clicked, at the eight combinations: the browser
+  answers the node lookup for a point of the document, and the click gave it a point of the view. The
+  measures are in `docs/JOURNAL.md`.
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
@@ -122,8 +143,11 @@ Not tested:
 - The page zoom made by the Ctrl + key of a browser that is not headless. The protocol has no command
   for a zoom, so the tests write the default zoom of a blank profile; whether the browser keeps the
   two kinds in the same way is not confirmed. A screen whose scale really is 1.5 was not measured
-  either. A click at a page zoom was tried once by a probe (the point taken from the box reached the
-  element 24 times out of 24, at the eight combinations); no test replays it.
+  either; the click tests have the same two limits.
+- The click tests on Chrome 154. The correction reads a property of the browser's node lookup measured
+  on Chromium 141 (it answers for a point of the document, not of the view): if it differs on another
+  version, the tests of a click on a scrolled page fail there. A click on an element inside a frame of a
+  scrolled page was not measured.
 - A refusal in the confirmation window, answered by a person.
 
 Known limits:

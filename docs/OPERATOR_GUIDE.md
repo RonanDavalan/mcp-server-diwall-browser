@@ -124,10 +124,10 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 ```
 
 Output on a fresh clone in the project's environment, with Python 3.12.3 and Chromium 141 (the
-counts are those of this revision, 188 of its tests needing a browser):
+counts are those of this revision, 452 of its tests needing a browser):
 
 ```
-1547 passed, 188 deselected, 1 warning in 60.30s (0:01:00)
+1618 passed, 452 deselected, 1 warning in 72.08s (0:01:12)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -157,11 +157,11 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 188 browser tests;
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 452 browser tests;
 each starts the browser headless on a blank temporary profile. On the same fresh clone:
 
 ```
-1735 passed, 1 warning in 161.98s (0:02:41)
+2070 passed, 1 warning in 271.63s (0:04:31)
 ```
 
 Then connect the server to your MCP client: the command and the configuration block are in the
@@ -524,10 +524,51 @@ replay it with a browser on your `PATH`:
 The second command needs no browser. Not measured: the zoom made by the Ctrl and + keys of a browser
 that is not headless (the protocol has no command for a zoom, so the tests write the default zoom of
 the profile, and whether the browser keeps the two kinds of zoom in the same way is not confirmed),
-a screen whose scale really is 1.5, and the browser tests on your Chrome 154 after this change (the
-sizes of the cut were measured there, the tests were not replayed). A click at a page zoom was tried
-once by a probe, which reached the right element 24 times out of 24 at the eight combinations; no
-test replays it.
+and a screen whose scale really is 1.5. On Google Chrome 154.0.8037.97 the operator replayed the zoom
+and scale tests of the revision `919ed8c` (125 passed) and all of its 188 browser tests (188 passed).
+The clicks are in the next section.
+
+### Clicks at any page zoom and on a scrolled page
+
+A click is sent to a point of the view: the middle of the box of the element, read by
+`DOM.getContentQuads` in CSS pixels (the same numbers at every zoom and scale). Before it, the server
+asks the browser which node lies at that point (`DOM.getNodeForLocation`) and refuses the click, with
+`element_obscured` and nothing clicked, when that node is neither the target nor one of its
+descendants: a banner or a modal over the target takes the click, not the target.
+
+Measured on a headless Chromium 141.0.7390.37 whose blank profile holds the zoom as its default, at
+zooms of 100, 125, 150 and 200 % and screen scales of 1 and 1.5. The test page counts what each of
+its buttons receives and a separate session reads the counts; the click is the server's own, with its
+gate and its limits. At each of the eight combinations a button of 120 by 32 CSS pixels, a button of
+16 by 16 between two decoys 4 pixels from it, a button two and a half views down, and the large
+button after the page was scrolled to put it in the middle of the view, each received exactly one
+click, no decoy received any and none fell outside a button. On a page scrolled in both directions
+the click lands on the button put in the middle of the view, and a button covered by a banner fixed
+to the view is refused with nothing clicked. The same check refuses a click sent to the point of
+the box multiplied by the page zoom, divided by it, or multiplied by the screen scale (64 of 64
+such clicks reached no button), and accepts the right point (32 of 32).
+
+What was wrong before: the node lookup answers for a point of the *document*, not of the view. On a
+page that is not scrolled the two are the same, so a click that needs no scroll was right all along.
+On a scrolled page the server asked about the wrong place: 20 of the 32 attempts at the first page failed (the click
+had to scroll, or the page was scrolled), the click was refused or an error left the call, and
+nothing was clicked; and a button covered by a banner fixed to the view, on a page scrolled by 100 CSS
+pixels each way, was accepted and the click landed on the banner, at the eight combinations. Now the
+lookup is asked at the same place plus the scroll offset of the view. A browser that does not state
+that offset gives a refused click (`element_obscured`, the position of the page could not be read)
+and not a click at the old place. The measures are in `docs/JOURNAL.md`. To replay them with a
+browser on your `PATH`:
+
+```
+.venv/bin/python -m pytest -q -m browser tests/test_click_integration.py
+.venv/bin/python -m pytest -q tests/test_click_targets_page.py tests/test_click_lookup_point.py
+```
+
+The second command needs no browser. Not measured: Chrome 154 (the browser tests of the clicks were
+not replayed there: if its node lookup reads a point of the view, the tests of a click on a scrolled
+page fail on it), the zoom of the Ctrl and + keys of a browser that is not headless, a screen whose
+scale really is 1.5, a click on an element inside a frame of a scrolled page, and a page that
+scrolls itself between the two readings of a click.
 
 ## 8. What the server never does
 
@@ -811,6 +852,11 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - The command that carries a credential file over was tested on files of the test suite in a
   simulated volume; its publication of the new file by a hard link was not tried on a real gocryptfs
   volume (if the file system cannot link, it takes the name first and fills it).
+- A node that has no box of its own is taken for hidden, and what lies under it is not shown to the
+  model. Measured on Chromium 141: a page whose body had no height because its children were placed
+  out of the flow gave no mark, and a wrapper of no height holding a dialog fixed to the view gave
+  none, while the same page with 40 pixels of height to the wrapper gave the dialog's button. How
+  often real sites do this was not measured.
 - The scale of the screen was measured on a headless Chromium 141 at 1, 1.5 and 2, not on a screen
   of the operator's. The page zoom was measured at 100 to 200 % in the same browser, with the zoom
   written in a blank profile; the zoom of the Ctrl and + keys in a browser that is not headless was
