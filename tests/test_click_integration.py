@@ -199,3 +199,50 @@ async def test_the_click_check_fails_on_a_server_that_asks_for_the_node_at_the_v
     else:
         with pytest.raises(AssertionError):
             assert_landed(outcome.received, case.target)
+
+
+# --- the same check on clicks sent to wrong points -----------------------------------------------------
+
+
+@pytest.mark.parametrize("case", CASES, ids=str)
+async def test_a_click_sent_to_the_point_of_the_box_by_a_raw_session_lands_on_its_target(
+    screen: ZoomedScreen, rig: Rig, case: Case
+) -> None:
+    """The raw clicker of the counter-proofs below is right where the point is: otherwise they prove nothing."""
+    outcome = await attempt(rig, screen, case, raw_click_at(lambda x, y: (x, y)))
+    assert_landed(outcome.received, case.target)
+
+
+# What each wrong point multiplies the point of the box by: its right place is one where that is 1.
+WRONG_POINTS: dict[str, Callable[[ZoomedScreen], float]] = {
+    "multiplied-by-the-zoom": lambda screen: screen.zoom / 100,
+    "divided-by-the-zoom": lambda screen: 100 / screen.zoom,
+    "multiplied-by-the-screen-scale": lambda screen: screen.scale,
+}
+
+
+@pytest.mark.parametrize("case", CASES, ids=str)
+@pytest.mark.parametrize("wrong", WRONG_POINTS)
+async def test_the_click_check_fails_on_a_click_sent_to_a_point_that_is_not_the_point_of_the_box(
+    screen: ZoomedScreen, rig: Rig, case: Case, wrong: str
+) -> None:
+    factor = WRONG_POINTS[wrong](screen)
+    outcome = await attempt(rig, screen, case, raw_click_at(lambda x, y: (round(x * factor), round(y * factor))))
+    if abs(factor - 1) < 1e-9:
+        # Zoom 100 % or screen scale 1: the point is the right one, and the check fails only where the defect is.
+        assert_landed(outcome.received, case.target)
+    else:
+        with pytest.raises(AssertionError):
+            assert_landed(outcome.received, case.target)
+
+
+@pytest.mark.parametrize(("shift", "decoy"), ((-20, "decoy-left"), (20, "decoy-right")), ids=("left", "right"))
+async def test_a_click_one_button_away_from_the_small_target_lands_on_the_decoy_there_and_the_check_fails(
+    screen: ZoomedScreen, rig: Rig, shift: int, decoy: str
+) -> None:
+    """A decoy is live: the page tells a click that is off by the width of the target and its gap."""
+    outcome = await attempt(rig, screen, Case("small"), raw_click_at(lambda x, y: (x + shift, y)))
+    assert outcome.received.clicks == {name: int(name == decoy) for name in NAMES}, outcome.received
+    assert outcome.received.stray == 0
+    with pytest.raises(AssertionError):
+        assert_landed(outcome.received, "small")
