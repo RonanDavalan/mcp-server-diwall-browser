@@ -117,8 +117,9 @@ Not tested:
 - Chrome 154 with its profile kept inside the operator's own encrypted directory.
 - The page zoom made by the Ctrl + key of a browser that is not headless. The protocol has no command
   for a zoom, so the tests write the default zoom of a blank profile; whether the browser keeps the
-  two kinds in the same way is not confirmed. A screen whose scale really is 1.5, and a click at a page
-  zoom, were not measured either.
+  two kinds in the same way is not confirmed. A screen whose scale really is 1.5 was not measured
+  either. A click at a page zoom was tried once by a probe (the point taken from the box reached the
+  element 24 times out of 24, at the eight combinations); no test replays it.
 - A refusal in the confirmation window, answered by a person.
 
 Known limits:

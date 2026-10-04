@@ -524,8 +524,10 @@ replay it with a browser on your `PATH`:
 The second command needs no browser. Not measured: the zoom made by the Ctrl and + keys of a browser
 that is not headless (the protocol has no command for a zoom, so the tests write the default zoom of
 the profile, and whether the browser keeps the two kinds of zoom in the same way is not confirmed),
-a screen whose scale really is 1.5, a click at a page zoom, and the browser tests on your Chrome 154
-after this change (the sizes of the cut were measured there, the tests were not replayed).
+a screen whose scale really is 1.5, and the browser tests on your Chrome 154 after this change (the
+sizes of the cut were measured there, the tests were not replayed). A click at a page zoom was tried
+once by a probe, which reached the right element 24 times out of 24 at the eight combinations; no
+test replays it.
 
 ## 8. What the server never does
 
