@@ -3,8 +3,7 @@
 Why this module exists:
     The browser's page zoom (the Ctrl + key) changes the size of a CSS pixel, as a screen scale
     does, but not in every place the same way. What the server reads and what it draws were
-    measured at several zooms and screen scales: what holds is guarded here, and what does not
-    hold is recorded as a known gap, with the check that will show when it is closed.
+    measured at several zooms and screen scales; the checks here guard what was found.
 """
 
 from __future__ import annotations
@@ -35,11 +34,6 @@ ZOOM_STEP = 1.2
 # The same slack as for a human reading the image.
 TOLERANCE = 2
 COVERED = 0.99
-GAP = (
-    "known gap: the screenshot is cut with a clip given in CSS pixels, which the browser reads in "
-    "CSS pixels times the zoom, so at a zoom other than 100 % the image shows another part of the "
-    "page and the mask lands beside its field; remove this expected failure when the image follows the view"
-)
 
 
 @dataclass
@@ -179,7 +173,7 @@ async def test_the_audit_catches_boxes_read_without_the_zoom(
         assert any("viewport.content_height" in line for line in found), found
 
 
-# --- what does not hold: the mask over the image -------------------------------------------------
+# --- the mask over the image ---------------------------------------------------------------------
 
 
 @browser_test
@@ -197,8 +191,6 @@ async def test_the_mask_covers_the_password_field_where_the_browser_paints_it(
     # The published image may be reduced; the field is painted at its box times the device pixels per CSS pixel.
     factor = ratio * observation.server["image"]["scale"]
     share = masked_share(image, (left * factor, top * factor, right * factor, bottom * factor))
-    if share < COVERED and screen.zoom != 100:
-        pytest.xfail(f"{GAP}; measured: the mask covers {share:.0%} of the field")
     assert share >= COVERED, f"the mask covers {share:.0%} of the field"
 
 
