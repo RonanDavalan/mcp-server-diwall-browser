@@ -105,6 +105,15 @@ def launch_browser(
         "--no-default-browser-check",
         "--disable-gpu",
         "--disable-dev-shm-usage",
+        # No connection of the browser's own to its vendor's services: the tests must not depend on
+        # the network of the machine they run on. The first three ask the browser not to make them;
+        # the last two keep the ones it still makes (a few at each start were measured) from leaving
+        # the machine: no proxy, and no name but the loopback address resolves.
+        "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-sync",
+        "--no-proxy-server",
+        "--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1",
     ]
     if os.geteuid() == 0:
         command.append("--no-sandbox")
