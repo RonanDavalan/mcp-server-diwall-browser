@@ -1,5 +1,7 @@
 # mcp-server-diwall-browser
 
+**English** | [Français](docs/fr-FR/README.md) | [Deutsch](docs/de-DE/README.md) | [Español](docs/es-ES/README.md)
+
 An MCP server that gives a language model the eyes and hands of an operator in the operator's own
 browser, through the Chrome DevTools Protocol: the model sees the same screenshot and the same
 accessibility tree as the operator, and acts in the same authenticated session. It needs a
