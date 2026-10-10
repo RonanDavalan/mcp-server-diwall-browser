@@ -1,4 +1,4 @@
-"""The server through its tools, in memory: a client of the SDK connected to create_server."""
+"""Le serveur par ses outils, en mémoire : un client du SDK connecté à create_server."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ FORBIDDEN_WORDS = ("eval", "script", "cdp", "javascript", "upload", "clipboard")
 CONTENT_READS = ("Accessibility.getFullAXTree", "DOMSnapshot.captureSnapshot", "Page.captureScreenshot")
 
 
-# --- the rig ---------------------------------------------------------------------------------------
+# --- le montage -------------------------------------------------------------------------------------
 
 
 @dataclass
@@ -127,7 +127,7 @@ async def rig(tmp_path: Path) -> AsyncIterator[Rig]:
 
 
 class Client:
-    """A client of the SDK, with the envelope of each result read back."""
+    """Un client du SDK, avec l'enveloppe de chaque résultat relue."""
 
     def __init__(self, session: ClientSession) -> None:
         self.session = session
@@ -140,7 +140,7 @@ class Client:
         assert result.content and result.content[0].type == "text"
         envelope = json.loads(result.content[0].text)
         assert set(envelope) == {"ok", "server", "page_content"}
-        # A refusal is marked as an error result, a success is not.
+        # Un refus est marqué comme résultat d'erreur, un succès ne l'est pas.
         assert result.isError is (envelope["ok"] is not True)
         self.image = None
         if len(result.content) > 1:
@@ -177,7 +177,7 @@ def code_of(envelope: dict[str, Any]) -> str:
     return envelope["server"]["error"]["code"]
 
 
-# --- surface ------------------------------------------------------------------------------------
+# --- surface ----------------------------------------------------------------------------------------
 
 
 async def test_the_fourteen_tools_and_nothing_else(rig: Rig) -> None:
@@ -214,7 +214,7 @@ async def test_the_parameters_are_those_of_the_operators_table(rig: Rig) -> None
 
 
 def undecorated(server: FastMCP) -> list[str]:
-    """Registered tools that do not go through the single exit point."""
+    """Outils enregistrés qui ne passent pas par le point de sortie unique."""
     return [
         tool.name
         for tool in server._tool_manager.list_tools()
@@ -230,7 +230,7 @@ async def test_exit_point_check_catches_a_tool_registered_without_it(rig: Rig) -
     server = create_server(rig.deps())
 
     def extra() -> str:
-        """A tool written outside the exit point."""
+        """Un outil écrit hors du point de sortie."""
         return "{}"
 
     server.add_tool(extra, name="extra")
@@ -253,7 +253,7 @@ async def test_the_guide_is_the_servers_instruction(rig: Rig) -> None:
     assert server.instructions == guide.INSTRUCTIONS and server.name == "mcp-server-diwall-browser"
 
 
-# --- nominal path -------------------------------------------------------------------------------
+# --- chemin nominal ---------------------------------------------------------------------------------
 
 
 async def test_status_open_observe_fill_click_observe(rig: Rig) -> None:
@@ -276,7 +276,7 @@ async def test_status_open_observe_fill_click_observe(rig: Rig) -> None:
     assert rig.window.questions() == []
 
 
-# --- security through the tools --------------------------------------------------------------------
+# --- sécurité par les outils ------------------------------------------------------------------------
 
 
 async def test_pay_now_without_consent_does_nothing_and_with_consent_goes(rig: Rig) -> None:
@@ -462,7 +462,7 @@ async def test_a_dialog_open_in_the_tab_refuses_every_other_action_at_once(rig: 
     assert dismissed["ok"] and rig.gestures() == []
 
 
-# --- the journal, written once for every call -----------------------------------------------------
+# --- le journal, écrit une fois pour chaque appel ---------------------------------------------------
 
 
 async def test_a_session_of_ten_tools_writes_ten_lines_without_any_credential(rig: Rig) -> None:
@@ -500,7 +500,7 @@ async def test_with_the_volume_closed_calls_are_counted_as_not_journaled(rig: Ri
         listed = await client.call("list_tabs")
         second = await client.call("status")
         third = await client.call("status")
-    # A call is journaled after its result is built: status counts the calls before it.
+    # Un appel est journalisé après la construction de son résultat : status compte les appels qui le précèdent.
     assert listed["ok"]
     assert first["server"]["operations_not_journaled"] == 0
     assert second["server"]["operations_not_journaled"] == 1
@@ -542,7 +542,7 @@ async def test_an_armed_action_writes_its_request_then_its_result_and_every_stat
     assert seen == {"none", "requested", "granted", "denied", "expired", "unavailable"}
 
 
-# --- the client's own confirmation -----------------------------------------------------------------
+# --- la confirmation propre du client ---------------------------------------------------------------
 
 
 def answering(content: dict[str, Any] | None, action: str = "accept") -> Elicit:
@@ -605,7 +605,7 @@ async def test_a_client_that_cannot_ask_its_user_gets_no_question(rig: Rig) -> N
     assert status["server"]["confirmation_channel"] == "none"
 
 
-# --- status ---------------------------------------------------------------------------------------
+# --- status -----------------------------------------------------------------------------------------
 
 
 async def test_status_says_the_sites_the_declarations_and_the_channel(rig: Rig) -> None:
@@ -646,7 +646,7 @@ async def test_status_reports_a_browser_that_does_not_answer(rig: Rig) -> None:
     assert status["server"]["browser"]["code"] in ("browser_unreachable", "debug_endpoint_undetermined")
 
 
-# --- dialogs and notices through the tools ------------------------------------------------------------
+# --- boîtes de dialogue et avis par les outils ------------------------------------------------------
 
 
 async def test_accepting_an_armed_dialog_is_refused_and_dismissing_it_works(rig: Rig) -> None:
@@ -680,19 +680,18 @@ async def test_the_notices_of_an_action_reach_the_model_as_the_action_wrote_them
     assert len(listed["server"]["tabs"]) == 2 and any(entry["adopted"] for entry in listed["server"]["tabs"])
 
 
-# --- what the SDK does on its own -----------------------------------------------------------------------
+# --- ce que fait le SDK de lui-même -----------------------------------------------------------------
 
 
 async def test_the_sdk_alone_would_ignore_an_unknown_parameter() -> None:
-    # Measured on the SDK in use: a tool registered the plain way drops a
-    # parameter it does not know and runs. The server checks the arguments
-    # itself, which the tests above show refusing it.
+    # Mesuré sur le SDK employé : un outil enregistré de la façon ordinaire laisse tomber un paramètre qu'il
+    # ne connaît pas et s'exécute. Le serveur contrôle lui-même les arguments, ce que les tests ci-dessus montrent le refuser.
     plain = FastMCP(name="plain")
     seen: list[dict[str, Any]] = []
 
     @plain.tool()
     def click(mark: int) -> str:
-        """A plain tool."""
+        """Un outil simple."""
         seen.append({"mark": mark})
         return "done"
 
@@ -701,7 +700,7 @@ async def test_the_sdk_alone_would_ignore_an_unknown_parameter() -> None:
     assert result.isError is False and seen == [{"mark": 1}]
 
 
-# --- the other tools, and what their descriptions say ------------------------------------------------------
+# --- les autres outils, et ce que disent leurs descriptions -----------------------------------------
 
 
 async def test_navigate_moves_the_tab_and_makes_its_marks_stale(rig: Rig) -> None:

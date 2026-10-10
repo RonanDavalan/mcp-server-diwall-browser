@@ -1,11 +1,10 @@
-"""Simulated pages: one description gives the accessibility tree, the DOM snapshot and the image.
+"""Pages simulées : une description donne l'arbre d'accessibilité, l'instantané du DOM et l'image.
 
-Why this module exists:
-    The perception is tested without a browser on pages built to isolate one
-    condition at a time. Writing the browser's parallel arrays by hand for
-    each of them would hide the intent in the bookkeeping; this builder keeps
-    the shapes the browser was measured to return (see the browser tests),
-    and the hand-written file in snapshots/ shows them in full.
+Pourquoi ce module existe :
+    La perception est testée sans navigateur sur des pages construites pour isoler une condition à la fois.
+    Écrire à la main les tableaux parallèles du navigateur pour chacune cacherait l'intention dans la
+    comptabilité ; ce constructeur garde les formes que le navigateur a été mesuré rendre (voir les tests
+    du navigateur), et le fichier écrit à la main de snapshots/ les montre en entier.
 """
 
 from __future__ import annotations
@@ -27,7 +26,7 @@ FIELD_BORDER = (90, 90, 90)
 
 @dataclass
 class El:
-    """An element or a text node of a simulated page."""
+    """Un élément ou un nœud de texte d'une page simulée."""
 
     tag: str
     attrs: dict[str, str] = field(default_factory=dict)
@@ -37,8 +36,8 @@ class El:
     display: str = "block"
     visibility: str = "visible"
     opacity: str = "1"
-    # Computed styles read for the layers above the page: fixed and sticky nodes paint after
-    # the flow, whatever their place in the document; none lets the pointer through.
+    # Styles calculés lus pour les couches au-dessus de la page : les nœuds fixes et collants peignent après
+    # le flux, quelle que soit leur place dans le document ; aucun ne laisse passer le pointeur.
     position: str = "static"
     pointer_events: str = "auto"
     role: str | None = None
@@ -103,13 +102,13 @@ def div(*children: El, box: BoxT | None = (0, 0, 400, 100), **kw: Any) -> El:
 
 
 def layer(*children: El, box: BoxT, position: str = "fixed", **kw: Any) -> El:
-    """A node taken out of the flow, painted over it: a banner, a dialog, a sticky header."""
+    """Un nœud sorti du flux, peint par-dessus : une bannière, une boîte de dialogue, un en-tête collant."""
     kw.setdefault("paint", WHITE)
     return El("DIV", children=list(children), box=box, position=position, **kw)
 
 
 def hidden(element: El) -> El:
-    """display: none: no box and no node in the accessibility tree, down the subtree."""
+    """display: none : ni boîte ni nœud dans l'arbre d'accessibilité, tout le sous-arbre."""
     return replace(
         element,
         box=None,
@@ -125,20 +124,18 @@ class Page:
     body: list[El]
     viewport: BoxT = (0, 0, 800, 600)
     content_size: tuple[float, float] = (800, 600)
-    # Device pixels per CSS pixel. The boxes above are in CSS pixels; like a
-    # browser, the snapshot and the image answer in device pixels.
+    # Pixels de l'appareil par pixel CSS. Les boîtes ci-dessus sont en pixels CSS ; comme un navigateur,
+    # l'instantané et l'image répondent en pixels de l'appareil.
     device_scale: float = 1.0
     background: tuple[int, int, int] = WHITE
-    # Highest identity ever given: a browser never gives a removed node's
-    # identity to a new one.
+    # Plus haute identité jamais donnée : un navigateur ne donne jamais à un nouveau nœud l'identité d'un nœud retiré.
     issued: int = field(default=9, repr=False, compare=False)
 
-    # --- identities ------------------------------------------------------------
+    # --- identités ------------------------------------------------------------------
 
     def _number(self, counter: itertools.count[int]) -> None:
-        # Like a browser, a node keeps its identity for its whole life: only
-        # nodes that have none yet get one, so an insertion does not shift
-        # the identity of the nodes after it.
+        # Comme un navigateur, un nœud garde son identité toute sa vie : seuls les nœuds qui n'en ont pas encore
+        # en reçoivent une, si bien qu'une insertion ne décale pas l'identité des nœuds qui suivent.
         for element in self._elements():
             if element.backend_id == 0:
                 element.backend_id = next(counter)
@@ -185,7 +182,7 @@ class Page:
                 return element
         return None
 
-    # --- DOMSnapshot.captureSnapshot --------------------------------------------
+    # --- DOMSnapshot.captureSnapshot ------------------------------------------------
 
     def dom_snapshot(self) -> dict[str, Any]:
         self.prepare()
@@ -285,7 +282,7 @@ class Page:
                 layout["styles"].append(styles)
                 layout["text"].append(-1)
                 layout["paintOrders"].append(0)
-                # What is positioned paints after the flow, in document order within each group.
+                # Ce qui est positionné peint après le flux, dans l'ordre du document au sein de chaque groupe.
                 paint_keys.append((1 if above else 0, next(paint)))
                 styles_of[i] = styles
             return i
@@ -327,7 +324,7 @@ class Page:
             layout["paintOrders"][k] = rank
         return position
 
-    # --- Accessibility.getFullAXTree ----------------------------------------------
+    # --- Accessibility.getFullAXTree ------------------------------------------------
 
     def ax_tree(self) -> dict[str, Any]:
         self.prepare()
@@ -388,7 +385,7 @@ class Page:
             visit(element, body)
         return {"nodes": nodes}
 
-    # --- Page.getLayoutMetrics and Page.captureScreenshot ----------------------------
+    # --- Page.getLayoutMetrics et Page.captureScreenshot ----------------------------
 
     def layout_metrics(self) -> dict[str, Any]:
         x, y, width, height = self.viewport
@@ -408,7 +405,7 @@ class Page:
         x0, y0, width, height = self.viewport
         if clip is not None:
             x0, y0, width, height = clip["x"], clip["y"], clip["width"], clip["height"]
-        # Drawn in CSS pixels, then enlarged: the image has one pixel per device pixel.
+        # Dessiné en pixels CSS, puis agrandi : l'image a un pixel par pixel de l'appareil.
         image = Image.new("RGB", (int(width), int(height)), self.background)
         pen = ImageDraw.Draw(image)
         font = ImageFont.load_default(size=12)

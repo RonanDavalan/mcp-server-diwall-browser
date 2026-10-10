@@ -1,11 +1,10 @@
-"""Read the operator's profile, the only configuration of the server.
+"""Lire le profil de l'opérateur, la seule configuration du serveur.
 
-Why this module exists:
-    Which sites are allowed, where the encrypted volume lives and how far the
-    model may go are the operator's decisions. They must be read from one
-    file, by one module, strictly: a typo or an unexpected key is refused
-    rather than silently ignored, and nothing about irreversible actions can
-    be configured at all.
+Pourquoi ce module existe :
+    Quels sites sont autorisés, où vit le volume chiffré et jusqu'où le modèle peut aller sont des
+    décisions de l'opérateur. Elles doivent être lues dans un seul fichier, par un seul module,
+    strictement : une faute de frappe ou une clé inattendue est refusée plutôt qu'ignorée en silence,
+    et rien des actions irréversibles ne peut être configuré du tout.
 """
 
 from __future__ import annotations
@@ -111,14 +110,14 @@ class Profile:
 
 @dataclass(frozen=True)
 class EnvironmentDirs:
-    """The directories the process environment names, where browsers keep their default data."""
+    """Les répertoires que l'environnement du processus nomme, où les navigateurs gardent leurs données par défaut."""
 
     home: str
     config_home: str | None
 
 
 def environment_dirs(environ: Mapping[str, str] | None = None) -> EnvironmentDirs:
-    """Read from the environment in this module only: no other module looks at it."""
+    """Lu dans l'environnement dans ce module seulement : aucun autre module ne le regarde."""
     env = os.environ if environ is None else environ
     return EnvironmentDirs(
         home=env.get("HOME") or os.path.expanduser("~"),
@@ -136,12 +135,12 @@ def standard_profile_path(environ: Mapping[str, str] | None = None) -> Path:
 
 
 def load_profile(environ: Mapping[str, str] | None = None, *, euid: int | None = None) -> Profile:
-    """Locate, check and validate the profile; read again on every call.
+    """Localiser, contrôler et valider le profil ; relu à chaque appel.
 
-    Order: the rights of the file and of its directory (owner, mode 600,
-    directory 700) are checked on the open descriptor before a single byte
-    is read, so the content of a file others may write is never read; then
-    the keys that would configure the red list; then the schema.
+    Ordre : les droits du fichier et de son répertoire (propriétaire, mode 600, répertoire 700) sont
+    contrôlés sur le descripteur ouvert avant qu'un seul octet soit lu, si bien que le contenu d'un
+    fichier que d'autres peuvent écrire n'est jamais lu ; puis les clés qui configureraient la liste
+    rouge ; puis le schéma.
     """
     env = os.environ if environ is None else environ
     standard = standard_profile_path(env)
@@ -215,10 +214,10 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _reject_redlist_keys(data: Any) -> None:
-    """Refuse any key that would look like a setting of the red list.
+    """Refuser toute clé qui ressemblerait à un réglage de la liste rouge.
 
-    The red list is fixed in code; a profile that tries to configure it
-    shows a misunderstanding the operator must hear about, not a typo.
+    La liste rouge est fixée dans le code ; un profil qui essaie de la configurer montre un
+    malentendu que l'opérateur doit entendre, pas une faute de frappe.
     """
     stack = [data]
     while stack:
@@ -267,8 +266,8 @@ def _validate(data: Any, path: Path, standard: Path) -> Profile:
 
 
 def _raise_from_validation(exc: ValidationError, standard: Path) -> NoReturn:
-    # The default pydantic text quotes input values; only locations and our
-    # own reason words are let through.
+    # Le texte pydantic par défaut cite les valeurs d'entrée ; seuls les emplacements et nos propres
+    # mots de raison passent.
     errors = exc.errors(include_url=False, include_input=False)
     missing = [_location(e["loc"]) for e in errors if e["type"] == "missing"]
     if missing:

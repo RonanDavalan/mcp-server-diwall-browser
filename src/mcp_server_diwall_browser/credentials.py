@@ -1,10 +1,10 @@
-"""Read credential files and resolve one credential for one origin.
+"""Lire les fichiers d'identifiants et résoudre un identifiant pour une origine.
 
-Why this module exists:
-    A credential typed on the wrong site is a credential handed over. The
-    binding between a credential and the origins it may be typed on must be
-    checked on every resolution, by one function, whichever way the
-    credential was designated; naming a file must never skip that check.
+Pourquoi ce module existe :
+    Un identifiant saisi sur le mauvais site est un identifiant livré. Le lien entre un identifiant
+    et les origines où il peut être saisi doit être contrôlé à chaque résolution, par une seule
+    fonction, quelle que soit la façon dont l'identifiant a été désigné ; nommer un fichier ne doit
+    jamais sauter ce contrôle.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ _FIX_COMMANDS = {
 
 
 class Secret:
-    """A resolved credential value that refuses to be printed, copied or pickled."""
+    """Une valeur d'identifiant résolue qui refuse d'être imprimée, copiée ou sérialisée."""
 
     __slots__ = ("_value", "_kind")
 
@@ -85,30 +85,28 @@ class _CredentialFile:
 
 
 def valid_name(name: object) -> bool:
-    """Whether ``name`` can label a credential file: the file is ``<name>.json``."""
+    """Dit si ``name`` peut nommer un fichier d'identifiants : le fichier est ``<name>.json``."""
     return isinstance(name, str) and _NAME_RE.fullmatch(name) is not None
 
 
 def loads_strict(raw: bytes) -> Any:
-    """Parse a JSON document that repeats no key; ``ValueError`` when it is not one."""
+    """Analyser un document JSON qui ne répète aucune clé ; ``ValueError`` quand ce n'en est pas un."""
     return json.loads(raw.decode("utf-8"), object_pairs_hook=_no_duplicates)
 
 
 def validate(basename: str, raw: bytes) -> None:
-    """Refuse, as ``credential_invalid``, the content of a credential file that ``resolve`` would refuse.
+    """Refuser, comme ``credential_invalid``, le contenu d'un fichier d'identifiants que ``resolve`` refuserait.
 
-    The one schema: a file is checked here before it is written as it is
-    when it is read.
+    Le schéma unique : un fichier est contrôlé ici avant d'être écrit comme il l'est quand il est lu.
     """
     _parse(basename, raw)
 
 
 def resolve(volume: Volume, page_origin: Origin, key: str, name: str | None = None) -> Secret:
-    """Return the ``key`` of the single credential bound to ``page_origin``.
+    """Rendre la ``key`` de l'unique identifiant lié à ``page_origin``.
 
-    ``page_origin`` is the origin the browser reports at the moment of
-    typing. ``name`` narrows the search to one file but never replaces the
-    origin binding.
+    ``page_origin`` est l'origine que le navigateur rapporte au moment de la saisie. ``name`` restreint
+    la recherche à un fichier mais ne remplace jamais le lien avec l'origine.
     """
     hardening.disable_core_dumps()
     root = volume.require_mounted()
@@ -141,7 +139,7 @@ def resolve(volume: Volume, page_origin: Origin, key: str, name: str | None = No
 
 
 def credentials_directory(volume: Volume) -> Path | None:
-    """The directory of the credential files, checked; ``None`` when the operator has not made it yet."""
+    """Le répertoire des fichiers d'identifiants, contrôlé ; ``None`` quand l'opérateur ne l'a pas encore fait."""
     root = volume.require_mounted()
     directory = volume.resolve_inside(CREDENTIALS_DIR)
     if directory != root / CREDENTIALS_DIR:
@@ -195,7 +193,7 @@ def _parse(basename: str, raw: bytes) -> _CredentialFile:
     if not isinstance(data, dict):
         _refuse(basename, "not_json")
 
-    # Register first: whatever happens next, these values are now in memory.
+    # Enregistrer d'abord : quoi qu'il arrive ensuite, ces valeurs sont maintenant en mémoire.
     for key in KEYS:
         if isinstance(data.get(key), str):
             register_secret(data[key])
@@ -233,8 +231,8 @@ def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
-            # Two values for one key: which one wins is a parser detail the
-            # operator cannot see; refuse instead.
+            # Deux valeurs pour une clé : laquelle l'emporte est un détail de l'analyseur que l'opérateur ne
+            # peut pas voir ; refuser plutôt.
             raise ValueError("duplicate key")
         result[key] = value
     return result

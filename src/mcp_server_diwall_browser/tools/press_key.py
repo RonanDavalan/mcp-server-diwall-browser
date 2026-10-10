@@ -1,9 +1,9 @@
-"""Tool press_key: one key that moves or validates, Enter going through the gate.
+"""Outil press_key : une touche qui déplace ou valide, Entrée passant par la porte.
 
-Why this module exists:
-    Enter submits a form as a click does, so it is checked like one: on a
-    marked field, through the gate. The other keys only move, and are
-    limited to a fixed list: no shortcut, no character.
+Pourquoi ce module existe :
+    Entrée soumet un formulaire comme un clic, elle est donc contrôlée comme lui : sur un champ repéré,
+    par la porte. Les autres touches ne font que déplacer, et sont limitées à une liste fixe : aucun
+    raccourci, aucun caractère.
 """
 
 from __future__ import annotations

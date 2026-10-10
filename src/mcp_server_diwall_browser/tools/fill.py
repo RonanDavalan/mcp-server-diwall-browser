@@ -1,10 +1,9 @@
-"""Tool fill: type a text, or a credential of the encrypted directory, into a marked field.
+"""Outil fill : taper un texte, ou un identifiant du répertoire chiffré, dans un champ repéré.
 
-Why this module exists:
-    A secret typed by the model passes through its context and the
-    provider's. A sensitive field is filled only from the encrypted
-    directory, bound to the origin the browser reports at the moment of
-    typing; the value never comes back in any result.
+Pourquoi ce module existe :
+    Un secret tapé par le modèle passe par son contexte et par celui du fournisseur. Un champ sensible
+    n'est rempli que depuis le répertoire chiffré, lié à l'origine que le navigateur rapporte au moment
+    de la frappe ; la valeur ne revient jamais dans aucun résultat.
 """
 
 from __future__ import annotations

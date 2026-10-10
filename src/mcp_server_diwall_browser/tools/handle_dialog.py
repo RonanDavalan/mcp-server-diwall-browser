@@ -1,9 +1,9 @@
-"""Tool handle_dialog: dismiss or accept the dialog open in a tab.
+"""Outil handle_dialog : fermer ou accepter la boîte de dialogue ouverte dans un onglet.
 
-Why this module exists:
-    While a dialog is open the page answers nothing else. Dismissing it is
-    always possible; accepting it may be the irreversible step itself, so
-    its message goes through the gate like a button's text.
+Pourquoi ce module existe :
+    Tant qu'une boîte de dialogue est ouverte, la page ne répond à rien d'autre. La fermer est
+    toujours possible ; l'accepter peut être l'étape irréversible elle-même, si bien que son message
+    passe par la porte comme le texte d'un bouton.
 """
 
 from __future__ import annotations

@@ -1,10 +1,9 @@
-"""Decide whether a form field carries a secret or payment data.
+"""Décider si un champ de formulaire porte un secret ou des données de paiement.
 
-Why this module exists:
-    Masking a field in the perception, refusing to type into it and arming
-    the payment gate all depend on the same question. Two lists would drift
-    apart and one of them would miss a field, so there is a single predicate
-    and every caller asks it.
+Pourquoi ce module existe :
+    Masquer un champ dans la perception, refuser d'y taper et armer la porte de paiement dépendent de
+    la même question. Deux listes divergeraient et l'une d'elles manquerait un champ : il y a donc un
+    seul prédicat et chaque appelant l'interroge.
 """
 
 from __future__ import annotations
@@ -64,9 +63,8 @@ CARD_SUBSTRINGS = (
 
 _WORD_SPLIT_RE = re.compile(r"[^a-z0-9]+")
 
-# HTML attribute -> keyword of is_sensitive. A caller that only has the
-# attributes of an element passes them through this table, so that the
-# names the predicate looks at are written here and nowhere else.
+# Attribut HTML -> mot-clé de is_sensitive. Un appelant qui n'a que les attributs d'un élément les passe
+# par cette table, pour que les noms que le prédicat regarde soient écrits ici et nulle part ailleurs.
 ATTRIBUTE_ARGUMENTS = {
     "type": "input_type",
     "name": "name",
@@ -95,10 +93,10 @@ def is_sensitive(
     placeholder: str | None = None,
     role: str | None = None,
 ) -> SensitiveVerdict:
-    """Return whether the field is sensitive, why, and whether it is a card field.
+    """Rendre si le champ est sensible, pourquoi, et s'il s'agit d'un champ de carte.
 
-    ``tag`` and ``role`` are accepted so that every caller passes the same
-    description of an element; no rule depends on them today.
+    ``tag`` et ``role`` sont acceptés pour que chaque appelant passe la même description d'un élément ;
+    aucune règle n'en dépend aujourd'hui.
     """
     del tag, role
     reasons: list[str] = []
@@ -136,10 +134,10 @@ def is_sensitive(
 
 
 def _split_camel_case(text: str) -> str:
-    """Cut ``userPin`` into ``user Pin`` and ``APIKey`` into ``API Key``.
+    """Couper ``userPin`` en ``user Pin`` et ``APIKey`` en ``API Key``.
 
-    Without it a word such as ``pin`` hidden in a camelCase name is never a
-    word of its own, and the field goes unmasked.
+    Sans cela, un mot comme ``pin`` caché dans un nom en camelCase n'est jamais un mot à part, et le
+    champ reste sans masque.
     """
     pieces = []
     for index, char in enumerate(text):

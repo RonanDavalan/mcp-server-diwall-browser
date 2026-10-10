@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Smoke test: start the server against a throw-away browser and observe a local demo page.
+"""Test de fumée : démarrer le serveur contre un navigateur jetable et observer une page de démonstration locale.
 
-Why this module exists:
-    After installing, an operator wants to know that the server, the browser
-    and the protocol work together before trusting them with a real session.
-    This script proves it on a demo page served locally, with a blank browser
-    profile and an empty operator profile of its own, and touches nothing else.
+Pourquoi ce module existe :
+    Après l'installation, un opérateur veut savoir que le serveur, le navigateur et le protocole
+    fonctionnent ensemble avant de leur confier une vraie session. Ce script le prouve sur une page de
+    démonstration servie en local, avec un profil de navigateur vierge et un profil d'opérateur vide qui
+    lui sont propres, et ne touche rien d'autre.
 """
 
 from __future__ import annotations
@@ -61,7 +61,7 @@ class _QuietHandler(SimpleHTTPRequestHandler):
 
 @contextmanager
 def demo_site() -> Iterator[str]:
-    """The demo page, served on 127.0.0.1 only; yields its address."""
+    """La page de démonstration, servie sur 127.0.0.1 seulement ; donne son adresse."""
     handler = functools.partial(_QuietHandler, directory=str(DEMO_DIR))
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -86,7 +86,7 @@ def browser_version(port: int) -> dict[str, Any]:
 
 @contextmanager
 def throw_away_browser(executable: str, profile_dir: Path) -> Iterator[tuple[int, str]]:
-    """A headless browser on a blank profile and a free loopback port; yields the port and its version."""
+    """Un navigateur sans interface sur un profil vierge et un port de bouclage libre ; donne le port et sa version."""
     port = free_port()
     arguments = [
         executable,
@@ -99,7 +99,7 @@ def throw_away_browser(executable: str, profile_dir: Path) -> Iterator[tuple[int
         "--disable-dev-shm-usage",
     ]
     if os.geteuid() == 0:
-        # The browser refuses to run as root with its sandbox.
+        # Le navigateur refuse de tourner en root avec son bac à sable.
         arguments.append("--no-sandbox")
     arguments.append("about:blank")
     process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -124,7 +124,7 @@ def throw_away_browser(executable: str, profile_dir: Path) -> Iterator[tuple[int
 
 
 def write_operator_profile(work: Path, origin: str, profile_dir: Path, port: int) -> Path:
-    """A temporary operator profile: mode 600 in a directory 700, the demo origin allowed."""
+    """Un profil d'opérateur temporaire : mode 600 dans un répertoire 700, l'origine de la démonstration autorisée."""
     directory = work / "config"
     directory.mkdir(mode=0o700)
     secrets_dir = work / "encrypted-directory-not-mounted"
@@ -168,7 +168,7 @@ async def run_server(profile: Path, home: Path, url: str) -> tuple[dict[str, Any
 
 
 def summary(status: dict[str, Any], opened: dict[str, Any], observed: dict[str, Any], image: bytes | None, origin: str) -> list[tuple[str, str, bool]]:
-    """Each line of the report, and whether it is what the smoke test expects."""
+    """Chaque ligne du rapport, et si c'est ce que le test de fumée attend."""
     server = status.get("server", {})
     volume = server.get("encrypted_directory", {})
     observed_server = observed.get("server", {})

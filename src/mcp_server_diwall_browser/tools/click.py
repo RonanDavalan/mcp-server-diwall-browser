@@ -1,9 +1,9 @@
-"""Tool click: one click on a marked element, through the security gate.
+"""Outil click : un clic sur un élément repéré, par la porte de sécurité.
 
-Why this module exists:
-    A click is where an injected text or an error can spend money or delete
-    data. The click goes to the element the model saw, lands only where the
-    human sees it, and stops for a human confirmation when the gate says so.
+Pourquoi ce module existe :
+    Un clic est l'endroit où un texte injecté ou une erreur peut dépenser de l'argent ou supprimer
+    des données. Le clic va à l'élément que le modèle a vu, ne tombe que là où l'humain le voit, et
+    s'arrête pour une confirmation humaine quand la porte le dit.
 """
 
 from __future__ import annotations

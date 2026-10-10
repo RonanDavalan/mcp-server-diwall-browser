@@ -1,10 +1,9 @@
-"""Know whether the encrypted directory is mounted, and write inside it safely.
+"""Savoir si le répertoire chiffré est monté, et y écrire en sécurité.
 
-Why this module exists:
-    A secret or a page capture written while the encrypted volume is closed
-    lands in clear text on the underlying disk. Whether the volume is really
-    mounted must be read from the kernel on every access, never assumed nor
-    remembered, and every write into it must go through that check.
+Pourquoi ce module existe :
+    Un secret ou une capture de page écrits pendant que le volume chiffré est fermé atterrissent en
+    clair sur le disque sous-jacent. Savoir si le volume est vraiment monté doit se lire dans le noyau
+    à chaque accès, jamais se supposer ni se mémoriser, et toute écriture dedans doit passer par ce contrôle.
 """
 
 from __future__ import annotations
@@ -34,7 +33,7 @@ OPERATOR_OPENS_DIRECTORY = "operator_opens_directory"
 
 
 class MountInfoError(ValueError):
-    """A line of the mount table could not be understood."""
+    """Une ligne de la table des montages n'a pas pu être comprise."""
 
 
 @dataclass(frozen=True)
@@ -79,10 +78,10 @@ def _unescape(field: str) -> str:
 
 
 def parse_mountinfo(text: str) -> list[MountEntry]:
-    """Parse the content of ``/proc/self/mountinfo``.
+    """Analyser le contenu de ``/proc/self/mountinfo``.
 
-    A malformed line raises instead of being skipped: skipping it could hide
-    the very mount that is being looked for.
+    Une ligne mal formée lève au lieu d'être sautée : la sauter pourrait cacher le montage même que
+    l'on cherche.
     """
     entries = []
     for number, line in enumerate(text.splitlines(), start=1):
@@ -105,7 +104,7 @@ def parse_mountinfo(text: str) -> list[MountEntry]:
 
 
 class MountChecker:
-    """Read the mount table and decide, on every call, the state of the volume."""
+    """Lire la table des montages et décider, à chaque appel, de l'état du volume."""
 
     def __init__(
         self,
@@ -134,8 +133,7 @@ class MountChecker:
         except (OSError, MountInfoError):
             return _verdict(MountState.UNREADABLE, "mountinfo_unreadable")
         if not entries:
-            # The root file system is always listed; an empty table is not
-            # a trustworthy reading.
+            # Le système de fichiers racine est toujours listé ; une table vide n'est pas une lecture digne de confiance.
             return _verdict(MountState.UNREADABLE, "mountinfo_empty")
 
         try:
@@ -200,8 +198,8 @@ _NEVER_INITIALIZED_MESSAGE = (
 )
 _OUTSIDE_MESSAGE = "un chemin du répertoire chiffré mène hors du volume : refus par précaution"
 _LINK_MESSAGE = "un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution"
-# A refused path inside a mounted volume is not a volume of the wrong kind:
-# it has its own code, the precise reason stays in mount_reason.
+# Un chemin refusé à l'intérieur d'un volume monté n'est pas un volume d'un mauvais type : il a son propre
+# code, la raison précise reste dans mount_reason.
 PATH_REFUSED = "volume_path_refused"
 _DIR_MODE_MESSAGE = (
     "un répertoire du volume chiffré n'est pas privé (mode 700, propriétaire du serveur) : "
@@ -210,7 +208,7 @@ _DIR_MODE_MESSAGE = (
 
 
 def verdict_error(verdict: MountVerdict) -> ToolError:
-    """The refusal that matches a verdict other than a usable mount."""
+    """Le refus qui correspond à un verdict autre qu'un montage utilisable."""
     code = verdict.error_code or "mount_unreadable"
     action = None
     if verdict.state in (MountState.CLOSED, MountState.CLOSED_OR_ABSENT):
@@ -229,12 +227,11 @@ class VolumeFile:
 
 
 class VolumeFileError(Exception):
-    """A file of the volume was refused before or while being read.
+    """Un fichier du volume a été refusé avant ou pendant sa lecture.
 
-    ``reason`` is one of ``not_regular_file``, ``bad_owner``, ``bad_mode``,
-    ``too_large``, ``missing``, ``outside_volume`` (the path leads out of the
-    volume or off its device) or ``link`` (a link was followed below the
-    volume's directory).
+    ``reason`` est l'une de ``not_regular_file``, ``bad_owner``, ``bad_mode``, ``too_large``,
+    ``missing``, ``outside_volume`` (le chemin sort du volume ou de son périphérique) ou ``link``
+    (un lien a été suivi sous le répertoire du volume).
     """
 
     def __init__(self, reason: str) -> None:
@@ -243,7 +240,7 @@ class VolumeFileError(Exception):
 
 
 class Volume:
-    """The only way into the mounted volume; checks the mount on every call."""
+    """La seule voie d'accès au volume monté ; contrôle le montage à chaque appel."""
 
     def __init__(
         self,
@@ -260,7 +257,7 @@ class Volume:
         return self._checker.euid
 
     def require_mounted(self) -> Path:
-        """Re-check the mount and return the real project root, or refuse."""
+        """Recontrôler le montage et rendre la vraie racine du projet, ou refuser."""
         verdict = self._checker.check(self._secrets_dir, self._secrets_crypt_dir)
         if verdict.state is not MountState.MOUNTED or verdict.error_code is not None:
             raise verdict_error(verdict)
@@ -268,11 +265,10 @@ class Volume:
         return Path(self._checker.realpath_fn(os.path.join(mount_point, PROJECT_DIR_NAME)))
 
     def holds(self, path: str | os.PathLike[str]) -> bool:
-        """Whether ``path`` lies in the mounted volume, on its device; False when it is not mounted.
+        """Dit si ``path`` se trouve dans le volume monté, sur son périphérique ; faux quand il n'est pas monté.
 
-        An answer about a path the operator declared, such as the browser's
-        dedicated profile: it says where the path leads now, not what the
-        browser does with it.
+        Une réponse sur un chemin que l'opérateur a déclaré, comme le profil dédié du navigateur : elle dit
+        où le chemin mène maintenant, pas ce que le navigateur en fait.
         """
         try:
             self.require_mounted()
@@ -291,7 +287,7 @@ class Volume:
             return False
 
     def resolve_inside(self, *parts: str) -> Path:
-        """Real path of ``parts`` under the project root, refused if it leaves the volume."""
+        """Vrai chemin de ``parts`` sous la racine du projet, refusé s'il sort du volume."""
         root = self.require_mounted()
         return self._resolve(root, parts)
 
@@ -314,15 +310,15 @@ class Volume:
         return real
 
     def _resolve_exact(self, root: Path, parts: tuple[str, ...]) -> Path:
-        # Opening the resolved path would follow a link that O_NOFOLLOW is
-        # meant to refuse, so a file is only reached by a path without links.
+        # Ouvrir le chemin résolu suivrait un lien que O_NOFOLLOW est censé refuser : un fichier n'est donc
+        # atteint que par un chemin sans lien.
         real = self._resolve(root, parts)
         if real != root.joinpath(*parts):
             raise ToolError(PATH_REFUSED, _LINK_MESSAGE, extra_server={"mount_reason": "symlink"})
         return real
 
     def ensure_dir(self, *parts: str) -> Path:
-        """Create each missing level in mode 700 and check every level is private."""
+        """Créer chaque niveau manquant en mode 700 et vérifier que chaque niveau est privé."""
         root = self.require_mounted()
         path = root
         for depth in range(1, len(parts) + 1):
@@ -341,7 +337,7 @@ class Volume:
         return path
 
     def open_append(self, *parts: str) -> int:
-        """Open a file of the volume for appending; the caller closes the descriptor."""
+        """Ouvrir un fichier du volume en ajout ; l'appelant ferme le descripteur."""
         path = self._resolve_exact(self.require_mounted(), parts)
         flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC
         fd = os.open(path, flags, 0o600)
@@ -353,12 +349,12 @@ class Volume:
         return fd
 
     def settle_file(self, *parts: str, source: str, wanted: str) -> Path:
-        """Make ``source`` of a volume directory private and give it the name ``wanted``.
+        """Rendre privée ``source``, dans un répertoire du volume, et lui donner le nom ``wanted``.
 
-        For a file another process wrote under a name of its own (a browser
-        download): the file is opened without following a link, must be a
-        regular file of the server's user, becomes mode 600, and takes
-        ``wanted`` (a plain name) with a numeric suffix if that name is taken.
+        Pour un fichier qu'un autre processus a écrit sous un nom à lui (un téléchargement du navigateur) :
+        le fichier est ouvert sans suivre de lien, doit être un fichier ordinaire de l'utilisateur du
+        serveur, passe en mode 600, et prend ``wanted`` (un nom simple) avec un suffixe numérique si ce nom
+        est pris.
         """
         if wanted != safe_name(wanted):
             raise ValueError("the new name must be a plain safe name")
@@ -386,7 +382,7 @@ class Volume:
         return target
 
     def write_new(self, *parts: str, data: bytes, mode: int = 0o600) -> Path:
-        """Create a file that must not exist yet and write ``data`` into it."""
+        """Créer un fichier qui ne doit pas encore exister et y écrire ``data``."""
         if mode & 0o077:
             raise ValueError("files under the volume are private to their owner")
         path = self._resolve_exact(self.require_mounted(), parts)
@@ -403,13 +399,12 @@ class Volume:
         return path
 
     def publish_new(self, *parts: str, data: bytes) -> Path:
-        """Create a file that must not exist yet, whole or not at all, and never replace one.
+        """Créer un fichier qui ne doit pas encore exister, en entier ou pas du tout, sans jamais en remplacer un.
 
-        The data goes to a hidden file of the same directory (mode 600), which
-        takes its name by a hard link that fails when the name is taken; so a
-        reader never meets half a file, and nothing but a complete file stays
-        under the name. On a file system that cannot link, the name is taken
-        first (created exclusively) and filled, and removed if that fails.
+        Les données vont dans un fichier caché du même répertoire (mode 600), qui prend son nom par un lien
+        dur qui échoue quand le nom est pris ; ainsi un lecteur ne rencontre jamais un demi-fichier, et rien
+        d'autre qu'un fichier complet ne reste sous le nom. Sur un système de fichiers qui ne peut pas faire
+        de lien, le nom est pris d'abord (créé en exclusivité) puis rempli, et retiré si cela échoue.
         """
         root = self.require_mounted()
         path = self._resolve_exact(root, parts)
@@ -445,7 +440,7 @@ class Volume:
         os.close(fd)
 
     def read_file(self, *parts: str, max_bytes: int) -> VolumeFile:
-        """Read a private regular file of the volume, at most ``max_bytes`` long."""
+        """Lire un fichier ordinaire privé du volume, d'au plus ``max_bytes``."""
         try:
             path = self._resolve_exact(self.require_mounted(), parts)
         except ToolError as exc:
@@ -455,14 +450,13 @@ class Volume:
         return self._read_private(path, max_bytes)
 
     def read_file_at(self, path: str | os.PathLike[str], *, max_bytes: int) -> VolumeFile:
-        """Read a private regular file anywhere under the mounted volume, at most ``max_bytes`` long.
+        """Lire un fichier ordinaire privé n'importe où sous le volume monté, d'au plus ``max_bytes``.
 
-        For a file kept next to the project's directory, such as an old
-        credential file to convert. The path must be absolute. It is resolved
-        first and must lead into the volume, on its device; and no link may
-        have been followed below the volume's own directory, since a link
-        could lead where the operator never looked. The file is then opened
-        without following a link and must be the server's user's, mode 600.
+        Pour un fichier gardé à côté du répertoire du projet, comme un ancien fichier d'identifiants à
+        convertir. Le chemin doit être absolu. Il est résolu d'abord et doit mener dans le volume, sur son
+        périphérique ; et aucun lien ne doit avoir été suivi sous le répertoire propre du volume, puisqu'un
+        lien pourrait mener là où l'opérateur n'a jamais regardé. Le fichier est ensuite ouvert sans suivre
+        de lien et doit appartenir à l'utilisateur du serveur, en mode 600.
         """
         self.require_mounted()
         given = os.path.normpath(os.fspath(path))
@@ -472,8 +466,8 @@ class Volume:
         real = self._checker.realpath_fn(given)
         if real != mount_point and not real.startswith(mount_point.rstrip(os.sep) + os.sep):
             raise VolumeFileError("outside_volume")
-        # The volume's directory as the operator wrote it, and as it really is: below either, the
-        # path as given must be the real one, or a link was followed.
+        # Le répertoire du volume tel que l'opérateur l'a écrit, et tel qu'il est vraiment : sous l'un ou l'autre,
+        # le chemin tel que donné doit être le vrai, sinon un lien a été suivi.
         starts = [prefix for prefix in (os.path.normpath(self._secrets_dir), mount_point) if given == prefix or given.startswith(prefix.rstrip(os.sep) + os.sep)]
         if not any(os.path.normpath(os.path.join(mount_point, os.path.relpath(given, prefix))) == real for prefix in starts):
             raise VolumeFileError("link")
@@ -531,6 +525,6 @@ class Volume:
 
 
 def safe_name(text: str, max_len: int = 64) -> str:
-    """A file name built from untrusted text: plain characters only, bounded."""
+    """Un nom de fichier construit à partir d'un texte non fiable : caractères simples seulement, borné."""
     name = _SAFE_NAME_RE.sub("_", text).lstrip(".")[:max_len]
     return name or "unnamed"

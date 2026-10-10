@@ -1,9 +1,9 @@
-"""Tool observe: what the operator sees in a tab, as image, tree and marked elements.
+"""Outil observe : ce que l'opérateur voit dans un onglet, en image, arbre et éléments repérés.
 
-Why this module exists:
-    The model and the human must look at the same thing. The perception
-    reads the page of an allowed site only, masks what is sensitive, and
-    marks the elements an action can name; this tool hands that over.
+Pourquoi ce module existe :
+    Le modèle et l'humain doivent regarder la même chose. La perception ne lit que la page d'un site
+    autorisé, masque ce qui est sensible et repère les éléments qu'une action peut nommer ; cet outil
+    remet tout cela.
 """
 
 from __future__ import annotations

@@ -1,10 +1,9 @@
-"""The text the model reads when the session opens: how the server works, and its rules.
+"""Le texte que le modèle lit à l'ouverture de la session : comment fonctionne le serveur, et ses règles.
 
-Why this module exists:
-    A model keeps the first lines of a dense text and loses precision after
-    them. The few rules that protect the operator come first, each with what
-    breaking it costs, and the reference material follows a marker the model
-    may consult when it needs it.
+Pourquoi ce module existe :
+    Un modèle retient les premières lignes d'un texte dense et perd en précision après elles. Les
+    quelques règles qui protègent l'opérateur viennent d'abord, chacune avec ce que coûte l'enfreindre,
+    et la matière de référence suit un repère que le modèle peut consulter quand il en a besoin.
 """
 
 from __future__ import annotations

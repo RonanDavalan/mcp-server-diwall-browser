@@ -80,7 +80,7 @@ def names(result: perception.Built) -> list[str]:
 
 
 def serialized(observation: perception.Observation) -> str:
-    """The whole output as it leaves the server, the image excepted."""
+    """Toute la sortie telle qu'elle quitte le serveur, l'image exceptée."""
     envelope = finalize({"ok": True, "server": observation.server, "page_content": observation.page_content})
     return json.dumps(envelope, ensure_ascii=False)
 
@@ -94,7 +94,7 @@ def colours(png: bytes, box: Box, scale: float = 1.0, viewport: Box = VIEWPORT) 
     return set(image.crop((left, top, right, bottom)).getdata())
 
 
-# --- the hand-written snapshot ----------------------------------------------------------------
+# --- l'instantané écrit à la main -------------------------------------------------------------------
 
 
 def test_the_hand_written_snapshot_is_read_as_the_browser_writes_it() -> None:
@@ -110,11 +110,11 @@ def test_the_hand_written_snapshot_is_read_as_the_browser_writes_it() -> None:
     assert result.counters["redacted_fields"] == 1
     assert result.sensitive_boxes == [Box(78, 8, 200, 22)]
     assert FAKE_PASSWORD not in json.dumps([e.public for e in result.elements] + result.tree_lines)
-    # The field's inner text, bullets here, is part of its value: never visited.
+    # Le texte interne du champ, des puces ici, fait partie de sa valeur : jamais visité.
     assert not any("•" in line for line in result.tree_lines)
 
 
-# --- visibility, one condition at a time -------------------------------------------------------
+# --- visibilité, une condition à la fois ------------------------------------------------------------
 
 CONTROL = button("Control", (10, 10, 100, 20))
 
@@ -168,8 +168,8 @@ def test_nodes_that_pass_every_condition_are_shown(shown: El) -> None:
 
 
 def test_text_carries_its_parents_style_and_is_not_counted_twice() -> None:
-    # The browser gives a text node the style of its parent: an opacity of
-    # 0.1 must not become 0.01 by counting the parent twice.
+    # Le navigateur donne à un nœud de texte le style de son parent : une opacité de 0,1 ne doit pas devenir
+    # 0,01 en comptant le parent deux fois.
     page = Page("Text", [El("P", role="paragraph", box=(10, 10, 300, 20), opacity="0.1", children=[text("Faint text", (10, 10, 100, 16))])])
     assert 'StaticText "Faint text"' in [line.strip() for line in built(page).tree_lines]
 
@@ -199,7 +199,7 @@ def test_the_visibility_page_shows_only_the_visible_button() -> None:
 
 
 def keep_every_tree_node(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Defective: whatever the accessibility tree lists is shown.
+    # Défectueux : tout ce que l'arbre d'accessibilité liste est montré.
     monkeypatch.setattr(Dom, "visible", lambda self, node: node.box is not None)
 
 
@@ -216,7 +216,7 @@ def test_visibility_check_catches_a_version_that_keeps_every_tree_node(monkeypat
 
 
 def test_a_box_without_its_own_layout_lets_its_children_speak() -> None:
-    # display: contents gives no box to the element, only to its children.
+    # display: contents ne donne aucune boîte à l'élément, seulement à ses enfants.
     page = Page("Contents", [El("DIV", role="generic", box=None, display="contents", children=[button("Inside", (10, 10, 100, 20))])])
     result = built(page)
     assert names(result) == ["Inside"]
@@ -228,7 +228,7 @@ def test_never_rendered_elements_are_not_counted_as_hidden() -> None:
     assert built(page).counters["omitted_not_visible"] == 0
 
 
-# --- marks ---------------------------------------------------------------------------------
+# --- repères ----------------------------------------------------------------------------------------
 
 
 def test_markable_roles_and_clickable_generic_components() -> None:
@@ -322,7 +322,7 @@ def test_names_and_values_are_cleaned_and_bounded() -> None:
     assert set(result.elements[0].public) == {"mark", "role", "name", "value", "in_viewport"}
 
 
-# --- values of sensitive fields ------------------------------------------------------------------
+# --- valeurs des champs sensibles -------------------------------------------------------------------
 
 SENSITIVE_FIELDS = [
     ("type", {"type": "password"}),
@@ -378,7 +378,7 @@ def test_a_registered_secret_written_by_the_page_is_redacted_on_the_way_out() ->
 def publishes_no_sensitive_value(monkeypatch: pytest.MonkeyPatch | None) -> bool:
     page = Page("Login", [field_input("Password", (10, 10, 200, 20), attrs={"type": "password"}, value=FAKE_PASSWORD)])
     if monkeypatch is not None:
-        # Defective: the value is published without asking the predicate.
+        # Défectueux : la valeur est publiée sans interroger le prédicat.
         monkeypatch.setattr(perception, "_field_verdict", lambda node, ax_role: perception._Field(sensitive=False, card=False))
     result = built(page)
     return FAKE_PASSWORD not in json.dumps([e.public for e in result.elements] + result.tree_lines)
@@ -389,7 +389,7 @@ def test_value_check_catches_a_version_that_skips_the_predicate(monkeypatch: pyt
     assert not publishes_no_sensitive_value(monkeypatch)
 
 
-# --- tree ---------------------------------------------------------------------------------------
+# --- arbre ------------------------------------------------------------------------------------------
 
 
 def test_tree_format_depth_headings_quotes_and_repeated_text() -> None:
@@ -440,7 +440,7 @@ def test_a_failed_tree_is_withheld_with_a_notice() -> None:
     assert names(result) == ["Still marked"]
 
 
-# --- frames ---------------------------------------------------------------------------------
+# --- cadres -----------------------------------------------------------------------------------------
 
 
 def frame_page(*, frame_box: tuple[float, float, float, float] = (10, 60, 300, 100)) -> Page:
@@ -465,7 +465,7 @@ def test_a_frame_outside_the_viewport_is_not_counted() -> None:
     assert built(frame_page(frame_box=(10, 900, 300, 100))).counters["frames_masked"] == 0
 
 
-# --- image -------------------------------------------------------------------------------------
+# --- image ------------------------------------------------------------------------------------------
 
 
 def login_page(**kwargs: Any) -> Page:
@@ -488,9 +488,9 @@ async def test_masks_cover_every_pixel_of_the_sensitive_boxes(fake_browser: Fake
     assert observation.server["capture"] == "ok" and observation.image_png is not None
     for box in (Box(10, 44, 200, 24), Box(10, 78, 200, 24)):
         assert colours(observation.image_png, box) == {MASK_COLOUR}
-    # The plain field is not masked: its text is there.
+    # Le champ simple n'est pas masqué : son texte est là.
     assert len(colours(observation.image_png, Box(10, 10, 200, 24))) > 1
-    # Marks are drawn, around the masks.
+    # Les repères sont dessinés, autour des masques.
     image = Image.open(io.BytesIO(observation.image_png)).convert("RGB")
     assert MARK_COLOUR[:3] in set(image.getdata())
 
@@ -540,9 +540,9 @@ async def test_a_mask_that_fails_withholds_the_image_and_keeps_the_tree(fake_bro
 @pytest.mark.parametrize(
     "broken_field",
     [
-        # In the tree, shown, but without a box: it cannot be masked.
+        # Dans l'arbre, montré, mais sans boîte : il ne peut pas être masqué.
         replace(field_input("Password", (10, 44, 200, 24), attrs={"type": "password"}, value=FAKE_PASSWORD), box=None),
-        # A box that is not a number.
+        # Une boîte qui n'est pas un nombre.
         field_input("Password", (float("inf"), 44, 200, 24), attrs={"type": "password"}, value=FAKE_PASSWORD),
     ],
 )
@@ -580,7 +580,7 @@ async def test_a_wide_image_is_reduced_and_marks_follow(fake_browser: FakeBrowse
     image = Image.open(io.BytesIO(observation.image_png)).convert("RGB")
     assert image.size == (1600, 800)
     assert observation.server["image"] == {"width": 1600, "height": 800, "scale": 0.8}
-    # The outline of the target sits 2 pixels outside its reduced box.
+    # Le contour de la cible se trouve à 2 pixels en dehors de sa boîte réduite.
     assert image.getpixel((int(target.x * 0.8) - 1, int(target.y * 0.8) + 10)) == MARK_COLOUR[:3]
     assert image.getpixel((int(target.right * 0.8) + 0, int(target.y * 0.8) + 10)) == MARK_COLOUR[:3]
     full = render(base64.b64decode(page.screenshot()["data"]), Box(0, 0, 2000, 1000), sensitive_boxes=[], frame_boxes=[], marks=[(1, target)], max_width=None)
@@ -599,7 +599,7 @@ async def test_capture_masked_png_has_the_masks_and_no_marks(fake_browser: FakeB
     assert image.size == (800, 600)
 
 
-# --- origin gate and second reading ------------------------------------------------------------
+# --- porte d'origine et seconde lecture -------------------------------------------------------------
 
 PERCEPTION_READS = ("Accessibility.", "DOMSnapshot.", "Page.captureScreenshot", "Page.getLayoutMetrics")
 
@@ -634,7 +634,7 @@ async def test_a_page_outside_the_allowed_sites_is_never_read(
 
 def read_then_check(perception_class: type[Perception]) -> type[Perception]:
     class ReadFirst(perception_class):  # type: ignore[valid-type,misc]
-        """Defective: reads the page, then looks at its origin."""
+        """Défectueux : lit la page, puis regarde son origine."""
 
         async def _read(self, tab: Tab, *, image: bool, full: bool) -> Any:
             await self._registry.read(tab, "DOMSnapshot.captureSnapshot", perception.SNAPSHOT_PARAMS)
@@ -662,7 +662,7 @@ async def test_a_redirect_during_the_capture_publishes_nothing(fake: FakeCdp, fa
     seen: list[int] = []
 
     def redirect(target_id: str) -> None:
-        # Every capture is followed by a move to another allowed page.
+        # Chaque capture est suivie d'un déplacement vers une autre page autorisée.
         seen.append(1)
         fake_browser.targets[target_id]["url"] = f"https://example.test/after-{len(seen)}"
         fake_browser.targets[target_id]["loader"] = f"MOVED{len(seen)}"
@@ -686,7 +686,7 @@ async def test_a_redirect_once_is_read_again_under_the_new_origin(fake: FakeCdp,
         fake_browser.after.pop("DOMSnapshot.captureSnapshot")
 
     fake_browser.after["DOMSnapshot.captureSnapshot"] = redirect_once
-    # The new origin is not allowed: the second attempt stops at the gate.
+    # La nouvelle origine n'est pas autorisée : la seconde tentative s'arrête à la porte.
     with pytest.raises(ToolError) as caught:
         await perceiver(registry).observe(tab)
     assert caught.value.code == "origin_not_allowed"
@@ -708,7 +708,7 @@ async def test_a_new_document_on_the_same_origin_is_also_a_change(fake: FakeCdp,
     assert caught.value.code == "page_changed_during_capture"
 
 
-# --- dialogs --------------------------------------------------------------------------------
+# --- boîtes de dialogue -----------------------------------------------------------------------------
 
 
 async def test_an_open_dialog_is_reported_without_reading_the_page(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
@@ -738,7 +738,7 @@ async def test_a_dialog_opening_during_a_read_ends_the_observation_at_once(fake:
     assert observation.page_content == {"dialog": {"type": "alert", "message": "Blocked"}}
 
 
-# --- observation output and snapshots -----------------------------------------------------------
+# --- sortie d'observation et instantanés ------------------------------------------------------------
 
 
 async def test_observation_output_separates_server_facts_from_page_content(fake_browser: FakeBrowser, registry: TabRegistry) -> None:
@@ -797,7 +797,7 @@ async def test_the_screenshot_is_the_viewport_at_scale_one(fake: FakeCdp, fake_b
     }
 
 
-# --- waiting ------------------------------------------------------------------------------------
+# --- attente ----------------------------------------------------------------------------------------
 
 
 async def test_wait_for_text_polls_light_readings_until_the_text_shows(fake: FakeCdp, fake_browser: FakeBrowser, registry: TabRegistry) -> None:
@@ -877,7 +877,7 @@ def test_wait_timeout_is_ten_by_default_and_sixty_at_most() -> None:
         perception._wait_timeout(-1)
 
 
-# --- what redacted_fields counts --------------------------------------------------------------
+# --- ce que compte redacted_fields ------------------------------------------------------------------
 
 
 def three_sensitive_two_filled() -> Page:
@@ -915,13 +915,13 @@ def test_redacted_count_check_catches_a_count_of_every_sensitive_field(monkeypat
     assert not redacted_count_is_two()
 
 
-# --- tree nodes without a DOM identifier, and frames of tree nodes ------------------------------
+# --- nœuds de l'arbre sans identifiant DOM, et cadres des nœuds de l'arbre --------------------------
 
 PERCEPTION_SOURCE = Path(perception.__file__).read_text()
 
 
 def reads_a_frame_of_a_tree_node(source: str) -> bool:
-    # Measured: only the root of the accessibility tree carries frameId.
+    # Mesuré : seule la racine de l'arbre d'accessibilité porte frameId.
     return "frameId" in source
 
 
@@ -957,7 +957,7 @@ def nodes_without_identifier_are_handled(builder: Builder) -> bool:
 
 
 def builder_that_trusts_every_node(ax: dict[str, Any], dom: Dom, viewport: Box, origin: Any) -> perception.Built:
-    # Defective: assumes every tree node names its DOM node.
+    # Défectueux : suppose que chaque nœud de l'arbre nomme son nœud DOM.
     for node in ax["nodes"]:
         dom.by_backend[node["backendDOMNodeId"]]
     return build(ax, dom, viewport, origin)
@@ -971,7 +971,7 @@ def test_identifier_check_catches_a_builder_that_trusts_every_node() -> None:
     assert not nodes_without_identifier_are_handled(builder_that_trusts_every_node)
 
 
-# --- texts around an element, for the gate -----------------------------------------------------------
+# --- textes autour d'un élément, pour la porte ------------------------------------------------------
 
 
 def test_the_gate_texts_of_an_element() -> None:

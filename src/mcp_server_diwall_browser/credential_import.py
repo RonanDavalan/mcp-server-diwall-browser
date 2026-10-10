@@ -1,11 +1,11 @@
-"""Operator command: carry the user name and password of an old credential file over, without showing them.
+"""Commande d'opérateur : reprendre le nom d'utilisateur et le mot de passe d'un ancien fichier d'identifiants, sans les montrer.
 
-Why this module exists:
-    An operator already keeps credentials in another file format on the
-    encrypted directory. Retyping them would pass every value through an
-    editor, the operator's eyes and the session of the model that told them
-    what to type. This command converts one file inside its own process and
-    shows no value, so the strict schema the server reads stays as it is.
+Pourquoi ce module existe :
+    Un opérateur garde déjà des identifiants dans un autre format de fichier sur le répertoire
+    chiffré. Les retaper ferait passer chaque valeur par un éditeur, par les yeux de l'opérateur et
+    par la session du modèle qui lui a dit quoi taper. Cette commande convertit un fichier dans
+    son propre processus et ne montre aucune valeur, si bien que le schéma strict que le serveur
+    lit reste tel qu'il est.
 """
 
 from __future__ import annotations
@@ -26,22 +26,22 @@ from .origin import DEFAULT_PORTS, Origin, OriginError, parse_origin
 from .output import ToolError, redact_text, register_secret
 
 SOURCE_LIMIT = 64 * 1024
-# What passes into the new file, in the order the file lists it.
+# Ce qui passe dans le nouveau fichier, dans l'ordre où le fichier le liste.
 CARRIED = ("username", "password")
-# What the old format calls the sites a file is for: host names, no scheme, no port.
+# Ce que l'ancien format appelle les sites auxquels un fichier est destiné : des noms d'hôte, sans schéma, sans port.
 SOURCE_ORIGINS = "origines_autorisees"
-# What the old format adds up to check a file; read to verify, never carried.
+# Ce que l'ancien format additionne pour contrôler un fichier ; lu pour vérifier, jamais transporté.
 CHECKSUM = "checksum"
 CHECKSUM_PREFIX = "sha256:"
 CHECKSUMMED = ("username", "password", "totp_cle", SOURCE_ORIGINS)
-# Values of the old file that are kept out of every output, carried or not.
+# Valeurs de l'ancien fichier qui sont tenues hors de toute sortie, transportées ou non.
 UNSHOWN = ("username", "password", "totp_cle", "ntfy_topic")
-# What the volume says when it refuses a source, and the word printed for it.
+# Ce que dit le volume quand il refuse une source, et le mot qu'on en imprime.
 _SOURCE_REFUSALS = {"bad_mode": "source_mode", "outside_volume": "source_not_in_volume"}
 
 
 class ImportRefused(Exception):
-    """A foreseen refusal of the conversion; ``code`` is the stable word printed after ``error:``."""
+    """Un refus prévu de la conversion ; ``code`` est le mot stable imprimé après ``error:``."""
 
     def __init__(self, code: str, detail: str = "") -> None:
         super().__init__(code)
@@ -51,7 +51,7 @@ class ImportRefused(Exception):
 
 @dataclass(frozen=True)
 class Dependencies:
-    """What the command reads from its surroundings; the tests give it others."""
+    """Ce que la commande lit de son environnement ; les tests lui en donnent d'autres."""
 
     load_profile: Callable[[], operator_profile.Profile]
     mount_checker: MountChecker
@@ -63,7 +63,7 @@ def production_dependencies() -> Dependencies:
 
 class _Parser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
-        # The message of argparse repeats what was typed: only the word leaves.
+        # Le message d'argparse répète ce qui a été tapé : seul le mot sort.
         raise ImportRefused("invalid_arguments")
 
 
@@ -83,7 +83,7 @@ def _origin(text: str) -> Origin:
 
 
 def _hosts_as_origins(hosts: object) -> list[Origin] | None:
-    """The sites of an old file as https origins; ``None`` unless every entry is a plain host name."""
+    """Les sites d'un ancien fichier comme origines https ; ``None`` sauf si chaque entrée est un nom d'hôte simple."""
     if not isinstance(hosts, list) or not hosts:
         return None
     found = []
@@ -94,7 +94,7 @@ def _hosts_as_origins(hosts: object) -> list[Origin] | None:
             origin = parse_origin(f"https://{host}")
         except OriginError:
             return None
-        # A port, a capital or a trailing dot is not a plain host name of the old format.
+        # Un port, une majuscule ou un point final n'est pas un nom d'hôte simple de l'ancien format.
         if origin.port != DEFAULT_PORTS["https"] or origin.canonical != f"https://{host}":
             return None
         found.append(origin)
@@ -120,7 +120,7 @@ def _read_source(volume: Volume, path: str) -> dict[str, Any]:
         raise ImportRefused("source_invalid") from None
     if not isinstance(data, dict):
         raise ImportRefused("source_invalid")
-    # From here the values are in memory: nothing that is printed may carry them.
+    # À partir d'ici les valeurs sont en mémoire : rien de ce qui est imprimé ne doit les porter.
     for key in UNSHOWN:
         if isinstance(data.get(key), str):
             register_secret(data[key])
@@ -197,15 +197,15 @@ def _convert(argv: Sequence[str], dependencies: Dependencies) -> dict[str, Any]:
 
 
 def _emit(stream: TextIO, text: str) -> None:
-    # The one place anything is written: the registered values are gone from it.
+    # Le seul endroit où quoi que ce soit est écrit : les valeurs enregistrées en ont disparu.
     stream.write(redact_text(text) + "\n")
     stream.flush()
 
 
 def run(argv: Sequence[str], dependencies: Dependencies, stdout: TextIO, stderr: TextIO) -> int:
-    """Convert one file; 0 and one line of JSON on success, 1 and one line ``error: <code>`` on refusal."""
+    """Convertir un fichier ; 0 et une ligne de JSON en cas de succès, 1 et une ligne ``error: <code>`` en cas de refus."""
     try:
-        # Before the first value is read: a crash must leave no core file.
+        # Avant que la première valeur soit lue : un plantage ne doit laisser aucun fichier core.
         hardening.disable_core_dumps()
         summary = _convert(argv, dependencies)
     except ImportRefused as refused:
@@ -214,7 +214,7 @@ def run(argv: Sequence[str], dependencies: Dependencies, stdout: TextIO, stderr:
     except ToolError as refused:
         _emit(stderr, f"error: {refused.code}")
         return 1
-    except Exception:  # noqa: BLE001 - nothing of an unexpected failure may reach the output
+    except Exception:  # noqa: BLE001 - rien d'un échec imprévu ne doit atteindre la sortie
         _emit(stderr, "error: internal_error")
         return 1
     _emit(stdout, json.dumps(summary))

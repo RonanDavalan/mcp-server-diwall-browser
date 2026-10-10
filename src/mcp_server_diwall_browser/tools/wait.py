@@ -1,9 +1,9 @@
-"""Tool wait: wait for the load, a text or an element, never for a quiet network.
+"""Outil wait : attendre le chargement, un texte ou un élément, jamais un réseau calme.
 
-Why this module exists:
-    Pages that poll never become quiet, and a fixed delay is either too short
-    or wasted. Waiting is for something the page shows; text and elements
-    are read only on an allowed site.
+Pourquoi ce module existe :
+    Les pages qui interrogent sans cesse ne deviennent jamais calmes, et un délai fixe est soit trop
+    court soit gaspillé. Attendre sert à quelque chose que la page montre ; textes et éléments ne sont
+    lus que sur un site autorisé.
 """
 
 from __future__ import annotations

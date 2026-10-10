@@ -1,12 +1,11 @@
-"""Evidence of irreversible actions and downloaded files, inside the encrypted volume only.
+"""Preuves des actions irréversibles et fichiers téléchargés, à l'intérieur du volume chiffré seulement.
 
-Why this module exists:
-    A capture of an authenticated page or a downloaded document written
-    while the volume is closed lands in clear text on the disk. Evidence and
-    downloads therefore go through the volume facade, which checks the mount
-    on every write and has no fallback; a download is named by the browser
-    with an identifier, then renamed from the page's suggestion reduced to
-    safe characters, so no text of the page ever becomes a path.
+Pourquoi ce module existe :
+    Une capture d'une page authentifiée ou un document téléchargé, écrits pendant que le volume est
+    fermé, atterrissent en clair sur le disque. Les preuves et les téléchargements passent donc par la
+    façade du volume, qui contrôle le montage à chaque écriture et n'a aucun repli ; un téléchargement
+    est nommé par le navigateur avec un identifiant, puis renommé d'après la suggestion de la page
+    réduite à des caractères sûrs, si bien qu'aucun texte de la page ne devient jamais un chemin.
 """
 
 from __future__ import annotations
@@ -36,7 +35,7 @@ def _today() -> str:
 
 
 class EvidenceWriter:
-    """Writes captures under ``evidence/<YYYY-MM-DD>/<operation_id>/``; never purges any."""
+    """Écrit les captures sous ``evidence/<AAAA-MM-JJ>/<operation_id>/`` ; n'en purge jamais."""
 
     def __init__(self, volume: Volume, *, today: Callable[[], str] = _today) -> None:
         self._volume = volume
@@ -58,7 +57,7 @@ class EvidenceWriter:
 
 
 class DownloadManager:
-    """Sends downloads into the volume, or forbids them when it is closed."""
+    """Envoie les téléchargements dans le volume, ou les interdit quand il est fermé."""
 
     def __init__(self, volume: Volume, connection: CdpConnection) -> None:
         self._volume = volume
@@ -67,14 +66,14 @@ class DownloadManager:
         self._pending: dict[str, tuple[tuple[str, ...], str]] = {}
         self._notices: list[str] = []
         self._begun = asyncio.Event()
-        # Downloads the browser announced and has not yet reported a first progress for.
+        # Téléchargements que le navigateur a annoncés et pour lesquels il n'a pas encore rapporté de première progression.
         self._unacknowledged: set[str] = set()
         self._acknowledged = asyncio.Event()
         self._acknowledged.set()
         connection.add_event_handler(self._on_event)
 
     async def prepare(self, operation_id: str) -> str:
-        """Before a gesture that may start a download: where it would go, or ``deny``."""
+        """Avant un geste qui peut déclencher un téléchargement : où il irait, ou ``deny``."""
         parts = (DOWNLOADS_DIR, safe_name(operation_id))
         self._begun.clear()
         self._unacknowledged.clear()
@@ -93,16 +92,14 @@ class DownloadManager:
         return "allowAndName"
 
     async def wait_begin(self, timeout_s: float) -> bool:
-        """Wait for a download to begin after the last ``prepare``; a download starts a moment after the gesture.
+        """Attendre qu'un téléchargement commence après le dernier ``prepare`` ; un téléchargement démarre un instant après le geste.
 
-        The browser announces a download before it has chosen the behaviour
-        that applies to it. A setting changed in between refuses the download
-        without any event (measured: about one download in ten when the
-        setting was closed at the announcement). So once a download is
-        announced this also waits, for at most ``timeout_s`` again, until the
-        browser has reported a first progress for each one announced, and
-        closes the setting after that: no download was lost that way in the
-        runs measured, though a first progress is not proof of the choice.
+        Le navigateur annonce un téléchargement avant d'avoir choisi le comportement qui s'y applique. Un
+        réglage changé entre-temps refuse le téléchargement sans aucun événement (mesuré : environ un
+        téléchargement sur dix quand le réglage était fermé à l'annonce). Donc, une fois un téléchargement
+        annoncé, ceci attend aussi, au plus ``timeout_s`` de nouveau, que le navigateur ait rapporté une
+        première progression pour chacun de ceux annoncés, et ferme le réglage ensuite : aucun téléchargement
+        n'a été perdu ainsi dans les exécutions mesurées, bien qu'une première progression ne prouve pas le choix.
         """
         try:
             await asyncio.wait_for(self._begun.wait(), timeout_s)
@@ -115,16 +112,14 @@ class DownloadManager:
         return True
 
     async def forbid(self) -> None:
-        """Close the window a gesture opened: no download starts between two actions.
+        """Fermer la fenêtre qu'un geste a ouverte : aucun téléchargement ne démarre entre deux actions.
 
-        A page can start a download whenever it likes. The setting given
-        before a gesture names a directory of the volume; left open, it would
-        keep sending files there after the volume is closed, and the browser
-        creates a missing directory itself, parents included, which is outside
-        the volume and in clear. A download already begun is not cancelled
-        (measured): it is tracked by its identifier and settled when it ends.
-        If the call fails the connection is gone, and the setting ends with
-        the connection.
+        Une page peut lancer un téléchargement quand elle veut. Le réglage donné avant un geste nomme un
+        répertoire du volume ; laissé ouvert, il continuerait d'y envoyer des fichiers après la fermeture du
+        volume, et le navigateur crée lui-même un répertoire manquant, parents compris, ce qui est hors du
+        volume et en clair. Un téléchargement déjà commencé n'est pas annulé (mesuré) : il est suivi par son
+        identifiant et réglé quand il se termine. Si l'appel échoue, la connexion a disparu, et le réglage
+        s'achève avec la connexion.
         """
         self._directory = None
         try:
@@ -133,7 +128,7 @@ class DownloadManager:
             _log.warning("the download setting could not be closed (%s)", type(exc).__name__)
 
     async def restore_default(self) -> None:
-        """Give the browser back its own download behaviour, when the server stops."""
+        """Rendre au navigateur son propre comportement de téléchargement, quand le serveur s'arrête."""
         await self._connection.send("Browser.setDownloadBehavior", {"behavior": "default"})
 
     def drain_notices(self) -> list[str]:
@@ -176,5 +171,5 @@ class DownloadManager:
             _log.warning("a downloaded file could not be settled (%s)", type(exc).__name__)
             self._notices.append("un fichier téléchargé n'a pas pu être rangé dans le répertoire chiffré")
             return
-        # Only the reduced name is said; the file itself is page data, never opened.
+        # Seul le nom réduit est dit ; le fichier lui-même est une donnée de page, jamais ouvert.
         self._notices.append(f"fichier téléchargé dans le répertoire chiffré : {final.name}")

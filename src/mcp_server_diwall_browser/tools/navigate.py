@@ -1,9 +1,8 @@
-"""Tool navigate: load an http or https address in a tab of the server.
+"""Outil navigate : charger une adresse http ou https dans un onglet du serveur.
 
-Why this module exists:
-    Going to see is never locked: any site can be loaded, only actions are
-    bound to the operator's list of sites. The scheme is checked, the load
-    is waited for, never a quiet network.
+Pourquoi ce module existe :
+    Aller voir n'est jamais verrouillé : tout site peut être chargé, seules les actions sont liées à la
+    liste de sites de l'opérateur. Le schéma est contrôlé, le chargement est attendu, jamais un réseau calme.
 """
 
 from __future__ import annotations

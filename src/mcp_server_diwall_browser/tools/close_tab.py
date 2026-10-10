@@ -1,8 +1,8 @@
-"""Tool close_tab: close a tab the server owns.
+"""Outil close_tab : fermer un onglet que le serveur possède.
 
-Why this module exists:
-    A tab the server opened can be closed by it; any other tab of the
-    browser is the operator's and is never touched.
+Pourquoi ce module existe :
+    Un onglet que le serveur a ouvert peut être fermé par lui ; tout autre onglet du navigateur est
+    celui de l'opérateur et n'est jamais touché.
 """
 
 from __future__ import annotations

@@ -1,11 +1,10 @@
-"""The security gate: which actions need a human, and how fast the model may act.
+"""La porte de sécurité : quelles actions exigent un humain, et à quelle vitesse le modèle peut agir.
 
-Why this module exists:
-    A page writes the text of its buttons and may lie to the model about
-    what a click does. Whatever the model believes, a payment, an
-    irreversible deletion or a change of secret must not leave without a
-    human's consent; and a hostile page must not drive the model into an
-    endless loop. Both rules are fixed here, in code, and nowhere else.
+Pourquoi ce module existe :
+    Une page écrit le texte de ses boutons et peut mentir au modèle sur ce que fait un clic. Quoi
+    que croie le modèle, un paiement, une suppression irréversible ou un changement de secret ne
+    doit pas partir sans le consentement d'un humain ; et une page hostile ne doit pas entraîner le
+    modèle dans une boucle sans fin. Les deux règles sont fixées ici, dans le code, et nulle part ailleurs.
 """
 
 from __future__ import annotations
@@ -24,13 +23,13 @@ from .output import ToolError
 CATEGORIES = ("payment", "deletion", "secret_change")
 INTENT_CATEGORIES = frozenset({"read", "edit", "submit", *CATEGORIES})
 
-# Gestures the gate looks at. Filling a field, choosing an option, going to
-# a page, scrolling and waiting are never locked.
+# Gestes que la porte regarde. Remplir un champ, choisir une option, aller à une page, défiler et
+# attendre ne sont jamais verrouillés.
 EVALUATED_GESTURES = frozenset({"click", "enter_key", "dialog_accept"})
 
-# Phrases that arm the gate, compared word by word after normalization. A
-# false positive adds a confirmation, a false negative lets an action leave
-# unconfirmed: the list leans towards arming.
+# Expressions qui arment la porte, comparées mot à mot après normalisation. Un faux positif ajoute
+# une confirmation, un faux négatif laisse partir une action sans confirmation : la liste penche
+# vers l'armement.
 VOCABULARY: Mapping[str, tuple[str, ...]] = MappingProxyType(
     {
         "payment": (
@@ -86,7 +85,7 @@ VOCABULARY: Mapping[str, tuple[str, ...]] = MappingProxyType(
 
 
 def normalize(text: object) -> str:
-    """Lower case, accents removed, anything but letters and digits made a space."""
+    """Minuscules, accents retirés, tout ce qui n'est pas lettre ni chiffre devenu une espace."""
     if not isinstance(text, str):
         return ""
     decomposed = unicodedata.normalize("NFKD", text.lower())
@@ -100,7 +99,7 @@ _PHRASES: dict[str, tuple[tuple[str, ...], ...]] = {
 
 
 def phrase_in(phrase: tuple[str, ...], words: list[str]) -> bool:
-    """Whole words in a row: ``commander`` is not found in ``recommander``."""
+    """Des mots entiers à la suite : ``commander`` n'est pas trouvé dans ``recommander``."""
     size = len(phrase)
     return any(tuple(words[i : i + size]) == phrase for i in range(len(words) - size + 1))
 
@@ -116,7 +115,7 @@ def vocabulary_categories(texts: Iterable[object]) -> list[str]:
 
 
 class GateElement(Protocol):
-    """What the gate reads of a marked element (filled by the perception)."""
+    """Ce que la porte lit d'un élément repéré (rempli par la perception)."""
 
     name: str
     form_has_card_field: bool
@@ -149,12 +148,11 @@ def classify(
     snapshot: GateSnapshot | None,
     dialog_message: str | None = None,
 ) -> GateDecision:
-    """Whether an action needs a human's confirmation, and why.
+    """Dit si une action exige la confirmation d'un humain, et pourquoi.
 
-    ``action_kind`` is the gesture: ``click``, ``enter_key`` (Enter on a
-    marked element) or ``dialog_accept``; any other gesture is never
-    evaluated. The model's declared category can arm the gate, never disarm
-    it: every signal only adds.
+    ``action_kind`` est le geste : ``click``, ``enter_key`` (Entrée sur un élément repéré) ou
+    ``dialog_accept`` ; tout autre geste n'est jamais évalué. La catégorie déclarée par le modèle peut
+    armer la porte, jamais la désarmer : chaque signal ne fait qu'ajouter.
     """
     if action_kind not in EVALUATED_GESTURES:
         return NOT_ARMED
@@ -177,8 +175,8 @@ def classify(
     if snapshot is not None and snapshot.page_has_card_field:
         add("payment", "card_field_on_page")
     if ref is not None and action_kind != "dialog_accept":
-        # Enter in any field of a form may submit it; a click submits only
-        # through a submit control.
+        # Entrée dans n'importe quel champ d'un formulaire peut le soumettre ; un clic ne soumet que par
+        # un contrôle de soumission.
         submits = ref.is_submit_like or (action_kind == "enter_key" and ref.form_backend_id is not None)
         if ref.form_has_card_field and submits:
             add("payment", "card_field_in_form")
@@ -188,7 +186,7 @@ def classify(
     return GateDecision(armed=bool(ordered), categories=ordered, signals=tuple(signals))
 
 
-# --- Pace and ceilings ------------------------------------------------------------------------
+# --- Rythme et plafonds -------------------------------------------------------------------
 
 ACTION_KINDS = frozenset({"open_tab", "navigate", "scroll", "click", "fill", "select_option", "press_key", "handle_dialog"})
 PAGE_KINDS = frozenset({"open_tab", "navigate"})
@@ -200,11 +198,11 @@ _LIMIT_MESSAGE = (
 
 
 class Pacer:
-    """Minimal delay between two actions, and ceilings of actions and pages per process.
+    """Délai minimal entre deux actions, et plafonds d'actions et de pages par processus.
 
-    The defaults hold with no profile at all: a protection that depends on an
-    optional file is missing exactly where nobody wrote it. The limits are
-    read again on every call, so a change of the profile applies at once.
+    Les valeurs par défaut tiennent sans aucun profil : une protection qui dépend d'un fichier
+    facultatif manque exactement là où personne ne l'a écrit. Les limites sont relues à chaque appel,
+    si bien qu'un changement du profil s'applique aussitôt.
     """
 
     def __init__(
@@ -222,7 +220,7 @@ class Pacer:
         self._last: float | None = None
 
     async def before_action(self, kind: str) -> None:
-        """Count an attempt, or refuse it at a ceiling; then keep the pace."""
+        """Compter une tentative, ou la refuser à un plafond ; puis tenir le rythme."""
         if kind not in ACTION_KINDS:
             raise ValueError(f"not an action that counts: {kind!r}")
         limits = self._limits_provider()

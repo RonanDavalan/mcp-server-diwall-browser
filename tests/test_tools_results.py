@@ -1,4 +1,4 @@
-"""What each tool returns, checked through the SDK's client, each check with a defective tool it must catch."""
+"""Ce que rend chaque outil, contrôlé par le client du SDK, chaque contrôle avec un outil défectueux qu'il doit attraper."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ ToolRun = Callable[..., Awaitable[ToolOutput]]
 
 
 def replaced(server: FastMCP, name: str, run: ToolRun, module: Any) -> FastMCP:
-    """The same server with one tool swapped for a version written by the test, through the exit point."""
+    """Le même serveur avec un outil remplacé par une version écrite par le test, par le point de sortie."""
     state = server._tool_manager.get_tool("status").state  # type: ignore[union-attr]
     mutating = dict(TOOLS)[name]
     swapped = SimpleNamespace(run=tool(name)(run), Arguments=module.Arguments)
@@ -46,7 +46,7 @@ Check = Callable[[Rig, FastMCP], Awaitable[None]]
 
 
 def code_of(envelope: dict[str, Any]) -> str | None:
-    """The refusal's code, or None for a result that is not a refusal."""
+    """Le code du refus, ou None pour un résultat qui n'est pas un refus."""
     return (envelope["server"].get("error") or {}).get("code")
 
 
@@ -58,7 +58,7 @@ async def holds(check: Check, rig: Rig, server: FastMCP) -> bool:
     return True
 
 
-# --- wait ---------------------------------------------------------------------------------------------
+# --- wait -------------------------------------------------------------------------------------------
 
 
 async def check_wait(rig: Rig, server: FastMCP) -> None:
@@ -79,12 +79,12 @@ async def check_wait(rig: Rig, server: FastMCP) -> None:
 
 
 async def wait_that_ignores_the_deadline(ctx: Any, *, tab_id: str, for_: str, value: Any, timeout_s: float) -> ToolOutput:
-    # Defective: gives up without saying that the deadline passed.
+    # Défectueux : abandonne sans dire que l'échéance est passée.
     return ToolOutput(server={"tab_id": tab_id, "met": False, "dialog_open": False})
 
 
 async def wait_that_never_looks(ctx: Any, *, tab_id: str, for_: str, value: Any, timeout_s: float) -> ToolOutput:
-    # Defective: says what was waited for has come, without reading the page.
+    # Défectueux : dit que ce qu'on attendait est arrivé, sans lire la page.
     return ToolOutput(server={"tab_id": tab_id, "met": True, "dialog_open": False})
 
 
@@ -97,7 +97,7 @@ async def test_wait_check_catches_a_wait_that_does_not_read_or_ignores_the_deadl
     assert not await holds(check_wait, rig, replaced(create_server(rig.deps()), "wait", defective, wait))
 
 
-# --- select_option ---------------------------------------------------------------------------------------
+# --- select_option ----------------------------------------------------------------------------------
 
 
 async def check_select_option(rig: Rig, server: FastMCP) -> None:
@@ -114,7 +114,7 @@ async def check_select_option(rig: Rig, server: FastMCP) -> None:
 
 
 async def select_that_does_nothing(ctx: Any, *, tab_id: str, snapshot_id: str, mark: int, option: str, intent: str) -> ToolOutput:
-    # Defective: reports a choice it never made, whatever the option.
+    # Défectueux : rapporte un choix qu'il n'a jamais fait, quelle que soit l'option.
     return ToolOutput(server={"tab_id": tab_id, "mark": mark, "action": "select_option", "gate": {"red_list": False, "confirmation": "none"}})
 
 
@@ -126,7 +126,7 @@ async def test_select_check_catches_a_tool_that_reports_a_choice_it_never_made(r
     assert not await holds(check_select_option, rig, replaced(create_server(rig.deps()), "select_option", select_that_does_nothing, select_option))
 
 
-# --- press_key ------------------------------------------------------------------------------------------
+# --- press_key --------------------------------------------------------------------------------------
 
 
 async def check_press_key(rig: Rig, server: FastMCP) -> None:
@@ -140,7 +140,7 @@ async def check_press_key(rig: Rig, server: FastMCP) -> None:
     downs = [params for _, params in rig.browser.keys if params["type"] == "keyDown"]
     assert [params["key"] for params in downs] == ["Tab", "Enter"]
     assert downs[1].get("text") == "\r"
-    # Enter went to the marked field: it holds the focus.
+    # Entrée est allée au champ repéré : il tient le focus.
     field = next(element for element in rig.page_of(URL)._elements() if element.name == "Pseudonyme")
     assert list(rig.browser.focus.values()) == [field.backend_id]
 
@@ -148,7 +148,7 @@ async def check_press_key(rig: Rig, server: FastMCP) -> None:
 async def press_that_sends_nothing(
     ctx: Any, *, tab_id: str, key: str, snapshot_id: str | None, mark: int | None, intent: str
 ) -> ToolOutput:
-    # Defective: answers like the action without sending any key.
+    # Défectueux : répond comme l'action sans envoyer aucune touche.
     server: dict[str, Any] = {"tab_id": tab_id, "action": "press_key", "origin": "https://shop.example.test"}
     if mark is not None:
         server["mark"] = mark
@@ -163,7 +163,7 @@ async def test_press_key_check_catches_a_tool_that_sends_nothing(rig: Rig) -> No
     assert not await holds(check_press_key, rig, replaced(create_server(rig.deps()), "press_key", press_that_sends_nothing, press_key))
 
 
-# --- close_tab -----------------------------------------------------------------------------------------
+# --- close_tab --------------------------------------------------------------------------------------
 
 
 async def check_close_tab(rig: Rig, server: FastMCP) -> None:
@@ -180,7 +180,7 @@ async def check_close_tab(rig: Rig, server: FastMCP) -> None:
 
 
 async def close_that_closes_nothing(ctx: Any, *, tab_id: str) -> ToolOutput:
-    # Defective: says the tab is closed and leaves it open.
+    # Défectueux : dit que l'onglet est fermé et le laisse ouvert.
     return ToolOutput(server={"tab_id": tab_id, "closed": True})
 
 
@@ -192,9 +192,9 @@ async def test_close_check_catches_a_tool_that_closes_nothing(rig: Rig) -> None:
     assert not await holds(check_close_tab, rig, replaced(create_server(rig.deps()), "close_tab", close_that_closes_nothing, close_tab))
 
 
-# --- observe ------------------------------------------------------------------------------------------
+# --- observe ----------------------------------------------------------------------------------------
 
-# What the perception states about an observation, and what the exit point adds to every result.
+# Ce que la perception énonce d'une observation, et ce que le point de sortie ajoute à chaque résultat.
 OBSERVE_SERVER_KEYS = {"tab_id", "snapshot_id", "origin", "loader_id", "viewport", "counters", "dialog_open"}
 ENVELOPE_SERVER_KEYS = {"operation_id", "tool", "notices", "capture"}
 VIEWPORT_KEYS = {"width", "height", "scroll_x", "scroll_y", "content_height"}
@@ -205,7 +205,7 @@ async def check_observe(rig: Rig, server: FastMCP) -> None:
     async with client_of(server) as client:
         opened = await client.call("open_tab", url=URL)
         tab = opened["server"]["tab_id"]
-        # A taller page, scrolled: the viewport must say where the view is and how far the document extends.
+        # Une page plus haute, défilée : la fenêtre d'affichage doit dire où est la vue et jusqu'où le document s'étend.
         page = rig.page_of(URL)
         page.viewport, page.content_size = (0, 300, 800, 600), (800, 2000)
         with_image = await client.call("observe", tab_id=tab)
@@ -225,7 +225,7 @@ async def check_observe(rig: Rig, server: FastMCP) -> None:
 
 
 async def observe_without_counters(ctx: Any, *, tab_id: str, include: list[str] | None) -> ToolOutput:
-    # Defective: the real observation, with the counters and the document identity left out.
+    # Défectueux : la vraie observation, avec les compteurs et l'identité du document laissés de côté.
     output = await observe.run.__wrapped__(ctx, tab_id=tab_id, include=include)
     server = {key: value for key, value in output.server.items() if key not in ("counters", "loader_id")}
     return ToolOutput(server=server, page_content=output.page_content, image_png=output.image_png)
@@ -249,11 +249,11 @@ async def test_a_refusal_from_the_defective_versions_still_leaves_through_the_ex
     assert code_of(refused) == "tab_not_owned"
 
 
-# --- the version a client can read --------------------------------------------------------------------
+# --- la version qu'un client peut lire --------------------------------------------------------------
 
 
 async def test_the_server_version_comes_from_status_not_from_the_announcement(tmp_path: Path) -> None:
-    # The operator guide sends the operator to status for the version; this keeps it true.
+    # Le guide de l'opérateur renvoie l'opérateur à status pour la version ; ceci le garde vrai.
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
     env = {"HOME": str(home), "XDG_CONFIG_HOME": str(tmp_path / "config")}

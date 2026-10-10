@@ -1,10 +1,10 @@
-"""Factory of the MCP server: what it is built from, how a tool call goes through it.
+"""Fabrique du serveur MCP : de quoi il est construit, comment un appel d'outil le traverse.
 
-Why this module exists:
-    The libraries of the server each guard one thing; something has to put
-    them together, once, the same way in production and in the tests. Every
-    dependency the tests replace is a field of ``Dependencies``, given to the
-    one factory: there is no switch, variable or file that turns a check off.
+Pourquoi ce module existe :
+    Les bibliothèques du serveur gardent chacune une chose ; il faut bien quelque chose pour les
+    assembler, une fois, de la même façon en production et dans les tests. Chaque dépendance que les
+    tests remplacent est un champ de ``Dependencies``, donné à l'unique fabrique : il n'y a ni
+    interrupteur, ni variable, ni fichier qui désactive un contrôle.
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ from .perception import MaskDrawer, Perception, draw_mask
 SERVER_NAME = "mcp-server-diwall-browser"
 PACKAGE_NAME = "mcp-server-diwall-browser"
 
-# The fourteen tools, in the order of the operator's table, and whether each changes the page.
+# Les quatorze outils, dans l'ordre du tableau de l'opérateur, et si chacun change la page.
 TOOLS: tuple[tuple[str, bool], ...] = (
     ("status", False),
     ("list_tabs", False),
@@ -68,22 +68,22 @@ JournalFactory = Callable[[Volume, Callable[[], ClientInfo | None]], Journal]
 
 @dataclass
 class Dependencies:
-    """What the server is built from; the tests replace these, and only these."""
+    """De quoi le serveur est construit ; les tests remplacent ceux-ci, et seulement ceux-ci."""
 
     load_profile: Callable[[], Profile]
     mount_checker: MountChecker
     cdp_factory: Callable[[], CdpConnection]
     http_get: HttpGet
     proc_net: ProcNetReader
-    # The confirmation window: where its tools are found, and the environment
-    # it is shown in (``None``: the server's own).
+    # La fenêtre de confirmation : où trouver ses outils, et l'environnement dans lequel elle est montrée
+    # (``None`` : celui du serveur lui-même).
     which: Callable[[str], str | None]
     environ: Mapping[str, str] | None
     clock: Callable[[], float]
     sleep: Callable[[float], Awaitable[Any]]
     mask_drawer: MaskDrawer
     journal: JournalFactory
-    # Delays of the actions and of the confirmation, the decided values by default.
+    # Délais des actions et de la confirmation, les valeurs décidées par défaut.
     settle_start_s: float = SETTLE_START_S
     settle_load_s: float = SETTLE_LOAD_S
     settle_download_start_s: float = SETTLE_DOWNLOAD_START_S
@@ -91,7 +91,7 @@ class Dependencies:
 
 
 def production_dependencies() -> Dependencies:
-    """The real ones: the operator's profile, the kernel's tables, the browser, the clock."""
+    """Les vraies : le profil de l'opérateur, les tables du noyau, le navigateur, l'horloge."""
     return Dependencies(
         load_profile=load_profile,
         mount_checker=MountChecker(),
@@ -109,7 +109,7 @@ def production_dependencies() -> Dependencies:
 
 @dataclass
 class BrowserSession:
-    """One connection to the browser and what lives on it; a new connection gets new ones."""
+    """Une connexion au navigateur et ce qui vit dessus ; une nouvelle connexion en reçoit de nouveaux."""
 
     attachment: BrowserAttachment
     registry: TabRegistry
@@ -124,10 +124,9 @@ class BrowserSession:
 
 
 class ServerState:
-    """What the server keeps between two calls: the browser session, the journals, the ceilings.
+    """Ce que le serveur garde entre deux appels : la session du navigateur, les journaux, les plafonds.
 
-    The profile is read again on every call, as the operator may change it
-    without restarting the server.
+    Le profil est relu à chaque appel, car l'opérateur peut le changer sans redémarrer le serveur.
     """
 
     def __init__(self, deps: Dependencies) -> None:
@@ -153,8 +152,8 @@ class ServerState:
         return self._deps.load_profile()
 
     def _limits(self) -> Limits:
-        # The ceilings hold without a readable profile: a protection that
-        # depends on an optional file is missing where nobody wrote it.
+        # Les plafonds tiennent sans profil lisible : une protection qui dépend d'un fichier facultatif manque
+        # là où personne ne l'a écrit.
         try:
             return self.profile().limits
         except ToolError:
@@ -180,7 +179,7 @@ class ServerState:
             self._journals[key] = journal
         return journal
 
-    # --- who the client is -------------------------------------------------------------------
+    # --- qui est le client ----------------------------------------------------------
 
     def client_info(self) -> ClientInfo | None:
         return self._client_info
@@ -191,14 +190,14 @@ class ServerState:
         if info is not None:
             self._client_info = (getattr(info, "name", None), getattr(info, "version", None))
 
-    # --- the journal of every call ---------------------------------------------------------------
+    # --- le journal de chaque appel -------------------------------------------------
 
     @property
     def operations_not_journaled(self) -> int:
         return self._not_journaled + sum(journal.operations_not_journaled for journal in self._journals.values())
 
     def journal_call(self, name: str, mutating: bool, envelope: dict[str, Any], intent: object) -> None:
-        """The final line of a call, written from its result; the line before an armed action is the action's."""
+        """La ligne finale d'un appel, écrite d'après son résultat ; la ligne qui précède une action armée est celle de l'action."""
         server = envelope.get("server") or {}
         error = server.get("error") if isinstance(server.get("error"), dict) else None
         gate = server.get("gate") if isinstance(server.get("gate"), dict) else {}
@@ -217,7 +216,7 @@ class ServerState:
         try:
             journal = self.journal(self.profile())
         except ToolError as exc:
-            # No profile, no volume to write in: counted, said once, never blocking.
+            # Pas de profil, pas de volume où écrire : compté, dit une fois, jamais bloquant.
             self._not_journaled += 1
             if not self._warned_not_journaled:
                 self._warned_not_journaled = True
@@ -225,10 +224,10 @@ class ServerState:
             return
         journal.write(entry)
 
-    # --- the browser ---------------------------------------------------------------------------
+    # --- le navigateur --------------------------------------------------------------
 
     async def browser(self) -> BrowserSession:
-        """The live session, attaching first if there is none or the last one was lost."""
+        """La session vivante, en se rattachant d'abord s'il n'y en a pas ou si la dernière a été perdue."""
         async with self._attach_lock:
             if self._session is not None and self._session.alive:
                 return self._session
@@ -243,9 +242,9 @@ class ServerState:
             )
             volume = self.volume(profile)
             downloads = DownloadManager(volume, attachment.connection)
-            # Until a gesture opens it, the download setting is closed: a page
-            # download between the attachment and the first action would go
-            # wherever the browser's own settings say, outside the volume.
+            # Tant qu'un geste ne l'ouvre pas, le réglage de téléchargement est fermé : un téléchargement de page
+            # entre le rattachement et la première action irait là où les réglages propres du navigateur le disent,
+            # hors du volume.
             await downloads.forbid()
             registry = TabRegistry(attachment.connection)
             perception = Perception(
@@ -264,9 +263,9 @@ class ServerState:
             return self._session
 
     async def close(self) -> None:
-        """When the server stops: downloads back to the browser's own setting, connection closed.
+        """Quand le serveur s'arrête : téléchargements rendus au réglage propre du navigateur, connexion fermée.
 
-        The tabs the server opened stay open, and the browser keeps running.
+        Les onglets que le serveur a ouverts restent ouverts, et le navigateur continue de tourner.
         """
         async with self._attach_lock:
             await self._close_session()
@@ -284,7 +283,7 @@ class ServerState:
 
 
 def journal_intent(intent: object, typed: object) -> str:
-    """The model's intent, followed by what was typed, as a marker: never the value itself."""
+    """L'intention du modèle, suivie de ce qui a été tapé, sous forme de marqueur : jamais la valeur elle-même."""
     text = intent if isinstance(intent, str) else ""
     if not isinstance(typed, str) or not typed:
         return text[:INTENT_LIMIT]
@@ -300,13 +299,13 @@ def _client_params(context: Context[Any, Any, Any] | None) -> Any:
 
 
 class _Approval(BaseModel):
-    """What the client's own confirmation asks: one yes or no."""
+    """Ce que demande la confirmation propre du client : un oui ou un non."""
 
     approve: bool = Field(description="True to let this one action go ahead.")
 
 
 class ToolContext:
-    """What a tool reaches during one call: the server's state and this call's client."""
+    """Ce qu'un outil atteint pendant un appel : l'état du serveur et le client de cet appel."""
 
     def __init__(self, state: ServerState, mcp: Context[Any, Any, Any] | None) -> None:
         self._state = state
@@ -348,7 +347,7 @@ class ToolContext:
         )
 
     def channel(self, profile: Profile) -> Channel:
-        """Where a confirmation would be asked for this call, chosen as decided by the confirmation module."""
+        """Où une confirmation serait demandée pour cet appel, choisi comme le décide le module de confirmation."""
         deps = self._state.deps
         if deps.environ is None:
             native = NativeDialogChannel(which=deps.which, timeout_s=deps.confirmation_timeout_s)
@@ -366,7 +365,7 @@ class ToolContext:
         return "none"
 
     def client_elicits(self) -> bool:
-        """Whether the client said, when the session opened, that it can ask its user."""
+        """Dit si le client a déclaré, à l'ouverture de la session, qu'il peut interroger son utilisateur."""
         try:
             session = self._mcp.request_context.session  # type: ignore[union-attr]
         except (AttributeError, LookupError, ValueError):
@@ -378,12 +377,12 @@ class ToolContext:
         if self._mcp is None:
             return None
         result = await self._mcp.elicit(text, _Approval)
-        # Consent is an accepted answer that says yes; anything else is no.
+        # Le consentement est une réponse acceptée qui dit oui ; tout le reste est non.
         return result.action == "accept" and getattr(result.data, "approve", False) is True
 
     @staticmethod
     def outcome(outcome: ActionOutcome) -> ToolOutput:
-        """What an action reports, as it reports it: its notices are passed on untouched."""
+        """Ce qu'une action rapporte, tel qu'elle le rapporte : ses avis sont transmis intacts."""
         server = {**outcome.server, "gate": dict(outcome.gate)}
         if outcome.typed_marker:
             server["typed"] = outcome.typed_marker
@@ -391,21 +390,21 @@ class ToolContext:
 
 
 class ToolArguments(BaseModel):
-    """Arguments of a tool: an unknown parameter is refused, never ignored; no parameter approves anything."""
+    """Arguments d'un outil : un paramètre inconnu est refusé, jamais ignoré ; aucun paramètre n'approuve quoi que ce soit."""
 
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
 
 def intent_field() -> Any:
-    """The ``intent`` parameter shared by the tools that change a page."""
+    """Le paramètre ``intent`` partagé par les outils qui changent une page."""
     return Field(default="", max_length=INTENT_LIMIT, description="Why you act, in a few words; kept in the journal.")
 
 
-# --- registration ------------------------------------------------------------------------------
+# --- enregistrement -------------------------------------------------------------
 
 
 class _ServerTool(Tool):
-    """A tool of this server: arguments checked here, result through the single exit point."""
+    """Un outil de ce serveur : arguments contrôlés ici, résultat par le point de sortie unique."""
 
     entry: Any = Field(default=None, exclude=True)
     refusal: Any = Field(default=None, exclude=True)
@@ -434,7 +433,7 @@ class _ServerTool(Tool):
 
 
 async def _no_arguments(ctx: Context[Any, Any, Any]) -> None:
-    """Gives the registered tool its place for the call's context."""
+    """Donne à l'outil enregistré sa place pour le contexte de l'appel."""
 
 
 def _argument_problems(exc: ValidationError) -> list[str]:
@@ -458,7 +457,7 @@ def _argument_refusal(name: str) -> Callable[..., Awaitable[ToolResult]]:
 
 
 def call_result(envelope: dict[str, Any], image: bytes | None) -> types.CallToolResult:
-    """The envelope as the first content, the image as the second; marked as an error when ok is false."""
+    """L'enveloppe en premier contenu, l'image en second ; marquée comme une erreur quand ok est faux."""
     content: list[types.TextContent | types.ImageContent] = [
         types.TextContent(type="text", text=json.dumps(envelope, ensure_ascii=False))
     ]
@@ -475,7 +474,7 @@ def server_version() -> str:
 
 
 def tool_modules() -> dict[str, Any]:
-    """The module of each tool; imported here, when the server is built, as the tools use this module."""
+    """Le module de chaque outil ; importé ici, à la construction du serveur, comme les outils utilisent ce module."""
     from .tools import (
         click,
         close_tab,
@@ -515,7 +514,7 @@ def tool_modules() -> dict[str, Any]:
 def registered_tool(state: ServerState, name: str, mutating: bool, module: Any) -> _ServerTool:
     entry = module.run
     if getattr(entry, EXIT_POINT_ATTRIBUTE, None) != name:
-        # A tool that does not go through the single exit point is not registered at all.
+        # Un outil qui ne passe pas par le point de sortie unique n'est pas enregistré du tout.
         raise TypeError(f"tool {name} does not go through the single exit point")
     arguments_model = module.Arguments
     description = inspect.cleandoc(entry.__doc__ or "")
@@ -534,7 +533,7 @@ def registered_tool(state: ServerState, name: str, mutating: bool, module: Any) 
 
 
 def create_server(deps: Dependencies) -> FastMCP:
-    """The one factory: production calls it with the real dependencies, the tests with theirs."""
+    """L'unique fabrique : la production l'appelle avec les vraies dépendances, les tests avec les leurs."""
     state = ServerState(deps)
     modules = tool_modules()
 

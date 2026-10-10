@@ -1,10 +1,10 @@
-"""Single exit point for everything the server returns, logs or prints.
+"""Point de sortie unique de tout ce que le serveur rend, journalise ou imprime.
 
-Why this module exists:
-    Whatever leaves the server reaches the model provider or a log file. A
-    protection written per tool or per output path is forgotten on the next
-    one, so redaction, URL cleaning, length bounds and the result envelope
-    are applied here, to every value, by one function.
+Pourquoi ce module existe :
+    Tout ce qui quitte le serveur atteint le fournisseur du modèle ou un fichier de journal. Une
+    protection écrite par outil ou par chemin de sortie est oubliée au suivant : la rédaction, le
+    nettoyage des URL, les bornes de longueur et l'enveloppe du résultat sont donc appliqués ici,
+    à chaque valeur, par une seule fonction.
 """
 
 from __future__ import annotations
@@ -31,9 +31,9 @@ TRUNCATION_MARK = "…"
 SERVER_STRING_LIMIT = 2000
 PAGE_STRING_LIMIT = 4000
 
-# Markers this module or its callers write in place of a value. They are
-# matched as a whole so that redacting a text twice does not chew them up
-# when a registered secret is a single character found inside a marker.
+# Marqueurs que ce module ou ses appelants écrivent à la place d'une valeur. Ils sont reconnus en entier
+# pour que rédiger un texte deux fois ne les grignote pas quand un secret enregistré est un seul
+# caractère qu'on trouve dans un marqueur.
 _MARKERS = (
     REDACTED,
     INVALID_URL,
@@ -110,7 +110,7 @@ _INTERNAL_ERROR_MESSAGE = "erreur interne du serveur"
 _log = logging.getLogger(__name__)
 
 
-# --- Registry of resolved secrets -------------------------------------------
+# --- Registre des secrets résolus -----------------------------------------------
 
 
 class _SecretRegistry:
@@ -129,8 +129,8 @@ class _SecretRegistry:
             if forms <= self._values:
                 return
             self._values |= forms
-            # Longest first: at any position the longest registered value
-            # wins, so a short secret never leaves the tail of a long one.
+            # Le plus long d'abord : à chaque position la valeur enregistrée la plus longue l'emporte, si bien
+            # qu'un secret court ne laisse jamais la fin d'un long.
             alternatives = sorted(self._values | set(_MARKERS), key=len, reverse=True)
             self._pattern = re.compile("|".join(re.escape(a) for a in alternatives))
 
@@ -151,24 +151,24 @@ _registry = _SecretRegistry()
 
 
 def register_secret(value: str) -> None:
-    """Remember a resolved secret so that it is redacted from every output."""
+    """Retenir un secret résolu pour qu'il soit rédigé de chaque sortie."""
     _registry.add(value)
 
 
 def redact_text(text: str) -> str:
-    """Replace every registered secret, in all its recorded forms, by a marker."""
+    """Remplacer chaque secret enregistré, sous toutes ses formes enregistrées, par un marqueur."""
     return _registry.redact(text)
 
 
-# --- URL cleaning -------------------------------------------------------------
+# --- Nettoyage des URL ----------------------------------------------------------
 
 
 def sanitize_url(url: str, *, for_journal: bool = False) -> str:
-    """Remove from an address what may carry a secret.
+    """Retirer d'une adresse ce qui peut porter un secret.
 
-    For the model: drop userinfo, redact the value of query parameters whose
-    name suggests a secret (the name is kept), redact a non-empty fragment.
-    For the journal: keep scheme, host, port and path only.
+    Pour le modèle : retirer les informations d'utilisateur, rédiger la valeur des paramètres de requête
+    dont le nom évoque un secret (le nom est gardé), rédiger un fragment non vide.
+    Pour le journal : garder seulement schéma, hôte, port et chemin.
     """
     try:
         parts = _origin.split_url(url)
@@ -180,7 +180,7 @@ def sanitize_url(url: str, *, for_journal: bool = False) -> str:
     if parts.has_authority:
         head = f"{parts.scheme}://{parts.hostport}{parts.path}"
     elif for_journal:
-        # Opaque addresses (data:, javascript:) carry content in their path.
+        # Les adresses opaques (data:, javascript:) portent du contenu dans leur chemin.
         head = f"{parts.scheme}:{parts.path}" if parts.scheme == "about" else f"{parts.scheme}:"
     else:
         head = f"{parts.scheme}:{parts.path}"
@@ -207,11 +207,11 @@ def _sanitize_query(query: str) -> str:
     return "&".join(pieces)
 
 
-# --- Tool errors and outputs --------------------------------------------------
+# --- Erreurs et sorties d'outils ------------------------------------------------
 
 
 class ToolError(Exception):
-    """A foreseen refusal, reported to the operator with a stable code."""
+    """Un refus prévu, rapporté à l'opérateur avec un code stable."""
 
     def __init__(
         self,
@@ -238,11 +238,11 @@ class ToolOutput:
 
 
 class EnvelopeError(Exception):
-    """A tool built a result the exit point does not accept (programming error)."""
+    """Un outil a construit un résultat que le point de sortie n'accepte pas (erreur de programmation)."""
 
 
 def finalize(envelope: dict[str, Any]) -> dict[str, Any]:
-    """Check the envelope shape, then clean every value in it."""
+    """Contrôler la forme de l'enveloppe, puis nettoyer chaque valeur qu'elle contient."""
     if not isinstance(envelope, dict) or set(envelope) != _ENVELOPE_KEYS:
         raise EnvelopeError("envelope keys must be exactly ok, server, page_content")
     if not isinstance(envelope["ok"], bool):
@@ -276,16 +276,15 @@ def _clean(value: Any, *, page: bool, url_key: bool) -> Any:
         return cleaned
     if isinstance(value, (list, tuple)):
         return [_clean(item, page=page, url_key=url_key) for item in value]
-    # Anything else would be serialized through str(), which this function
-    # cannot vouch for.
+    # Tout autre serait sérialisé par str(), dont cette fonction ne peut pas répondre.
     raise EnvelopeError(f"unsupported value type in envelope: {type(value).__name__}")
 
 
 def _clean_string(text: str, *, page: bool, url_key: bool) -> str:
     if url_key:
         text = sanitize_url(text)
-    # Redact before and after removing control characters: a secret may be
-    # split by one, or may itself contain one.
+    # Rédiger avant et après le retrait des caractères de contrôle : un secret peut en être coupé, ou en
+    # contenir un.
     text = redact_text(text)
     text = _strip_controls(text, keep_newlines=page)
     text = redact_text(text)
@@ -296,11 +295,11 @@ def _clean_string(text: str, *, page: bool, url_key: bool) -> str:
 
 
 def bounded_text(text: object, limit: int) -> str:
-    """Page text made fit to show: control and format characters removed,
-    spaces collapsed, length bounded. Anything but a string gives ``""``.
+    """Texte de page rendu montrable : caractères de contrôle et de format retirés, espaces réduites,
+    longueur bornée. Tout sauf une chaîne donne ``""``.
 
-    Format characters go too: bidirectional overrides can make a text read
-    differently from what it holds.
+    Les caractères de format partent aussi : des surcharges bidirectionnelles peuvent faire lire un
+    texte autrement que ce qu'il contient.
     """
     if not isinstance(text, str):
         return ""
@@ -335,7 +334,7 @@ _current_operation_id: contextvars.ContextVar[str | None] = contextvars.ContextV
 
 
 def current_operation_id() -> str | None:
-    """Identifier of the tool call being executed, for journal entries."""
+    """Identifiant de l'appel d'outil en cours d'exécution, pour les entrées de journal."""
     return _current_operation_id.get()
 
 
@@ -346,10 +345,10 @@ EXIT_POINT_ATTRIBUTE = "output_tool_name"
 
 
 def tool(name: str) -> Callable[[Callable[..., Awaitable[ToolOutput]]], Callable[..., Awaitable[ToolResult]]]:
-    """Wrap a tool coroutine so that its result always leaves through finalize.
+    """Envelopper une coroutine d'outil pour que son résultat quitte toujours par finalize.
 
-    The wrapper carries the tool's name, so the server can check that every
-    tool it registers goes through here.
+    L'enveloppe porte le nom de l'outil, pour que le serveur puisse vérifier que chaque outil qu'il
+    enregistre passe par ici.
     """
 
     def decorate(func: Callable[..., Awaitable[ToolOutput]]) -> Callable[..., Awaitable[ToolResult]]:
@@ -401,9 +400,9 @@ async def _run(
             },
             "page_content": None,
         }
-    except Exception as exc:  # noqa: BLE001 - every failure must leave as an envelope
-        # Only the type name is logged: the exception text and the stack may
-        # hold page data or a secret that was never registered.
+    except Exception as exc:  # noqa: BLE001 - tout échec doit sortir sous forme d'enveloppe
+        # Seul le nom du type est journalisé : le texte de l'exception et la pile peuvent contenir des données
+        # de page ou un secret jamais enregistré.
         _log.error("tool %s failed with %s", name, type(exc).__name__)
         envelope = _internal_error(name, operation_id)
     try:
@@ -426,11 +425,11 @@ def _internal_error(name: str, operation_id: str) -> dict[str, Any]:
     }
 
 
-# --- Operating log --------------------------------------------------------------
+# --- Journal d'exploitation -----------------------------------------------------
 
 
 class RedactingFilter(logging.Filter):
-    """Pass every formatted log message, and any exception text, through redaction."""
+    """Faire passer chaque message de journal formaté, et tout texte d'exception, par la rédaction."""
 
     _exception_formatter = logging.Formatter()
 
@@ -451,10 +450,10 @@ _HANDLER_NAME = "mcp_server_diwall_browser.stderr"
 
 
 def configure_logging(level: int = logging.INFO) -> logging.Handler:
-    """Send the operating log to standard error only, through redaction.
+    """Envoyer le journal d'exploitation sur la sortie d'erreur seulement, par la rédaction.
 
-    Standard output carries the protocol; any other handler on the root
-    logger is removed so nothing can write there.
+    La sortie standard porte le protocole ; tout autre gestionnaire du journal racine est retiré pour
+    que rien ne puisse y écrire.
     """
     root = logging.getLogger()
     for handler in list(root.handlers):

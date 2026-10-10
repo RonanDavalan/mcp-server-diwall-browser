@@ -192,14 +192,15 @@ def test_real_data_check_leaves_the_example_values_alone() -> None:
     assert real_data("alice at ~/Vaults/Main, https://shop.example.test/pay, http://127.0.0.1:9222, user@example.invalid, 203.0.113.5") == []
 
 
-# --- comments and docstrings: one language, no project history, no labels -----------------------------------
+# --- commentaires et docstrings : une seule langue, aucune histoire de projet, aucune étiquette -----------------------
 
 FORBIDDEN_WORDS = ("chantier", "jalon", "axe", "tranche", "volet", "lot")
 LABEL_RE = re.compile(r"\b(?:SEC|COF|PER|INV)-\d+|\bD\d+\b|\bR-\d|\bsession\s+\d+\b", re.IGNORECASE)
-FRENCH_WORDS = {"le", "la", "les", "des", "une", "est", "pour", "avec", "dans", "qui"}
+ENGLISH_WORDS = {"the", "and", "is", "are", "of", "to", "with", "that", "this", "for", "from", "when", "not"}
 
 
-def comments_and_docstrings(source: str) -> list[tuple[int, str]]:
+def comments_and_docstrings(source: str, tool_descriptions_are_data: bool = False) -> list[tuple[int, str]]:
+    """Commentaires et docstrings d'un source ; la docstring de `run` d'un outil est la description MCP lue par le modèle : une donnée du produit, en anglais."""
     found = []
     for token in tokenize.generate_tokens(io.StringIO(source).readline):
         if token.type == tokenize.COMMENT:
@@ -207,6 +208,8 @@ def comments_and_docstrings(source: str) -> list[tuple[int, str]]:
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and node.body:
             first = node.body[0]
+            if tool_descriptions_are_data and isinstance(node, ast.AsyncFunctionDef) and node.name == "run":
+                continue
             if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
                 found.append((first.lineno, first.value.value))
     return found
@@ -216,9 +219,9 @@ def text_problems(text: str) -> list[str]:
     words = re.findall(r"[A-Za-zÀ-ÿ]+", text.lower())
     problems = [f"word {word}" for word in FORBIDDEN_WORDS if word in words]
     problems += [f"label {m.group(0)}" for m in LABEL_RE.finditer(text)]
-    french = sorted(FRENCH_WORDS & set(words))
-    if len(french) >= 2:
-        problems.append(f"french ({', '.join(french)})")
+    english = sorted(ENGLISH_WORDS & set(words))
+    if len(english) >= 2:
+        problems.append(f"english ({', '.join(english)})")
     return problems
 
 
@@ -238,36 +241,43 @@ def identifiers_not_ascii(source: str) -> list[str]:
     return [name for name in names if not name.isascii()]
 
 
-def source_problems(source: str) -> list[str]:
-    problems = [f"line {line}: {problem}" for line, text in comments_and_docstrings(source) for problem in text_problems(text)]
+def source_problems(source: str, tool_descriptions_are_data: bool = False) -> list[str]:
+    problems = [
+        f"line {line}: {problem}"
+        for line, text in comments_and_docstrings(source, tool_descriptions_are_data)
+        for problem in text_problems(text)
+    ]
     return problems + [f"identifier {name}" for name in identifiers_not_ascii(source)]
 
 
-def test_comments_and_docstrings_are_english_and_carry_no_history_nor_label() -> None:
-    found = {path.relative_to(ROOT).as_posix(): source_problems(path.read_text()) for path in PACKAGE_DIR.rglob("*.py")}
+def test_comments_and_docstrings_are_french_and_carry_no_history_nor_label() -> None:
+    found = {
+        path.relative_to(ROOT).as_posix(): source_problems(path.read_text(), tool_descriptions_are_data=path.parent.name == "tools")
+        for path in PACKAGE_DIR.rglob("*.py")
+    }
     assert {name: problems for name, problems in found.items() if problems} == {}
 
 
 @pytest.mark.parametrize(
     "source",
     [
-        "# Ce contrôle est fait pour la page\nx = 1\n",
-        '"""Check the page.\n\nNext lot: the gate."""\n',
-        "# Added for SEC-12.\nx = 1\n",
-        "# Decided in session 4.\nx = 1\n",
-        "def f():\n    \"\"\"See D11.\"\"\"\n",
+        "# This check is made for the page\nx = 1\n",
+        '"""Contrôler la page.\n\nLe lot suivant : la porte."""\n',
+        "# Ajouté pour SEC-12.\nx = 1\n",
+        "# Décidé en session 4.\nx = 1\n",
+        "def f():\n    \"\"\"Voir D11.\"\"\"\n",
         "délai = 3\n",
         "settings = {'clé': 1}\n",
     ],
 )
-def test_comment_check_catches_french_history_labels_and_non_ascii_names(source: str) -> None:
+def test_comment_check_catches_english_history_labels_and_non_ascii_names(source: str) -> None:
     assert source_problems(source) != []
 
 
-# --- each module says why it exists ---------------------------------------------------------------------------------
+# --- chaque module dit pourquoi il existe ---------------------------------------------------------------------------------
 
-HEADER = "Why this module exists"
-AUTHOR_OR_DATE_RE = re.compile(r"(?i)\bauthor\b|@\w+\.\w+|\b(19|20)\d\d-\d\d-\d\d\b")
+HEADER = "Pourquoi ce module existe"
+AUTHOR_OR_DATE_RE = re.compile(r"(?i)\bauthor\b|\bauteur\b|@\w+\.\w+|\b(19|20)\d\d-\d\d-\d\d\b")
 
 
 def header_problems(path: Path) -> list[str]:
@@ -277,7 +287,7 @@ def header_problems(path: Path) -> list[str]:
     docstring = ast.get_docstring(ast.parse(source)) or ""
     problems = []
     if HEADER not in docstring:
-        problems.append("no 'Why this module exists'")
+        problems.append("no 'Pourquoi ce module existe'")
     if AUTHOR_OR_DATE_RE.search(docstring):
         problems.append("author or date in the header")
     return problems
@@ -290,9 +300,9 @@ def test_every_module_says_why_it_exists() -> None:
 
 def test_header_check_catches_a_module_without_its_reason_or_with_an_author(tmp_path: Path) -> None:
     bare = tmp_path / "bare.py"
-    bare.write_text('"""Does things."""\n')
+    bare.write_text('"""Fait des choses."""\n')
     signed = tmp_path / "signed.py"
-    signed.write_text('"""Does things.\n\nWhy this module exists:\n    Reasons.\n\nAuthor: someone, 2026-01-02\n"""\n')
+    signed.write_text('"""Fait des choses.\n\nPourquoi ce module existe :\n    Des raisons.\n\nAuteur : Alice, 2026-01-02\n"""\n')
     empty = tmp_path / "__init__.py"
     empty.write_text("")
     assert header_problems(bare) and header_problems(signed) and header_problems(empty) == []

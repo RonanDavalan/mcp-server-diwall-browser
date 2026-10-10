@@ -1,13 +1,13 @@
-"""What the model sees of a page: an image with marks, a text tree, a list of elements.
+"""Ce que le modèle voit d'une page : une image avec des repères, un arbre de texte, une liste d'éléments.
 
-Why this module exists:
-    The model must see what the human sees, and nothing the human cannot
-    see: text hidden from the eye is a channel for instructions the operator
-    never reads. Values of sensitive fields must be gone before anything
-    leaves this module, and the image carries masks over them, or there is
-    no image. Everything comes from one snapshot, read only after checking
-    that the page belongs to a site the operator allowed, and the origin is
-    read again afterwards so that a page that moved meanwhile is not shown.
+Pourquoi ce module existe :
+    Le modèle doit voir ce que l'humain voit, et rien de ce que l'humain ne peut
+    voir : un texte caché à l'œil est un canal pour des instructions que l'opérateur
+    ne lit jamais. Les valeurs des champs sensibles doivent avoir disparu avant que
+    quoi que ce soit quitte ce module, et l'image porte des masques dessus, ou il n'y a
+    pas d'image. Tout vient d'un seul instantané, lu seulement après avoir vérifié
+    que la page appartient à un site que l'opérateur a autorisé, et l'origine est
+    relue ensuite pour qu'une page qui a bougé entre-temps ne soit pas montrée.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from .origin import Origin, OriginError, origin_allowed, origin_of_url
 from .output import ToolError, ToolOutput, bounded_text, redact_text
 from .sensitive_field import ATTRIBUTE_ARGUMENTS, is_sensitive
 
-# Roles that make a visible node an element the model can designate.
+# Les rôles qui font d'un nœud visible un élément que le modèle peut désigner.
 MARKABLE_ROLES = frozenset(
     {
         "button",
@@ -63,39 +63,39 @@ VALUE_LIMIT = 120
 MIN_OPACITY = 0.01
 MIN_BOX_SIZE = 2.0
 MAX_IMAGE_WIDTH = 1600
-# How far, on either axis, the image the browser returns may be from the view in device pixels: the
-# browser rounds the cut it makes to whole pixels, and was measured one pixel short on one axis.
+# De combien, dans chacune des deux directions, l'image que rend le navigateur peut s'écarter de la vue en pixels de l'appareil :
+# le navigateur arrondit la découpe qu'il fait à des pixels entiers, et on l'a mesuré un pixel trop court dans une direction.
 IMAGE_SIZE_SLACK_PX = 2
 SNAPSHOTS_KEPT = 3
 POLL_INTERVAL_S = 0.3
 DEFAULT_WAIT_S = 10.0
 MAX_WAIT_S = 60.0
-# Device pixels per CSS pixel: a screen scale factor, a page zoom, or both. Outside this range the
-# two viewports the browser reports do not describe the same page.
+# Pixels de l'appareil par pixel CSS : un facteur d'échelle d'écran, un zoom de page, ou les deux. Hors de
+# cette plage, les deux fenêtres d'affichage que le navigateur rapporte ne décrivent pas la même page.
 DEVICE_SCALE_RANGE = (0.1, 20.0)
 COMPUTED_STYLES = ("display", "visibility", "opacity", "font-size", "position", "pointer-events")
 SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES), "includeDOMRects": True, "includePaintOrder": True}
 LIGHT_SNAPSHOT_PARAMS = {"computedStyles": list(COMPUTED_STYLES)}
 
-# What stands above the page: these roles, a modal node, or a node taken out of the flow that
-# paints over other content.
+# Ce qui se tient au-dessus de la page : ces rôles, un nœud modal, ou un nœud sorti du flux qui peint
+# par-dessus d'autre contenu.
 LAYER_ROLES = frozenset({"dialog", "alertdialog"})
 LAYER_POSITIONS = frozenset({"fixed", "sticky"})
-# Positioned nodes examined for being a layer; a page with more is read as if the rest were not.
+# Nœuds positionnés examinés pour savoir s'ils sont une couche ; une page qui en a davantage est lue comme si le reste n'existait pas.
 MAX_LAYER_CANDIDATES = 100
 OVERLAY_LINE = 'overlay "layer above the page"'
 
 FIELD_TAGS = frozenset({"input", "textarea", "select"})
 FRAME_TAGS = frozenset({"iframe", "frame"})
-# Elements that are never rendered, whatever the page: not counted as hidden.
+# Éléments qui ne sont jamais rendus, quelle que soit la page : non comptés comme cachés.
 NEVER_RENDERED_TAGS = frozenset({"head", "script", "style", "meta", "link", "title", "template", "noscript", "base"})
-# Reasons for which the browser hides a node from assistive technology
-# because it is hidden (not because it is merely uninteresting).
+# Raisons pour lesquelles le navigateur cache un nœud aux technologies d'assistance
+# parce qu'il est caché (et non simplement parce qu'il est sans intérêt).
 HIDING_REASONS = frozenset({"ariaHiddenElement", "inertElement", "notRendered", "notVisible"})
-# Roles that carry no text of their own: without a name they produce no line.
+# Rôles qui ne portent pas de texte propre : sans nom, ils ne produisent aucune ligne.
 STRUCTURAL_ROLES = frozenset({"generic", "none", "LabelText", "LineBreak", "paragraph"})
 TEXT_ROLE = "StaticText"
-# What a layer can be said to cover: things to act on or to read, not the containers around them.
+# Ce qu'une couche peut être dite recouvrir : des choses sur lesquelles agir ou à lire, pas les conteneurs autour d'elles.
 CONTENT_ROLES = MARKABLE_ROLES | {TEXT_ROLE, "heading", "image", "img"}
 NO_DOM_ROLES = frozenset({"InlineTextBox"})
 
@@ -104,7 +104,7 @@ MASK_TEXT_COLOUR = (255, 255, 255)
 MARK_COLOUR = (220, 0, 120, 255)
 BADGE_TEXT_COLOUR = (255, 255, 255, 255)
 FRAME_NOTICE = "cadre non montré au modèle"
-# Written when no font with accented letters is installed.
+# Écrit quand aucune police avec des lettres accentuées n'est installée.
 FRAME_NOTICE_PLAIN = "cadre non montre au modele"
 NOTICE_FONTS = ("DejaVuSans.ttf", "LiberationSans-Regular.ttf")
 
@@ -115,12 +115,12 @@ _CAPTURE_MESSAGE = "l'image n'est pas publiée : un masque n'a pas pu être pos�
 _WAIT_MESSAGE = "la condition attendue n'est pas apparue dans le délai"
 
 
-# --- Data handed to the rest of the server ------------------------------------------------
+# --- Données remises au reste du serveur --------------------------------------------------
 
 
 @dataclass(frozen=True)
 class Box:
-    """A rectangle in CSS pixels of the document."""
+    """Un rectangle en pixels CSS du document."""
 
     x: float
     y: float
@@ -155,7 +155,7 @@ class Box:
 
 @dataclass(frozen=True)
 class ElementRef:
-    """A marked element as the security gate reads it; never sent to the model as such."""
+    """Un élément repéré tel que la porte de sécurité le lit ; jamais envoyé tel quel au modèle."""
 
     mark: int
     backend_node_id: int
@@ -171,9 +171,9 @@ class ElementRef:
     form_has_card_field: bool
     is_submit_like: bool
     origin: Origin
-    # What the model receives for this mark (cleaned, value withheld if sensitive).
+    # Ce que le modèle reçoit pour ce repère (nettoyé, valeur retenue si elle est sensible).
     public: dict[str, Any] = field(repr=False, compare=False)
-    # Page texts around the element, read by the gate only (never sent as such).
+    # Textes de la page autour de l'élément, lus par la porte seule (jamais envoyés tels quels).
     button_value: str = field(default="", repr=False)
     title: str = field(default="", repr=False)
     form_name: str = field(default="", repr=False)
@@ -181,7 +181,7 @@ class ElementRef:
 
     @property
     def gate_texts(self) -> tuple[str, ...]:
-        """The texts that may say what an action does: name, button value, title, form, section."""
+        """Les textes qui peuvent dire ce qu'une action fait : nom, valeur du bouton, titre, formulaire, section."""
         return (self.name, self.button_value, self.title, self.form_name, self.heading)
 
 
@@ -207,7 +207,7 @@ class Snapshot:
 
 @dataclass
 class Observation:
-    """One observation: what the server asserts, the page content, the image."""
+    """Une observation : ce que le serveur affirme, le contenu de la page, l'image."""
 
     server: dict[str, Any]
     page_content: dict[str, Any] | None
@@ -224,7 +224,7 @@ class WaitResult:
     dialog_open: bool = False
 
 
-# --- Reading the snapshot -----------------------------------------------------------------
+# --- Lecture de l'instantané --------------------------------------------------------------
 
 
 @dataclass
@@ -241,21 +241,21 @@ class DomNode:
     clickable: bool
     box: Box | None
     styles: dict[str, str]
-    # Position in the order the browser paints, later painting over earlier; None when not asked.
+    # Position dans l'ordre où le navigateur peint, le plus tardif peignant par-dessus le précédent ; None quand elle n'est pas demandée.
     paint_order: int | None = None
 
 
 class SnapshotFormatError(ValueError):
-    """The browser's answer does not have the shape this module reads."""
+    """La réponse du navigateur n'a pas la forme que ce module lit."""
 
 
 class Dom:
-    """The main document of a DOMSnapshot.captureSnapshot answer; other documents are dropped.
+    """Le document principal d'une réponse DOMSnapshot.captureSnapshot ; les autres documents sont écartés.
 
-    The browser gives boxes and sizes in device pixels; every box and size
-    this class exposes is in CSS pixels, the unit of the viewport and of the
-    clicks. ``device_scale`` is the number of device pixels in a CSS pixel:
-    leave it at 1 only for a snapshot taken at a scale of 1.
+    Le navigateur donne les boîtes et les tailles en pixels de l'appareil ; chaque boîte et chaque taille
+    que cette classe expose est en pixels CSS, l'unité de la fenêtre d'affichage et des clics.
+    ``device_scale`` est le nombre de pixels de l'appareil dans un pixel CSS : le laisser à 1
+    seulement pour un instantané pris à l'échelle 1.
     """
 
     def __init__(self, raw: dict[str, Any], device_scale: float = 1.0) -> None:
@@ -337,11 +337,10 @@ class Dom:
             seen += 1
 
     def effective_opacity(self, node: DomNode) -> float:
-        """Product of the computed opacities of the node and its ancestors.
+        """Produit des opacités calculées du nœud et de ses ancêtres.
 
-        Opacity is not inherited: a child of a transparent parent computes
-        to 1 while it shows nothing. A text node carries its parent's style,
-        so only elements are counted.
+        L'opacité n'est pas héritée : un enfant d'un parent transparent calcule 1 alors qu'il ne montre
+        rien. Un nœud de texte porte le style de son parent, si bien que seuls les éléments sont comptés.
         """
         cached = self._opacity.get(node.index)
         if cached is not None:
@@ -360,13 +359,13 @@ class Dom:
         return value
 
     def visible(self, node: DomNode) -> bool:
-        """Conditions 1 to 5: a box, not hidden, not transparent, not tiny, on the page."""
+        """Conditions 1 à 5 : une boîte, pas cachée, pas transparente, pas minuscule, sur la page."""
         box = node.box
         if box is None or not box.finite():
             return False
         if node.styles.get("visibility") in ("hidden", "collapse"):
             return False
-        # Rounded: 0.1 x 0.1 is 0.01, not 0.010000000000000002.
+        # Arrondi : 0,1 x 0,1 vaut 0,01, pas 0,010000000000000002.
         if round(self.effective_opacity(node), 9) <= MIN_OPACITY:
             return False
         if box.width < MIN_BOX_SIZE or box.height < MIN_BOX_SIZE:
@@ -389,7 +388,7 @@ class Dom:
         return [self.nodes[index] for index in self._children.get(node.index, [])]
 
     def text_content(self, node: DomNode, limit: int) -> str:
-        """The text of the nodes under ``node``, in document order, bounded."""
+        """Le texte des nœuds sous ``node``, dans l'ordre du document, borné."""
         pieces: list[str] = []
         stack = [node]
         size = 0
@@ -427,7 +426,7 @@ def _ax_property(node: dict[str, Any], name: str) -> Any:
     return None
 
 
-# --- Names ----------------------------------------------------------------------------------
+# --- Noms ---------------------------------------------------------------------------------
 
 
 def normalized_name(name: str) -> str:
@@ -445,7 +444,7 @@ def _quoted(name: str) -> str:
     return '"' + name.translate(_QUOTE_ESCAPES) + '"'
 
 
-# --- Building a snapshot ----------------------------------------------------------------------
+# --- Construction d'un instantané ---------------------------------------------------------
 
 
 @dataclass
@@ -456,8 +455,8 @@ class _Shown:
     name: str
     line: str | None
     in_viewport: bool
-    # Set by _classify, only when a cap is reached: part of a layer above the page,
-    # and covered at its centre by a layer that is not its own.
+    # Posé par _classify, seulement quand un plafond est atteint : fait partie d'une couche au-dessus de la page,
+    # et recouvert en son centre par une couche qui n'est pas la sienne.
     layer: bool = False
     covered: bool = False
 
@@ -470,7 +469,7 @@ class _Field:
 
 @dataclass
 class Built:
-    """Everything derived from one snapshot, before any image work."""
+    """Tout ce qui dérive d'un instantané, avant tout travail sur l'image."""
 
     elements: list[ElementRef]
     tree_lines: list[str]
@@ -493,12 +492,11 @@ class _Walk:
 
 
 def _walk(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> _Walk:
-    """The nodes shown to the model, in tree order, and the count of hidden ones.
+    """Les nœuds montrés au modèle, dans l'ordre de l'arbre, et le compte des nœuds cachés.
 
-    A node is shown only if the accessibility tree does not ignore it and its
-    box passes every visibility condition; a hidden node takes its whole
-    subtree with it and counts once. Nothing under a field is visited: it is
-    the field's value.
+    Un nœud n'est montré que si l'arbre d'accessibilité ne l'ignore pas et que sa boîte passe chaque
+    condition de visibilité ; un nœud caché emporte tout son sous-arbre et compte une fois. Rien sous
+    un champ n'est visité : c'est la valeur du champ.
     """
     ax, root_id = _ax_nodes(ax_raw)
     shown: list[_Shown] = []
@@ -532,9 +530,8 @@ def _walk(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> _Walk:
             return
         name = bounded_text(_ax_value(node, "name"), NAME_LIMIT)
         if dom_node is None or dom_node.box is None:
-            # No box of its own (display: contents, for one): its children
-            # speak for themselves. If nothing of it shows at all, it was a
-            # hidden node with something to say, and counts once.
+            # Pas de boîte propre (display: contents, par exemple) : ses enfants parlent pour eux-mêmes. Si rien
+            # d'elle n'apparaît du tout, c'était un nœud caché qui avait quelque chose à dire, et il compte une fois.
             before = (len(shown), omitted)
             for child in children:
                 visit(child, depth, line_parent_name)
@@ -564,7 +561,7 @@ def _walk(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> _Walk:
 
 @dataclass(frozen=True)
 class _Cover:
-    """A box of a layer that takes the pointer, and when the browser paints it."""
+    """Une boîte d'une couche qui prend le pointeur, et quand le navigateur la peint."""
 
     box: Box
     paint: int
@@ -572,17 +569,17 @@ class _Cover:
 
 
 def _paint_key(node: DomNode) -> int:
-    # Without a paint order, the document order is the best guess of what paints later.
+    # Sans ordre de peinture, l'ordre du document est la meilleure estimation de ce qui peint plus tard.
     return node.paint_order if node.paint_order is not None else node.index
 
 
 def _classify(walk: _Walk, dom: Dom, viewport: Box) -> None:
-    """Say which shown nodes belong to a layer above the page, and which such a layer covers.
+    """Dire quels nœuds montrés appartiennent à une couche au-dessus de la page, et lesquels une telle couche recouvre.
 
-    A layer is a dialog, a modal node, or a fixed or sticky node that paints
-    over other content in view. A node is covered when the centre of its box
-    lies in a box of a layer that takes the pointer, painted after it and
-    not its own. Everything comes from the one snapshot: no call per node.
+    Une couche est une boîte de dialogue, un nœud modal, ou un nœud fixe ou collant qui peint par-dessus
+    d'autre contenu en vue. Un nœud est recouvert quand le centre de sa boîte se trouve dans une boîte
+    d'une couche qui prend le pointeur, peinte après lui et qui n'est pas la sienne. Tout vient du seul
+    instantané : aucun appel par nœud.
     """
     roots = _layer_roots(walk, dom, viewport)
     if not roots:
@@ -633,7 +630,7 @@ def _layer_roots(walk: _Walk, dom: Dom, viewport: Box) -> list[DomNode]:
 
 
 def _paints_over_content(layer: DomNode, seen: list[DomNode], dom: Dom) -> bool:
-    """Whether some content in view, outside the layer, lies under its box and is painted before it."""
+    """Dit si du contenu en vue, hors de la couche, se trouve sous sa boîte et est peint avant elle."""
     assert layer.box is not None
     for node in seen:
         if node.box is None or node.index == layer.index or not node.box.intersects(layer.box):
@@ -644,7 +641,7 @@ def _paints_over_content(layer: DomNode, seen: list[DomNode], dom: Dom) -> bool:
 
 
 def _covers(root: DomNode, dom: Dom) -> list[_Cover]:
-    """The boxes of a layer that take the pointer: a transparent wrapper that lets clicks through covers nothing."""
+    """Les boîtes d'une couche qui prennent le pointeur : une enveloppe transparente qui laisse passer les clics ne recouvre rien."""
     found: list[_Cover] = []
     stack: list[tuple[DomNode, Box | None]] = [(root, None)]
     while stack:
@@ -659,7 +656,7 @@ def _covers(root: DomNode, dom: Dom) -> list[_Cover]:
 
 
 def _rank(item: _Shown) -> int:
-    """0 in a layer above the page; 1 in view; 2 in view and covered; 3 the rest."""
+    """0 dans une couche au-dessus de la page ; 1 en vue ; 2 en vue et recouvert ; 3 le reste."""
     if item.layer:
         return 0
     if item.in_viewport:
@@ -668,7 +665,7 @@ def _rank(item: _Shown) -> int:
 
 
 def field_verdicts(dom: Dom, ax: dict[str, dict[str, Any]] | None = None) -> dict[int, _Field]:
-    """The sensitive-field predicate, asked once for every input, textarea and select."""
+    """Le prédicat de champ sensible, demandé une fois pour chaque input, textarea et select."""
     roles: dict[int, str] = {}
     for node in (ax or {}).values():
         backend = node.get("backendDOMNodeId")
@@ -682,7 +679,7 @@ def field_verdicts(dom: Dom, ax: dict[str, dict[str, Any]] | None = None) -> dic
 
 
 def mask_boxes(dom: Dom, viewport: Box, fields: dict[int, _Field]) -> tuple[list[Box], list[Box]]:
-    """Boxes of the sensitive fields and of the frames that cross the viewport."""
+    """Boîtes des champs sensibles et des cadres qui traversent la fenêtre d'affichage."""
     sensitive = [
         dom.nodes[index].box
         for index, verdict in fields.items()
@@ -706,12 +703,11 @@ def mask_boxes(dom: Dom, viewport: Box, fields: dict[int, _Field]) -> tuple[list
 def build(
     ax_raw: dict[str, Any], dom: Dom, viewport: Box, origin: Origin, *, tree_builder: Callable[..., list[str]] | None = None
 ) -> Built:
-    """Merge the accessibility tree and the snapshot of the main document.
+    """Fusionne l'arbre d'accessibilité et l'instantané du document principal.
 
-    ``counters.redacted_fields`` counts the visible sensitive fields whose
-    value was not empty and was withheld; an empty sensitive field is marked
-    sensitive but counts nothing, there being nothing to withhold.
-    ``counters.omitted_not_visible`` counts each hidden subtree once.
+    ``counters.redacted_fields`` compte les champs sensibles visibles dont la valeur n'était pas vide
+    et a été retenue ; un champ sensible vide est marqué sensible mais ne compte rien, puisqu'il n'y a
+    rien à retenir. ``counters.omitted_not_visible`` compte chaque sous-arbre caché une fois.
     """
     walk = _walk(ax_raw, dom, viewport)
     candidates = sorted(
@@ -732,15 +728,15 @@ def build(
     }
     fields = field_verdicts(dom, walk.ax)
 
-    # Elements the model can designate: when there are too many, the ones above the page first,
-    # then those in view; the ones kept are numbered in document order.
+    # Les éléments que le modèle peut désigner : quand il y en a trop, ceux au-dessus de la page d'abord,
+    # puis ceux en vue ; ceux qui sont gardés sont numérotés dans l'ordre du document.
     kept, counters["marks_truncated"] = _keep(candidates, MAX_MARKS, key=lambda item: item.dom.index, rank=_rank)
     elements = [
         _with_gate_texts(_element(mark, item, dom, fields, origin, counters), item, dom, walk)
         for mark, item in enumerate(kept, start=1)
     ]
     if counters["marks_truncated"]:
-        # Said only when choosing was needed: in view, but under a layer that takes the click.
+        # Dit seulement quand il a fallu choisir : en vue, mais sous une couche qui prend le clic.
         for element, item in zip(elements, kept, strict=True):
             if item.covered:
                 element.public["covered"] = True
@@ -752,7 +748,7 @@ def build(
     notices: list[str] = []
     try:
         tree_lines = (tree_builder or _tree)(walk.shown, walk.depths, counters)
-    except Exception:  # noqa: BLE001 - a failed tree is withheld, never published half-cleaned
+    except Exception:  # noqa: BLE001 - un arbre en échec est retenu, jamais publié à moitié nettoyé
         tree_lines = []
         counters["tree_truncated"] = False
         notices.append("tree_unavailable : l'arbre de la page n'est pas publié, sa rédaction a échoué")
@@ -791,10 +787,10 @@ def _tree(shown: list[_Shown], depths: list[int], counters: dict[str, Any]) -> l
     by_rank: Callable[[tuple[int, _Shown]], int] = lambda pair: _rank(pair[1])  # noqa: E731
     kept, counters["tree_truncated"] = _keep(lines, MAX_TREE_LINES, key=lambda pair: pair[0], rank=by_rank)
     if any(item.layer for _position, item in kept):
-        # The line that introduces the layer takes one of the lines.
+        # La ligne qui introduit la couche prend l'une des lignes.
         kept, counters["tree_truncated"] = _keep(lines, MAX_TREE_LINES - 1, key=lambda pair: pair[0], rank=by_rank)
     layer = [(position, item) for position, item in kept if item.layer]
-    # Redaction of the registered secrets, before the lines leave the module.
+    # Rédaction des secrets enregistrés, avant que les lignes quittent le module.
     output = []
     if layer:
         output.append(redact_text(OVERLAY_LINE))
@@ -805,7 +801,7 @@ def _tree(shown: list[_Shown], depths: list[int], counters: dict[str, Any]) -> l
 
 
 def _keep(items: list[Any], limit: int, *, key: Callable[[Any], int], rank: Callable[[Any], int]) -> tuple[list[Any], bool]:
-    """At most ``limit`` items: the lowest ranks first, then document order; the ones kept in document order."""
+    """Au plus ``limit`` éléments : les rangs les plus bas d'abord, puis l'ordre du document ; ceux qui sont gardés le sont dans l'ordre du document."""
     if len(items) <= limit:
         return items, False
     ordered = sorted(items, key=lambda item: (rank(item), key(item)))
@@ -875,7 +871,7 @@ def _element(
 
 
 def _with_gate_texts(element: ElementRef, item: _Shown, dom: Dom, walk: _Walk) -> ElementRef:
-    """Add the texts around the element that the gate reads to decide whether to arm."""
+    """Ajoute les textes autour de l'élément que la porte lit pour décider s'il faut armer."""
     node = item.dom
     button_value = ""
     if node.tag == "button" or (node.tag == "input" and (element.input_type or "") in ("submit", "button", "image", "reset")):
@@ -924,9 +920,9 @@ def _raw_value(item: _Shown, node: DomNode, input_type: str | None) -> str:
 
 
 def _hidden_without_ax_node(dom: Dom, ax_backends: set[int], omitted_roots: set[int]) -> int:
-    """Elements without a box (display: none) that the accessibility tree leaves out entirely.
+    """Les éléments sans boîte (display: none) que l'arbre d'accessibilité laisse entièrement de côté.
 
-    Each hidden subtree counts once, at its top element.
+    Chaque sous-arbre caché compte une fois, à son élément de tête.
     """
     count = 0
     for node in dom.nodes:
@@ -946,7 +942,7 @@ def _hidden_without_ax_node(dom: Dom, ax_backends: set[int], omitted_roots: set[
 
 
 def _unmaskable(dom: Dom, fields: dict[int, _Field], ax: dict[str, dict[str, Any]]) -> bool:
-    """True when a sensitive field the tree shows has no usable box: it could not be masked."""
+    """Vrai quand un champ sensible que l'arbre montre n'a pas de boîte utilisable : il n'a pas pu être masqué."""
     shown_by_tree = {
         node.get("backendDOMNodeId") for node in ax.values() if not node.get("ignored") and isinstance(node.get("backendDOMNodeId"), int)
     }
@@ -957,20 +953,20 @@ def _unmaskable(dom: Dom, fields: dict[int, _Field], ax: dict[str, dict[str, Any
     return False
 
 
-# --- Image ----------------------------------------------------------------------------------
+# --- Image --------------------------------------------------------------------------------
 
 MaskDrawer = Callable[[Image.Image, tuple[int, int, int, int], str], None]
 
 
 def draw_mask(image: Image.Image, rect: tuple[int, int, int, int], kind: str) -> None:
-    """A solid rectangle; over a frame, with the notice written inside it."""
+    """Un rectangle plein ; sur un cadre, avec l'avis écrit dedans."""
     x0, y0, x1, y1 = rect
     if x1 <= x0 or y1 <= y0:
         return
     tile = Image.new("RGB", (x1 - x0, y1 - y0), MASK_COLOUR)
     if kind == "frame":
         pen = ImageDraw.Draw(tile)
-        pen.fontmode = "1"  # two colours only: no blend with the fill
+        pen.fontmode = "1"  # deux couleurs seulement : aucun mélange avec le remplissage
         font, text = _notice_font()
         pen.text((6, 6), text, fill=MASK_TEXT_COLOUR, font=font)
     image.paste(tile, (x0, y0))
@@ -978,7 +974,7 @@ def draw_mask(image: Image.Image, rect: tuple[int, int, int, int], kind: str) ->
 
 @functools.cache
 def _notice_font() -> tuple[ImageFont.FreeTypeFont | ImageFont.ImageFont, str]:
-    # The font bundled with Pillow has no accented letters.
+    # La police fournie avec Pillow n'a pas de lettres accentuées.
     for name in NOTICE_FONTS:
         try:
             return ImageFont.truetype(name, 14), FRAME_NOTICE
@@ -988,7 +984,7 @@ def _notice_font() -> tuple[ImageFont.FreeTypeFont | ImageFont.ImageFont, str]:
 
 
 def _decode_png(png: bytes) -> Image.Image:
-    # Decoded from memory: the image never touches a file.
+    # Décodée depuis la mémoire : l'image ne touche jamais un fichier.
     parser = ImageFile.Parser()
     parser.feed(png)
     image = parser.close()
@@ -998,7 +994,7 @@ def _decode_png(png: bytes) -> Image.Image:
 
 
 class CaptureFailed(Exception):
-    """A mask could not be placed: the image must not leave the server."""
+    """Un masque n'a pas pu être placé : l'image ne doit pas quitter le serveur."""
 
 
 @dataclass(frozen=True)
@@ -1012,7 +1008,7 @@ class Rendered:
 
 
 def _image_rect(box: Box, viewport: Box, sx: float, sy: float, size: tuple[int, int]) -> tuple[int, int, int, int]:
-    # Rounded outwards, clipped to the image: a mask never leaves a pixel of its box uncovered.
+    # Arrondi vers l'extérieur, rogné à l'image : un masque ne laisse jamais un pixel de sa boîte découvert.
     x0 = max(0, math.floor((box.x - viewport.x) * sx))
     y0 = max(0, math.floor((box.y - viewport.y) * sy))
     x1 = min(size[0], math.ceil((box.right - viewport.x) * sx))
@@ -1031,13 +1027,14 @@ def render(
     max_width: int | None = MAX_IMAGE_WIDTH,
     device_view: tuple[float, float] | None = None,
 ) -> Rendered:
-    """Masks first, on the full image; then the reduction; then the marks, never over a mask.
+    """D'abord les masques, sur l'image entière ; puis la réduction ; puis les repères, jamais sur un masque.
 
-    ``device_view`` is the size of the view in device pixels, as the browser states it. The image is
-    a cut of the view from its top left corner, rounded to whole pixels, not the view stretched to
-    fit: when it is a pixel short, a box is still placed with the browser's ratio of the view to its
-    CSS size, and the ratio of the image to the view would move a box at the far edge by up to a
-    pixel, away from its field. Without it, the image is taken to span the viewport.
+    ``device_view`` est la taille de la vue en pixels de l'appareil, telle que le navigateur l'énonce.
+    L'image est une découpe de la vue depuis son coin supérieur gauche, arrondie à des pixels entiers,
+    pas la vue étirée pour s'y ajuster : quand elle est un pixel trop courte, une boîte est tout de même
+    placée avec le rapport du navigateur entre la vue et sa taille CSS, et le rapport de l'image à la vue
+    déplacerait une boîte du bord lointain jusqu'à un pixel, loin de son champ. Sans lui, l'image est
+    supposée couvrir la fenêtre d'affichage.
     """
     try:
         image = _decode_png(png)
@@ -1052,14 +1049,14 @@ def render(
             scale = max_width / image.width
             image = image.resize((max_width, max(1, round(image.height * scale))), Image.Resampling.LANCZOS)
             sx, sy = sx * scale, sy * scale
-            # The reduction blends the edges of each mask with its neighbours:
-            # the masks are laid again at the reduced size.
+            # La réduction mélange les bords de chaque masque avec leurs voisins :
+            # les masques sont posés de nouveau à la taille réduite.
             for box, kind in masks:
                 mask_drawer(image, _image_rect(box, viewport, sx, sy, image.size), kind)
         mask_rects = tuple(_image_rect(box, viewport, sx, sy, image.size) for box, _kind in masks)
     except CaptureFailed:
         raise
-    except Exception as exc:  # noqa: BLE001 - any failure while masking keeps the image in
+    except Exception as exc:  # noqa: BLE001 - tout échec pendant le masquage garde l'image chez soi
         raise CaptureFailed(type(exc).__name__) from None
     mark_rects = _draw_marks(image, marks, viewport, sx, sy, mask_rects)
     output = io.BytesIO()
@@ -1097,7 +1094,7 @@ def _draw_marks(
             pen.rectangle(badge, fill=MARK_COLOUR)
             pen.text((bx + 3 - left, by + 2 - top), label, fill=BADGE_TEXT_COLOUR, font=font)
             break
-    # Marks are drawn after the masks but never on them.
+    # Les repères sont dessinés après les masques mais jamais dessus.
     for x0, y0, x1, y1 in mask_rects:
         if x1 > x0 and y1 > y0:
             overlay.paste((0, 0, 0, 0), (x0, y0, x1, y1))
@@ -1111,7 +1108,7 @@ def _overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool
     return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 
-# --- The module the tools use -------------------------------------------------------------------
+# --- Le module qu'utilisent les outils ----------------------------------------------------
 
 AllowedOrigins = Callable[[], Iterable[Origin]]
 
@@ -1128,14 +1125,14 @@ class _Reading:
     ax: dict[str, Any]
     dom: Dom
     png: bytes | None
-    # The view in device pixels, as the browser states it; read with the image, which is placed by it.
+    # La vue en pixels de l'appareil, telle que le navigateur l'énonce ; lue avec l'image, qui est placée d'après elle.
     device_view: tuple[float, float] | None = None
-    # False when the boxes to mask moved between the snapshot and the image.
+    # Faux quand les boîtes à masquer ont bougé entre l'instantané et l'image.
     masks_stable: bool = True
 
 
 class Perception:
-    """Observations of owned tabs, gated by the operator's allowed sites."""
+    """Observations des onglets possédés, filtrées par les sites autorisés par l'opérateur."""
 
     def __init__(
         self,
@@ -1151,10 +1148,10 @@ class Perception:
         self._tree_builder = tree_builder
         self._snapshots: dict[str, collections.deque[Snapshot]] = {}
 
-    # --- public operations -----------------------------------------------------------
+    # --- opérations publiques -----------------------------------------------------------------
 
     async def observe(self, tab: Tab, *, image: bool = True) -> Observation:
-        """Read the page once, check its origin before and after, and build what the model sees."""
+        """Lit la page une fois, vérifie son origine avant et après, et construit ce que voit le modèle."""
         for _attempt in range(2):
             try:
                 reading = await self._read(tab, image=image, full=True)
@@ -1166,19 +1163,19 @@ class Perception:
         raise ToolError("page_changed_during_capture", _CHANGED_MESSAGE)
 
     def latest_snapshot(self, tab_id: str) -> Snapshot | None:
-        """The last snapshot of the tab, if any; it may describe a page that has moved since."""
+        """Le dernier instantané de l'onglet, s'il y en a un ; il peut décrire une page qui a bougé depuis."""
         kept = self._snapshots.get(tab_id)
         return kept[-1] if kept else None
 
     def snapshot(self, tab_id: str, snapshot_id: str) -> Snapshot:
-        """One of the last snapshots of the tab, or ``snapshot_stale``."""
+        """L'un des derniers instantanés de l'onglet, ou ``snapshot_stale``."""
         for snapshot in self._snapshots.get(tab_id, ()):
             if snapshot.snapshot_id == snapshot_id:
                 return snapshot
         raise ToolError("snapshot_stale", _STALE_MESSAGE)
 
     async def capture_masked_png(self, tab: Tab) -> bytes:
-        """The viewport with the same masks and no marks, for the evidence; nothing else makes one."""
+        """La fenêtre d'affichage avec les mêmes masques et sans repères, pour la preuve ; rien d'autre n'en fait une."""
         for _attempt in range(2):
             try:
                 reading = await self._read(tab, image=True, full=True)
@@ -1208,9 +1205,9 @@ class Perception:
     async def wait_for(
         self, tab: Tab, *, kind: str, value: Any = None, timeout_s: float = DEFAULT_WAIT_S
     ) -> WaitResult:
-        """Wait for the load, a text or an element, by light reads every 300 ms.
+        """Attend le chargement, un texte ou un élément, par des lectures légères toutes les 300 ms.
 
-        Never waits for a quiet network. ``wait_timeout`` at the deadline.
+        N'attend jamais un réseau calme. ``wait_timeout`` à l'échéance.
         """
         limit = _wait_timeout(timeout_s)
         if kind == "load":
@@ -1249,10 +1246,10 @@ class Perception:
                 raise ToolError("wait_timeout", _WAIT_MESSAGE)
             await asyncio.sleep(POLL_INTERVAL_S)
 
-    # --- reading ------------------------------------------------------------------
+    # --- lecture ------------------------------------------------------------------------------
 
     async def _gate(self, tab: Tab) -> tuple[FrameInfo, Origin]:
-        """The origin of the main frame, refused unless the operator allowed it."""
+        """L'origine du cadre principal, refusée sauf si l'opérateur l'a autorisée."""
         frame = await self._registry.main_frame_info(tab, stop_on_dialog=True)
         if not origin_allowed(frame.origin, self._allowed_origins()):
             raise ToolError("origin_not_allowed", _ORIGIN_MESSAGE, extra_server={"origin": origin_label(frame)})
@@ -1281,10 +1278,9 @@ class Perception:
         dom = Dom(raw, _device_scale(metrics))
         masks_stable = True
         if png is not None:
-            # The image is taken after the snapshot: if a sensitive field or a
-            # frame moved meanwhile, its mask would miss it. Read the boxes
-            # again and keep the image only if they did not move, nor the zoom
-            # the cut was made at.
+            # L'image est prise après l'instantané : si un champ sensible ou un cadre a bougé entre-temps, son masque
+            # le manquerait. Relire les boîtes et ne garder l'image que si elles n'ont pas bougé, ni le zoom
+            # auquel la découpe a été faite.
             metrics_after = await self._registry.read(tab, "Page.getLayoutMetrics")
             dom_after = Dom(
                 await self._registry.read(tab, "DOMSnapshot.captureSnapshot", LIGHT_SNAPSHOT_PARAMS), _device_scale(metrics_after)
@@ -1308,7 +1304,7 @@ class Perception:
             masks_stable=masks_stable,
         )
 
-    # --- building outputs --------------------------------------------------------
+    # --- construction des sorties -------------------------------------------------------------
 
     def _observation(self, tab: Tab, reading: _Reading, *, image: bool) -> Observation:
         built = build(reading.ax, reading.dom, reading.viewport, reading.origin, tree_builder=self._tree_builder)
@@ -1356,9 +1352,9 @@ class Perception:
             "tab_id": tab.tab_id,
             "snapshot_id": snapshot.snapshot_id,
             "origin": reading.origin.canonical,
-            # The document the marks belong to: a navigation gives a new one.
+            # Le document auquel appartiennent les repères : une navigation en donne un nouveau.
             "loader_id": snapshot.loader_id,
-            # The part of the page in view and how far the document extends, in CSS pixels.
+            # La partie de la page en vue et jusqu'où le document s'étend, en pixels CSS.
             "viewport": {
                 "width": reading.viewport.width,
                 "height": reading.viewport.height,
@@ -1418,14 +1414,13 @@ def _viewport(metrics: dict[str, Any]) -> Box:
 
 
 def _device_scale(metrics: dict[str, Any]) -> float:
-    """Device pixels per CSS pixel, from the two descriptions of the visual viewport.
+    """Pixels de l'appareil par pixel CSS, d'après les deux descriptions de la fenêtre d'affichage visuelle.
 
-    The snapshot is in device pixels and the viewport in CSS pixels, so
-    neither says the factor alone; the browser gives the viewport in both
-    units and their ratio is the factor. A pinch zoom divides both by the
-    same number: the ratio does not move. A page that cannot be put in one
-    unit is refused, not read as if the factor were 1: a mask in the wrong
-    place would publish the field it was meant to hide.
+    L'instantané est en pixels de l'appareil et la fenêtre en pixels CSS, donc aucun des deux ne donne le
+    facteur seul ; le navigateur donne la fenêtre dans les deux unités et leur rapport est le facteur. Un
+    zoom par pincement divise les deux par le même nombre : le rapport ne bouge pas. Une page qui ne peut
+    pas être mise dans une seule unité est refusée, pas lue comme si le facteur valait 1 : un masque mal
+    placé publierait le champ qu'il devait cacher.
     """
     try:
         device = float(metrics["visualViewport"]["clientWidth"])
@@ -1438,11 +1433,11 @@ def _device_scale(metrics: dict[str, Any]) -> float:
 
 
 def _page_zoom(metrics: dict[str, Any]) -> float | None:
-    """The page zoom (the browser's Ctrl + key), or None when the metrics do not give a usable one.
+    """Le zoom de page (la touche Ctrl + du navigateur), ou None quand les métriques n'en donnent pas d'utilisable.
 
-    The cut an image is made with is in CSS pixels times this number. Reading it as 1 when it is
-    missing would cut another part of the page than the one the masks are laid on, and the image
-    would leave with its sensitive fields in view: without a zoom there is no image.
+    La découpe d'une image se fait en pixels CSS multipliés par ce nombre. Le lire comme 1 quand il manque
+    découperait une autre partie de la page que celle sur laquelle les masques sont posés, et l'image
+    partirait avec ses champs sensibles en vue : sans zoom, il n'y a pas d'image.
     """
     try:
         zoom = metrics["visualViewport"]["zoom"]
@@ -1455,12 +1450,12 @@ def _page_zoom(metrics: dict[str, Any]) -> float | None:
 
 
 def _screenshot_clip(viewport: Box, zoom: float) -> dict[str, float]:
-    """The part of the page to capture, in the unit the browser reads a cut in: CSS pixels times the zoom."""
+    """La partie de la page à capturer, dans l'unité où le navigateur lit une découpe : pixels CSS multipliés par le zoom."""
     return {"x": viewport.x * zoom, "y": viewport.y * zoom, "width": viewport.width * zoom, "height": viewport.height * zoom, "scale": 1}
 
 
 def _device_view(metrics: dict[str, Any]) -> tuple[float, float]:
-    """The size of the view in device pixels, as the browser states it; refused if it is not a usable size."""
+    """La taille de la vue en pixels de l'appareil, telle que le navigateur l'énonce ; refusée si ce n'est pas une taille utilisable."""
     try:
         device = metrics["visualViewport"]
         size = (float(device["clientWidth"]), float(device["clientHeight"]))
@@ -1472,14 +1467,14 @@ def _device_view(metrics: dict[str, Any]) -> tuple[float, float]:
 
 
 def _image_fits_view(png: bytes, metrics: dict[str, Any]) -> bool:
-    """True when the image has the size of the view in device pixels, give or take the rounding of the cut.
+    """Vrai quand l'image a la taille de la vue en pixels de l'appareil, à l'arrondi de la découpe près.
 
-    Whatever the reason, an image of another size does not show the view the masks are laid on.
+    Quelle qu'en soit la raison, une image d'une autre taille ne montre pas la vue sur laquelle les masques sont posés.
     """
     try:
         wanted = _device_view(metrics)
         size = _decode_png(png).size
-    except Exception:  # noqa: BLE001 - a size that cannot be read is a size that cannot be checked
+    except Exception:  # noqa: BLE001 - une taille illisible est une taille qu'on ne peut pas contrôler
         return False
     return all(abs(got - want) <= IMAGE_SIZE_SLACK_PX for got, want in zip(size, wanted, strict=True))
 

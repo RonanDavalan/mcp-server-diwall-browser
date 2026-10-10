@@ -1,9 +1,9 @@
-"""Tool save_evidence: keep a masked capture of a tab in the encrypted directory.
+"""Outil save_evidence : garder une capture masquée d'un onglet dans le répertoire chiffré.
 
-Why this module exists:
-    The operator may want a trace of what a page showed, a receipt or a
-    confirmation number. The capture has the same masks as an observation
-    and is written only inside the open encrypted directory.
+Pourquoi ce module existe :
+    L'opérateur peut vouloir une trace de ce qu'une page a montré, un reçu ou un numéro de
+    confirmation. La capture a les mêmes masques qu'une observation et n'est écrite que dans le
+    répertoire chiffré ouvert.
 """
 
 from __future__ import annotations

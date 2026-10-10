@@ -1,9 +1,8 @@
-"""Tool select_option: choose an option of a native list.
+"""Outil select_option : choisir une option d'une liste native.
 
-Why this module exists:
-    Choosing an option changes a form but commits nothing: it is not
-    locked, and asks for a confirmation only on a site where the operator
-    wants one for every change.
+Pourquoi ce module existe :
+    Choisir une option change un formulaire mais n'engage rien : ce n'est pas verrouillé, et ne demande
+    de confirmation que sur un site où l'opérateur en veut une pour chaque changement.
 """
 
 from __future__ import annotations

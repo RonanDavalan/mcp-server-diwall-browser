@@ -1,4 +1,4 @@
-"""Mechanical properties of the code base, replayed on every test run."""
+"""Propriétés mécaniques du code, rejouées à chaque exécution des tests."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from mcp_server_diwall_browser.output import ToolError
 PACKAGE_DIR = Path(__file__).resolve().parent.parent / "src" / "mcp_server_diwall_browser"
 
 
-# --- core dumps are disabled before the first secret is loaded -----------------------
+# --- les vidages mémoire sont désactivés avant que le premier secret soit chargé --------------------
 
 Resolver = Callable[..., credentials.Secret]
 
@@ -58,7 +58,7 @@ def core_dumps_disabled_before_credential_open(
 
 
 def resolve_that_opens_first(volume: Volume, page_origin: Origin, key: str, name: str | None = None) -> credentials.Secret:
-    # Defective: touches the credential file before hardening the process.
+    # Défectueux : touche le fichier d'identifiants avant de durcir le processus.
     root = volume.require_mounted()
     fd = os.open(root / "credentials" / "service.json", os.O_RDONLY)
     os.close(fd)
@@ -77,7 +77,7 @@ def test_core_dump_ordering_check_catches_a_resolver_that_opens_first(
     assert not core_dumps_disabled_before_credential_open(resolve_that_opens_first, tmp_path, monkeypatch)
 
 
-# --- each security definition exists once, in its own module ---------------------------
+# --- chaque définition de sécurité existe une fois, dans son propre module --------------------------
 
 SINGLE_DEFINITIONS = {
     "parse_origin": "origin.py",
@@ -112,7 +112,7 @@ SINGLE_DEFINITIONS = {
     "tool": "output.py",
 }
 
-# Standard library helpers that parse an address; only origin.py may parse one.
+# Assistants de la bibliothèque standard qui analysent une adresse ; seul origin.py peut en analyser une.
 URL_PARSERS_RE = re.compile(r"\b(urlsplit|urlparse|urlunsplit|urlunparse|urljoin|urldefrag|parse_qs|parse_qsl)\b")
 
 
@@ -164,7 +164,7 @@ def test_definition_check_catches_a_second_copy(tmp_path: Path, module: str, sou
     assert not definitions_are_single(copy)
 
 
-# --- every write under the volume goes through the mount check ---------------------------
+# --- chaque écriture sous le volume passe par le contrôle du montage --------------------------------
 
 _READ_ONLY_FLAGS = {"O_RDONLY", "O_NOFOLLOW", "O_CLOEXEC", "O_NONBLOCK"}
 _WRITE_METHODS = {"write_text", "write_bytes", "mkdir", "touch", "symlink_to", "hardlink_to", "rename", "replace"}
@@ -198,7 +198,7 @@ def _mode_argument(call: ast.Call, position: int) -> ast.AST | None:
 
 
 def write_calls(source: str) -> list[str]:
-    """Calls in ``source`` that can create or modify a file or directory."""
+    """Appels de ``source`` qui peuvent créer ou modifier un fichier ou un répertoire."""
     found = []
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call):
@@ -209,7 +209,7 @@ def write_calls(source: str) -> list[str]:
             if pair == ("os", "open"):
                 flags = node.args[1] if len(node.args) > 1 else None
                 names = set() if flags is None else _names_in(flags) - {"os"}
-                # Flags that are not spelled out cannot be proven read-only.
+                # Des indicateurs qui ne sont pas écrits explicitement ne peuvent pas être prouvés en lecture seule.
                 if not names or not names <= _READ_ONLY_FLAGS:
                     found.append(f"line {node.lineno}: os.open for writing")
                 continue
@@ -289,7 +289,7 @@ def test_write_scan_leaves_reads_alone(source: str) -> None:
     assert write_calls(source) == []
 
 
-# --- files created from page or model data are private and never follow a link ------------
+# --- les fichiers créés à partir de données de page ou du modèle sont privés et ne suivent jamais un lien ---
 
 Writer = Callable[[Volume, bytes], None]
 
@@ -299,7 +299,7 @@ def journal_writer(volume: Volume, line: bytes) -> None:
 
 
 def plain_open_writer(volume: Volume, line: bytes) -> None:
-    # Defective: a plain append that follows links and takes the umask mode.
+    # Défectueux : un ajout simple qui suit les liens et prend le mode du umask.
     root = volume.require_mounted()
     (root / "journal").mkdir(exist_ok=True)
     with open(root / "journal" / "operations.jsonl", "ab") as handle:
@@ -343,7 +343,7 @@ def test_file_check_catches_a_plain_append_writer(tmp_path: Path) -> None:
     assert not journal_files_are_private_and_unfollowed(plain_open_writer, tmp_path)
 
 
-# --- evidence and downloaded files are private and never follow a link ----------------------
+# --- les preuves et les fichiers téléchargés sont privés et ne suivent jamais un lien ---------------
 
 PNG = b"\x89PNG\r\n\x1a\n-test"
 
@@ -353,7 +353,7 @@ def evidence_writer(volume: Volume, data: bytes) -> Path:
 
 
 def plain_evidence_writer(volume: Volume, data: bytes) -> Path:
-    # Defective: a plain write that follows links and takes the umask mode.
+    # Défectueux : une écriture simple qui suit les liens et prend le mode du umask.
     directory = volume.require_mounted() / "evidence" / "2026-01-02" / "op-1"
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "before.png"
@@ -414,7 +414,7 @@ def volume_settler(volume: Volume, source: str, wanted: str) -> Path:
 
 
 def plain_settler(volume: Volume, source: str, wanted: str) -> Path:
-    # Defective: renames whatever the name points to and keeps the browser's mode.
+    # Défectueux : renomme tout ce vers quoi le nom pointe et garde le mode du navigateur.
     directory = volume.require_mounted() / "downloads" / "op-1"
     target = directory / wanted
     os.rename(directory / source, target)
@@ -425,7 +425,7 @@ def downloads_are_private_and_unfollowed(settler: Settler, tmp_path: Path) -> bo
     (tmp_path / "first").mkdir()
     paths, _fake, volume = mounted_volume(tmp_path / "first")
     directory = volume.ensure_dir("downloads", "op-1")
-    # The browser writes the file with its own mode.
+    # Le navigateur écrit le fichier avec son propre mode.
     fd = os.open(directory / "guid-1", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o644)
     os.close(fd)
     os.chmod(directory / "guid-1", 0o644)
@@ -458,17 +458,17 @@ def test_download_check_catches_a_plain_rename(tmp_path: Path) -> None:
     assert not downloads_are_private_and_unfollowed(plain_settler, tmp_path)
 
 
-# --- page scripts come from the fixed table only, never formatted ----------------------------
+# --- les scripts de page viennent de la seule table fixe, jamais formatés ---------------------------
 
 CDP_MODULE = "cdp.py"
-# The parameters that carry script text; only the CDP client may write them.
+# Les paramètres qui portent le texte d'un script ; seul le client CDP peut les écrire.
 SCRIPT_FIELD_STRINGS = ("functionDeclaration", '"expression"', "'expression'")
-# Calls whose string arguments reach the browser, and the script constructor.
+# Les appels dont les arguments chaînes atteignent le navigateur, et le constructeur de script.
 SCRIPT_CALLS = frozenset({"call_internal", "send", "InternalScript"})
 
 
 def script_field_mentions(package: Path) -> list[str]:
-    """Modules other than cdp.py that mention a parameter carrying script text."""
+    """Modules autres que cdp.py qui mentionnent un paramètre portant le texte d'un script."""
     found = []
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
@@ -499,7 +499,7 @@ def _call_name(func: ast.expr) -> str | None:
 
 
 def _bound_names(target: ast.expr) -> list[str]:
-    """Names an assignment binds; an attribute or an item of an object binds none."""
+    """Noms qu'une affectation lie ; un attribut ou un élément d'objet n'en lie aucun."""
     if isinstance(target, ast.Name):
         return [target.id]
     if isinstance(target, (ast.Tuple, ast.List)):
@@ -510,11 +510,10 @@ def _bound_names(target: ast.expr) -> list[str]:
 
 
 def formatted_script_strings(source: str, calls: frozenset[str] = SCRIPT_CALLS) -> list[str]:
-    """Strings formed with a value by f-string, .format( or % that reach a script call.
+    """Chaînes formées avec une valeur par f-string, .format( ou % qui atteignent un appel de script.
 
-    The arguments of ``calls`` (by default call_internal, send and
-    InternalScript) are searched, and so are the values assigned to a name
-    those arguments use.
+    Les arguments de ``calls`` (par défaut call_internal, send et InternalScript) sont cherchés, ainsi
+    que les valeurs affectées à un nom que ces arguments emploient.
     """
     tree = ast.parse(source)
     assigned: dict[str, list[ast.AST]] = {}
@@ -628,13 +627,13 @@ def test_script_check_leaves_plain_scripts_and_protocol_arguments_alone(source: 
     assert formatted_script_strings(source) == []
 
 
-# The calls by which the actions reach the page: page reads, gestures and the script table.
+# Les appels par lesquels les actions atteignent la page : lectures de page, gestes et table de scripts.
 ACTION_CALLS = SCRIPT_CALLS | {"read", "_read", "run_script", "_script", "_gesture"}
 ACTIONS_MODULE = "actions.py"
 
 
 def script_strings_in_actions(source: str) -> list[str]:
-    """In the actions: no script parameter, no script method, no string formed for a page call."""
+    """Dans les actions : aucun paramètre de script, aucune méthode de script, aucune chaîne formée pour un appel de page."""
     found = [needle for needle in SCRIPT_FIELD_STRINGS if needle in source]
     found.extend(f"method {text}" for text in _string_literals(source) if text.startswith("Runtime."))
     found.extend(formatted_script_strings(source, ACTION_CALLS))
@@ -661,7 +660,7 @@ def test_actions_script_check_catches_a_formed_script(addition: str) -> None:
     assert script_strings_in_actions(source) != []
 
 
-# --- the WebSocket and the unchecked transport stay inside cdp.py ----------------------------
+# --- le WebSocket et le transport non contrôlé restent dans cdp.py ----------------------------------
 
 _PRIVATE_TRANSPORT_RE = re.compile(r"\b(websockets|_exchange)\b")
 
@@ -693,11 +692,11 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
     assert transport_uses_outside_cdp(copy) == ["perception.py"]
 
 
-# --- no switch turns a check off: no environment read outside its module, no option, no flag ---
+# --- aucun interrupteur ne désactive un contrôle : aucune lecture d'environnement hors de son module, aucune option, aucun indicateur ---
 
 ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py"}
-# The command an operator runs by hand, outside the server's process (no module imports it): it has
-# a command line of three options and writes one line of result.
+# La commande qu'un opérateur lance à la main, hors du processus du serveur (aucun module ne l'importe) :
+# elle a une ligne de commande de trois options et écrit une ligne de résultat.
 OPERATOR_COMMAND = "credential_import.py"
 OPERATOR_COMMAND_OPTIONS = frozenset({"--source", "--name", "--origin"})
 _ENVIRONMENT_RE = re.compile(r"\bos\.environ\b|\bgetenv\b|\bputenv\b")
@@ -722,7 +721,7 @@ def _identifiers(tree: ast.AST) -> list[str]:
 
 
 def switches(package: Path) -> list[str]:
-    """Ways a check could be turned off from outside: environment, command line, a test flag."""
+    """Façons dont un contrôle pourrait être désactivé de l'extérieur : environnement, ligne de commande, indicateur de test."""
     found: list[str] = []
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
@@ -734,7 +733,7 @@ def switches(package: Path) -> list[str]:
             found.append(f"{relative}: command line")
         if relative == OPERATOR_COMMAND:
             found.extend(f"{relative}: option {literal}" for literal in _string_literals(text) if literal.startswith("--") and literal not in OPERATOR_COMMAND_OPTIONS)
-        # The confirmation window's own options (--no-label, --no-markup) are its tool's, not the server's.
+        # Les options propres de la fenêtre de confirmation (--no-label, --no-markup) sont celles de son outil, pas du serveur.
         if relative != CONFIRM_MODULE_NAME and any(text_.startswith("--no-") for text_ in _string_literals(text)):
             found.append(f"{relative}: --no- option")
         found.extend(f"{relative}: flag {name}" for name in _identifiers(tree) if _FLAG_RE.match(name))
@@ -784,7 +783,7 @@ def test_the_operator_command_is_not_a_way_to_give_the_server_a_command_line(tmp
     assert switches(copy) == ["server.py: command line"]
 
 
-# --- the server never starts a browser: the one process it starts is the confirmation window ---
+# --- le serveur ne démarre jamais un navigateur : le seul processus qu'il démarre est la fenêtre de confirmation ---
 
 CONFIRM_MODULE = "confirm.py"
 _PROCESS_START_RE = re.compile(
@@ -819,10 +818,10 @@ def test_process_check_catches_a_module_that_starts_a_browser(tmp_path: Path, so
     assert process_starts_outside_confirm(copy) == ["perception.py"]
 
 
-# --- the server listens on no port and relays nothing -----------------------------------------
+# --- le serveur n'écoute sur aucun port et ne relaie rien -------------------------------------------
 
-# ``socket`` itself is imported legitimately (the host name, the IPv6 support
-# probe); what is forbidden is a server module or a call that listens or binds.
+# ``socket`` lui-même est importé légitimement (le nom d'hôte, la sonde de prise en charge d'IPv6) ;
+# ce qui est interdit, c'est un module du serveur ou un appel qui écoute ou se lie.
 _LISTENING_MODULES = {"socketserver", "http.server", "uvicorn", "starlette"}
 _LISTENING_CALLS = {"bind", "listen", "start_server", "start_unix_server", "serve_forever", "create_datagram_endpoint"}
 
@@ -863,11 +862,11 @@ def test_listening_check_catches_a_server_or_a_relay(tmp_path: Path, source: str
     assert [entry.split(":")[0] for entry in listening_code(copy)] == ["perception.py"]
 
 
-# --- perception asks the one predicate whether a field is sensitive ----------------------------
+# --- la perception demande à l'unique prédicat si un champ est sensible -----------------------------
 
 PERCEPTION_MODULE = "perception.py"
-# Spellings that would mean a second detection of sensitive fields; they are
-# looked for anywhere in the file, comments included.
+# Écritures qui voudraient dire une seconde détection des champs sensibles ; elles sont cherchées
+# n'importe où dans le fichier, commentaires compris.
 DETECTION_SPELLINGS = ("password", "passwd", "autocomplete", "cc-", "one-time-code", "current-password", "new-password")
 
 
@@ -887,7 +886,7 @@ def _string_literals(source: str) -> list[str]:
 
 
 def second_detection(source: str) -> list[str]:
-    """Detection knowledge found in the perception source: words of the predicate, or a call to anything but it."""
+    """Connaissance de détection trouvée dans la source de la perception : mots du prédicat, ou appel à autre chose que lui."""
     from mcp_server_diwall_browser import sensitive_field
 
     found = [f"spelling {word!r}" for word in DETECTION_SPELLINGS if word in source.lower()]
@@ -931,12 +930,13 @@ def test_detection_check_catches_a_module_that_never_asks_the_predicate() -> Non
     assert "no call to is_sensitive" in second_detection(source)
 
 
-# --- the repository is written in English ---------------------------------------------------
+# --- la documentation publique est écrite en anglais, ses traductions dans leur dossier ----------------
 
 REPOSITORY = PACKAGE_DIR.parent.parent
 FRENCH_LETTERS = re.compile(r"[éèêëàâçùûîïôœæÉÈÊËÀÂÇÙÛÎÏÔŒÆ«»]")
 FRENCH_WORDS = frozenset({"le", "la", "les", "des", "une", "est", "pour", "dans", "avec", "pas", "qui", "sur", "aux", "du", "cette", "sont"})
 _CODE_SPAN_RE = re.compile(r"```.*?```|`[^`\n]*`", re.DOTALL)
+TRANSLATION_DIRECTORIES = ("fr-FR", "de-DE", "es-ES")
 
 
 def _looks_french(text: str) -> bool:
@@ -959,41 +959,38 @@ def _comments_and_docstrings(source: str) -> list[tuple[int, str]]:
 
 
 def french_prose(root: Path) -> list[str]:
-    """Comments, docstrings and documentation prose written in French.
+    """Prose en français dans la documentation de source anglaise : le README et `docs/`, hors des dossiers de traduction.
 
-    Quoted code and test data (between backticks, or in string literals)
-    may hold French: page text, operator messages, the confirmation text.
+    Le code cité (entre accents graves) et les données de test peuvent contenir du français : texte de page, messages de l'opérateur, texte de la confirmation. Les commentaires et les docstrings du code sont en français : `test_layout.py` les contrôle.
     """
     hits = []
-    for path in sorted(root.rglob("*.py")):
-        if ".venv" in path.parts:
-            continue
-        for line, text in _comments_and_docstrings(path.read_text()):
-            if _looks_french(text):
-                hits.append(f"{path.relative_to(root)}:{line}")
-    for path in [root / "README.md", *sorted((root / "docs").rglob("*.md"))]:
+    sources = [root / "README.md"]
+    sources += [path for path in sorted((root / "docs").rglob("*.md")) if not set(path.relative_to(root / "docs").parts) & set(TRANSLATION_DIRECTORIES)]
+    for path in sources:
         if not path.exists():
             continue
         prose = _CODE_SPAN_RE.sub(" ", path.read_text())
         for number, line in enumerate(prose.splitlines(), start=1):
+            if line.startswith("**English** |"):
+                continue
             if _looks_french(line):
                 hits.append(f"{path.relative_to(root)}:{number}")
     return hits
 
 
-def test_comments_docstrings_and_documentation_are_in_english() -> None:
+def test_documentation_sources_are_in_english() -> None:
     assert french_prose(REPOSITORY) == []
 
 
 @pytest.mark.parametrize(
-    ("relative", "text"),
+    ("relative", "text", "caught"),
     [
-        ("src/mcp_server_diwall_browser/gate.py", "# Vérifie la liste rouge avant le clic\nX = 1\n"),
-        ("src/mcp_server_diwall_browser/gate.py", '"""Le module qui garde la porte pour les actions."""\n'),
-        ("docs/guide.md", "# Guide\n\nLe serveur est lancé par l'opérateur.\n"),
+        ("docs/guide.md", "# Guide\n\nLe serveur est lancé par l'opérateur.\n", True),
+        ("docs/fr-FR/guide.md", "# Guide\n\nLe serveur est lancé par l'opérateur.\n", False),
+        ("src/mcp_server_diwall_browser/gate.py", '"""Le module qui garde la porte pour les actions."""\n', False),
     ],
 )
-def test_language_check_catches_french_prose(tmp_path: Path, relative: str, text: str) -> None:
+def test_language_check_catches_french_prose_in_english_sources_only(tmp_path: Path, relative: str, text: str, caught: bool) -> None:
     copy = tmp_path / "repo"
     (copy / "src").mkdir(parents=True)
     shutil.copytree(PACKAGE_DIR, copy / "src" / "mcp_server_diwall_browser")
@@ -1003,13 +1000,13 @@ def test_language_check_catches_french_prose(tmp_path: Path, relative: str, text
     target = copy / relative
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text)
-    assert french_prose(copy) != []
+    assert bool(french_prose(copy)) is caught
 
 
-# --- no HTTP server stack in the package ------------------------------------------------------
+# --- aucune pile de serveur HTTP dans le paquet -----------------------------------------------------
 
-# The server speaks over standard input and output and opens no port; the MCP
-# library brings an HTTP stack with it, which the package never imports.
+# Le serveur parle sur l'entrée et la sortie standard et n'ouvre aucun port ; la bibliothèque MCP
+# apporte une pile HTTP que le paquet n'importe jamais.
 HTTP_STACK = frozenset({"starlette", "uvicorn", "sse_starlette"})
 
 
@@ -1049,7 +1046,7 @@ def test_http_stack_check_catches_an_import(tmp_path: Path, source: str) -> None
     assert http_stack_imports(copy) != []
 
 
-# --- a renamed helper is used under its public name only ---------------------------------------
+# --- un assistant renommé n'est utilisé que sous son nom public -------------------------------------
 
 RENAMED = {"_origin_label": "origin_label"}
 
@@ -1080,14 +1077,14 @@ def test_rename_check_catches_the_old_name(tmp_path: Path) -> None:
     assert old_names_in_use(copy) != []
 
 
-# --- no specification label or project history in the code ------------------------------------
+# --- aucune étiquette de spécification ni histoire de projet dans le code ---------------------------
 
 LABEL_RE = re.compile(r"\b(?:SEC|COF|PER)-\d+|\bINV-\d+|\b[PR]-\d+\b|\bD\d{1,2}\b|\bP[1-6]\b")
 HISTORY_WORDS = frozenset({"chantier", "jalon", "axe", "tranche", "volet", "lot"})
 
 
 def labels_in_code(root: Path) -> list[str]:
-    """Labels of the specification or words of project history in comments, docstrings and test names."""
+    """Étiquettes de la spécification ou mots d'histoire de projet dans les commentaires, les docstrings et les noms de tests."""
     hits = []
     for path in sorted(root.rglob("*.py")):
         if ".venv" in path.parts:
@@ -1128,7 +1125,7 @@ def test_label_check_catches_a_label(tmp_path: Path, source: str) -> None:
     assert labels_in_code(copy) != []
 
 
-# --- every registered tool calls the single exit point ---------------------------------------------
+# --- chaque outil enregistré appelle le point de sortie unique --------------------------------------
 
 
 def test_every_tool_of_the_production_server_goes_through_the_exit_point() -> None:
@@ -1145,20 +1142,20 @@ def test_exit_point_invariant_catches_a_tool_added_without_it() -> None:
     server = create_server(production_dependencies())
 
     def stray() -> str:
-        """A tool written outside the exit point."""
+        """Un outil écrit hors du point de sortie."""
         return "{}"
 
     server.add_tool(stray, name="stray")
     assert undecorated(server) == ["stray"]
 
 
-# --- nothing but the protocol on standard output ------------------------------------------------------
+# --- rien que le protocole sur la sortie standard ---------------------------------------------------
 
 _STDOUT_RE = re.compile(r"\bsys\.(?:stdout|__stdout__)\b|\bos\.write\(\s*1\b|\bprint\(")
 
 
 def standard_output_writes(package: Path) -> list[str]:
-    """Places that would write on standard output, which carries the protocol only."""
+    """Endroits qui écriraient sur la sortie standard, qui ne porte que le protocole."""
     found = []
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
@@ -1207,9 +1204,9 @@ def test_only_the_operator_command_may_name_standard_output_and_it_may_not_print
     assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == ["journal.py"]
 
 
-# --- no DevTools method but the allowed ones, page scripts in the client only ---------------------------
+# --- aucune méthode DevTools hors des permises, scripts de page dans le client seulement ------------
 
-# The domains of the DevTools protocol: a literal "Domain.name" with one of them names a method or an event.
+# Les domaines du protocole DevTools : un littéral « Domaine.nom » avec l'un d'eux nomme une méthode ou un événement.
 CDP_DOMAINS = (
     "Accessibility", "Animation", "Audits", "Autofill", "BackgroundService", "Browser", "CacheStorage", "Cast",
     "Console", "CSS", "Database", "Debugger", "DeviceAccess", "DeviceOrientation", "DOM", "DOMDebugger",
@@ -1220,7 +1217,7 @@ CDP_DOMAINS = (
     "WebAudio", "WebAuthn",
 )
 _CDP_NAME_RE = re.compile(rf"^(?:{'|'.join(CDP_DOMAINS)})\.[a-z][A-Za-z]*$")
-# Events the server listens to: names the browser sends, never methods it is asked to run.
+# Événements que le serveur écoute : des noms que le navigateur envoie, jamais des méthodes qu'on lui demande d'exécuter.
 CDP_EVENTS = frozenset(
     {
         "Browser.downloadProgress",
@@ -1241,7 +1238,7 @@ SCRIPT_METHODS = frozenset({"Runtime.evaluate", "Runtime.callFunctionOn"})
 
 
 def devtools_names_out_of_list(package: Path, allowed: frozenset[str]) -> list[str]:
-    """Method-like literals that are neither an allowed method nor a known event; script methods outside cdp.py."""
+    """Littéraux ressemblant à des méthodes qui ne sont ni une méthode permise ni un événement connu ; méthodes de script hors de cdp.py."""
     found = []
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
@@ -1278,13 +1275,13 @@ def test_devtools_check_catches_a_method_out_of_the_list(tmp_path: Path, module:
     assert [entry.split(":")[0] for entry in devtools_names_out_of_list(copy, ALLOWED_METHODS)] == [module]
 
 
-# --- the factory takes its dependencies from its caller only --------------------------------------------
+# --- la fabrique ne prend ses dépendances que de son appelant ---------------------------------------
 
 ENVIRONMENT_NAMES = frozenset({"HOME", "XDG_CONFIG_HOME", "MCP_DIWALL_BROWSER_PROFILE", "ENV_VAR", "WAYLAND_DISPLAY", "DISPLAY"})
 
 
 def environment_names_read(package: Path) -> set[str]:
-    """Names looked up in the environment by the two modules allowed to read it."""
+    """Noms cherchés dans l'environnement par les deux modules autorisés à le lire."""
     names: set[str] = set()
     for module in ENVIRONMENT_MODULES:
         for node in ast.walk(ast.parse((package / module).read_text())):
@@ -1326,11 +1323,11 @@ def test_environment_name_check_catches_a_variable_that_would_switch_a_check(tmp
     assert "DIWALL_SKIP_CONFIRMATION" in environment_names_read(copy) - ENVIRONMENT_NAMES
 
 
-# --- no forbidden file is tracked -------------------------------------------------------------------------
+# --- aucun fichier interdit n'est suivi -------------------------------------------------------------
 
 _FORBIDDEN_NAMES = {"CLAUDE.md", "AGENTS.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "profile.json"}
 _FORBIDDEN_DIRECTORIES = {".claude", "credentials", "evidence", "downloads", "browser-profile"}
-# A capture is an image of a page: the only one tracked is the demo page's, shown in the README.
+# Une capture est une image de page : la seule suivie est celle de la page de démonstration, montrée dans le README.
 _CAPTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 _DOCUMENTED_CAPTURE = "docs/images/observe-demo.png"
 

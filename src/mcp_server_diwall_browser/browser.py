@@ -1,12 +1,12 @@
-"""Attach to the operator's running browser and act only in the tabs the server opened.
+"""Se rattacher au navigateur en cours d'exécution de l'opérateur et n'agir que dans les onglets que le serveur a ouverts.
 
-Why this module exists:
-    The debugging port gives anyone who reaches it the whole browser, with
-    no password, so it must listen on loopback only; and the operator's
-    default profile must never be the one attached. Once attached, a
-    browser-level session sees every tab of the operator, their mail and
-    their bank included: which tabs belong to the server is decided here,
-    once, and nothing about any other tab is ever kept, returned or logged.
+Pourquoi ce module existe :
+    Le port de débogage donne à quiconque l'atteint tout le navigateur, sans mot de passe : il
+    doit donc n'écouter que sur la boucle locale ; et le profil par défaut de l'opérateur ne
+    doit jamais être celui auquel on se rattache. Une fois rattachée, une session au niveau du
+    navigateur voit tous les onglets de l'opérateur, sa messagerie et sa banque comprises : quels
+    onglets appartiennent au serveur est décidé ici, une fois, et rien d'aucun autre onglet n'est
+    jamais gardé, rendu ni journalisé.
 """
 
 from __future__ import annotations
@@ -40,15 +40,15 @@ DEFAULT_NAVIGATION_TIMEOUT_S = 15.0
 MAX_NAVIGATION_TIMEOUT_S = 60.0
 BLANK = "about:blank"
 
-# Default user data directory of each family, under the configuration
-# directory. Since Chrome 136 the debugging port is ignored on it.
+# Répertoire de données utilisateur par défaut de chaque famille, sous le répertoire de configuration.
+# Depuis Chrome 136, le port de débogage y est ignoré.
 DEFAULT_DATA_DIRS: dict[str, tuple[str, ...]] = {
     "chrome": ("google-chrome",),
     "chromium": ("chromium",),
     "brave": ("BraveSoftware", "Brave-Browser"),
 }
 
-# Answer of the browser when a call names a session that no longer exists.
+# Réponse du navigateur quand un appel nomme une session qui n'existe plus.
 SESSION_NOT_FOUND = -32001
 
 TCP_STATES = {
@@ -100,16 +100,16 @@ _NOT_OWNED_MESSAGE = (
 _log = logging.getLogger(__name__)
 
 
-# --- Loopback check of the debugging port --------------------------------------------
+# --- Contrôle de bouclage du port de débogage ---------------------------------------------
 
 
 class ProcNetError(ValueError):
-    """A socket table of /proc/net could not be understood."""
+    """Une table de sockets de /proc/net n'a pas pu être comprise."""
 
 
 @dataclass(frozen=True)
 class Listener:
-    """One socket of a /proc/net table: its local address, port and state."""
+    """Une socket d'une table de /proc/net : son adresse locale, son port et son état."""
 
     address: ipaddress.IPv4Address | ipaddress.IPv6Address
     port: int
@@ -117,12 +117,11 @@ class Listener:
 
 
 def parse_proc_net_tcp(text: str, *, ipv6: bool) -> list[Listener]:
-    """Parse ``/proc/net/tcp`` (or ``tcp6`` when ``ipv6``).
+    """Analyser ``/proc/net/tcp`` (ou ``tcp6`` quand ``ipv6``).
 
-    A malformed line raises instead of being skipped: the skipped line could
-    be the very socket that listens on every interface. An empty text is a
-    table with no socket; the kernel never writes one (the header is always
-    there), it stands for the table of a kernel without IPv6.
+    Une ligne mal formée lève au lieu d'être sautée : la ligne sautée pourrait être la socket même qui écoute
+    sur toutes les interfaces. Un texte vide est une table sans socket ; le noyau n'en écrit jamais (l'en-tête
+    est toujours là), il représente la table d'un noyau sans IPv6.
     """
     lines = text.splitlines()
     if not lines:
@@ -151,8 +150,8 @@ def parse_proc_net_tcp(text: str, *, ipv6: bool) -> list[Listener]:
 
 
 def _decode_address(hex_text: str, *, ipv6: bool) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
-    # The kernel prints each 32-bit word of the address as an integer in the
-    # machine's byte order (little-endian on the usual hardware).
+    # Le noyau affiche chaque mot de 32 bits de l'adresse comme un entier dans l'ordre des octets de la
+    # machine (petit-boutiste sur le matériel habituel).
     raw = b"".join(
         int(hex_text[i : i + 8], 16).to_bytes(4, sys.byteorder) for i in range(0, len(hex_text), 8)
     )
@@ -160,7 +159,7 @@ def _decode_address(hex_text: str, *, ipv6: bool) -> ipaddress.IPv4Address | ipa
 
 
 def is_loopback(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    """127.0.0.0/8, ::1 and ::ffff:127.0.0.0/8, nothing else."""
+    """127.0.0.0/8, ::1 et ::ffff:127.0.0.0/8, rien d'autre."""
     if isinstance(address, ipaddress.IPv4Address):
         return address in _LOOPBACK_V4
     if address == _LOOPBACK_V6:
@@ -170,9 +169,9 @@ def is_loopback(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
 
 
 def verify_loopback_listening(port: int, *, tcp_text: str | None, tcp6_text: str | None) -> None:
-    """Refuse unless every socket listening on ``port`` is bound to loopback.
+    """Refuser sauf si toute socket qui écoute sur ``port`` est liée à la boucle locale.
 
-    ``None`` stands for a table that could not be read.
+    ``None`` représente une table qui n'a pas pu être lue.
     """
     try:
         if tcp_text is None or tcp6_text is None:
@@ -188,7 +187,7 @@ def verify_loopback_listening(port: int, *, tcp_text: str | None, tcp6_text: str
 
 
 def kernel_supports_ipv6() -> bool:
-    """False only when the kernel refuses to create any IPv6 socket."""
+    """Faux seulement quand le noyau refuse de créer la moindre socket IPv6."""
     family = getattr(socket, "AF_INET6", None)
     if family is None:
         return True
@@ -203,10 +202,10 @@ def kernel_supports_ipv6() -> bool:
 def read_proc_net_tcp(
     *, directory: str = "/proc/net", ipv6_supported: Callable[[], bool] = kernel_supports_ipv6
 ) -> tuple[str | None, str | None]:
-    """Read the IPv4 and IPv6 socket tables; ``None`` for a table that cannot be read.
+    """Lire les tables de sockets IPv4 et IPv6 ; ``None`` pour une table qui ne peut pas être lue.
 
-    A kernel without IPv6 has no ``tcp6`` table and can hold no IPv6 socket;
-    only in that case is the missing table read as an empty one.
+    Un noyau sans IPv6 n'a pas de table ``tcp6`` et ne peut contenir aucune socket IPv6 ;
+    c'est seulement dans ce cas que la table manquante est lue comme vide.
     """
     tcp = _read_table(os.path.join(directory, "tcp"))
     tcp6_path = os.path.join(directory, "tcp6")
@@ -230,12 +229,11 @@ def _read_table(path: str) -> str | None:
         return None
 
 
-# --- Dedicated profile -------------------------------------------------------------------
+# --- Profil dédié -------------------------------------------------------------------------
 
 
 def default_data_dirs(family: str, home: str, *, config_home: str | None = None) -> list[str]:
-    """Where ``family`` keeps its default profile: under ~/.config, and under
-    $XDG_CONFIG_HOME when the operator set it."""
+    """Où ``family`` garde son profil par défaut : sous ~/.config, et sous $XDG_CONFIG_HOME quand l'opérateur l'a défini."""
     if family not in DEFAULT_DATA_DIRS:
         raise ValueError(f"unknown browser family: {family!r}")
     bases = [os.path.join(home, ".config")]
@@ -245,7 +243,7 @@ def default_data_dirs(family: str, home: str, *, config_home: str | None = None)
 
 
 def check_profile_dir(family: str, profile_dir: str, home: str, *, config_home: str | None = None) -> None:
-    """Refuse a profile directory that is, or lies inside, the family's default one."""
+    """Refuser un répertoire de profil qui est, ou se trouve dans, celui par défaut de la famille."""
     real_profile = os.path.realpath(profile_dir)
     for default in default_data_dirs(family, home, config_home=config_home):
         real_default = os.path.realpath(default)
@@ -254,7 +252,7 @@ def check_profile_dir(family: str, profile_dir: str, home: str, *, config_home: 
             raise ToolError("profile_dir_is_default", _DEFAULT_PROFILE_MESSAGE)
 
 
-# --- Attachment ------------------------------------------------------------------------
+# --- Rattachement -------------------------------------------------------------------------
 
 
 HttpGet = Callable[[int], tuple[int, bytes]]
@@ -262,7 +260,7 @@ ProcNetReader = Callable[[], tuple[str | None, str | None]]
 
 
 def default_http_get(port: int, path: str = VERSION_PATH, *, timeout: float = HTTP_TIMEOUT_S) -> tuple[int, bytes]:
-    """GET ``path`` on 127.0.0.1:``port``; the host is fixed, never taken from data."""
+    """GET ``path`` sur 127.0.0.1:``port`` ; l'hôte est fixe, jamais pris dans des données."""
     connection = http.client.HTTPConnection(LOOPBACK_HOST, port, timeout=timeout)
     try:
         connection.request("GET", path)
@@ -273,7 +271,7 @@ def default_http_get(port: int, path: str = VERSION_PATH, *, timeout: float = HT
 
 
 def check_debugger_url(url: object, port: int) -> str:
-    """Accept only ws://127.0.0.1:<port>/… or ws://[::1]:<port>/…"""
+    """N'accepter que ws://127.0.0.1:<port>/… ou ws://[::1]:<port>/…"""
     try:
         if not isinstance(url, str):
             raise OriginError("malformed")
@@ -288,7 +286,7 @@ def check_debugger_url(url: object, port: int) -> str:
         raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE) from None
     if host not in _LOOPBACK_WS_HOSTS:
         raise ToolError("debug_endpoint_not_loopback", _NOT_LOOPBACK_MESSAGE)
-    # The loopback check covered this port only; another one is unchecked.
+    # Le contrôle de bouclage ne couvrait que ce port ; un autre n'est pas contrôlé.
     if port_text != str(port):
         raise ToolError("debug_endpoint_undetermined", _UNDETERMINED_MESSAGE)
     return url
@@ -300,7 +298,7 @@ class _BrowserProfile(Protocol):
 
 
 class BrowserAttachment:
-    """A connection to the operator's browser, made only after every check passed."""
+    """Une connexion au navigateur de l'opérateur, faite seulement après que chaque contrôle a réussi."""
 
     def __init__(self, connection: CdpConnection, *, product: str, version: str, profile_dir_declared: str) -> None:
         self._connection = connection
@@ -323,10 +321,9 @@ class BrowserAttachment:
         home: str | None = None,
         config_home: str | None = None,
     ) -> BrowserAttachment:
-        """Check the port, the profile and the announced endpoint, then connect.
+        """Contrôler le port, le profil et le point d'accès annoncé, puis se connecter.
 
-        The server never launches nor closes the operator's browser, and
-        never relays its port.
+        Le serveur ne lance ni ne ferme jamais le navigateur de l'opérateur, et ne relaie jamais son port.
         """
         settings = profile.browser
         port = settings.debug_port
@@ -363,13 +360,13 @@ class BrowserAttachment:
         }
 
     async def close(self) -> None:
-        """Close the connection; the browser stays open."""
+        """Fermer la connexion ; le navigateur reste ouvert."""
         await self._connection.close()
 
 
 async def _announced_url(http_get: HttpGet, port: int) -> object:
     try:
-        # A blocking request, kept off the event loop for its whole delay.
+        # Une requête bloquante, tenue hors de la boucle d'événements pendant tout son délai.
         status, body = await asyncio.to_thread(http_get, port)
     except (OSError, http.client.HTTPException) as exc:
         _log.debug("debugging endpoint unreachable (%s)", type(exc).__name__)
@@ -385,23 +382,23 @@ async def _announced_url(http_get: HttpGet, port: int) -> object:
     return info["webSocketDebuggerUrl"]
 
 
-# --- Tabs ------------------------------------------------------------------------------
+# --- Onglets ------------------------------------------------------------------------------
 
 
 @dataclass(eq=False)
 class Tab:
-    """A tab the server owns. ``target_id`` and ``session_id`` never leave the server."""
+    """Un onglet que le serveur possède. ``target_id`` et ``session_id`` ne quittent jamais le serveur."""
 
     tab_id: str
     adopted: bool
     target_id: str = field(repr=False)
     session_id: str = field(repr=False)
     main_frame_id: str | None = field(default=None, repr=False)
-    # {"type", "message"} of an open dialog; the message is untrusted page data.
+    # {"type", "message"} d'une boîte de dialogue ouverte ; le message est une donnée de page non fiable.
     dialog: dict[str, str] | None = field(default=None, repr=False)
-    # Address of the frame that opened the dialog, as the browser reports it.
+    # Adresse du cadre qui a ouvert la boîte de dialogue, telle que le navigateur la rapporte.
     dialog_url: str | None = field(default=None, repr=False)
-    # Whether the main frame is loading, from the browser's loading events.
+    # Dit si le cadre principal charge, d'après les événements de chargement du navigateur.
     loading: bool = field(default=False, repr=False)
     closed: bool = False
 
@@ -409,8 +406,7 @@ class Tab:
 @dataclass(frozen=True)
 class TabInfo:
     tab_id: str
-    # Canonical origin, "about:blank", or None for an address without a web
-    # origin (an error page, for instance).
+    # Origine canonique, "about:blank", ou None pour une adresse sans origine web (une page d'erreur, par exemple).
     origin: str | None
     adopted: bool
 
@@ -425,16 +421,16 @@ class FrameInfo:
 
 @dataclass(frozen=True)
 class NavigationResult:
-    """``loaded`` is False when the deadline passed first; a notice says so."""
+    """``loaded`` est faux quand l'échéance est passée d'abord ; un avis le dit."""
 
     loaded: bool
 
 
 def check_navigable(url: object) -> Origin:
-    """The origin of an address the server may open: http or https only.
+    """L'origine d'une adresse que le serveur peut ouvrir : http ou https seulement.
 
-    Navigation is free on every site of the web; the list of allowed sites
-    governs actions, not where a tab may go.
+    La navigation est libre sur tous les sites du web ; la liste des sites autorisés régit les actions,
+    pas l'endroit où un onglet peut aller.
     """
     try:
         return origin_of_url(url)  # type: ignore[arg-type]
@@ -447,10 +443,10 @@ def check_navigable(url: object) -> Origin:
 
 
 class DialogBlocking(Exception):
-    """A page read gave up because a dialog blocks the page.
+    """Une lecture de page a abandonné parce qu'une boîte de dialogue bloque la page.
 
-    While a dialog is open the page answers no call at all, not even the
-    frame tree; a read waiting for it would only time out.
+    Tant qu'une boîte de dialogue est ouverte, la page ne répond à aucun appel, pas même à l'arbre des
+    cadres ; une lecture qui l'attendrait ne ferait que dépasser son délai.
     """
 
 
@@ -461,10 +457,10 @@ HANDLE_DIALOG = "handle_dialog"
 
 
 def dialog_refusal() -> ToolError:
-    """The refusal of any action but handling the dialog while one is open.
+    """Le refus de toute action autre que le traitement de la boîte de dialogue tant qu'une est ouverte.
 
-    The dialog covers the whole page as long as it is open: the code is the
-    one of an element covered by something else.
+    La boîte de dialogue couvre toute la page tant qu'elle est ouverte : le code est celui d'un élément
+    recouvert par autre chose.
     """
     return ToolError("element_obscured", _DIALOG_FIRST_MESSAGE, action_expected=HANDLE_DIALOG)
 
@@ -476,10 +472,10 @@ def _navigation_timeout(timeout_s: object) -> float:
 
 
 class TabRegistry:
-    """The tabs the server opened, and the windows their pages opened.
+    """Les onglets que le serveur a ouverts, et les fenêtres que leurs pages ont ouvertes.
 
-    Every other target the browser announces is ignored on arrival: nothing
-    of it is kept, so nothing of it can be returned or logged.
+    Toute autre cible que le navigateur annonce est ignorée à l'arrivée : rien n'en est gardé, donc rien
+    n'en peut être rendu ni journalisé.
     """
 
     def __init__(self, connection: CdpConnection) -> None:
@@ -489,7 +485,7 @@ class TabRegistry:
         self._notices: list[str] = []
         connection.add_event_handler(self._on_event)
 
-    # --- public operations ---------------------------------------------------------
+    # --- opérations publiques -----------------------------------------------------------------
 
     async def open_tab(self, url: str | None = None) -> Tab:
         if url is not None:
@@ -530,8 +526,8 @@ class TabRegistry:
                     continue
                 raise
             except DialogBlocking:
-                # The page answers nothing while a dialog is open; the dialog's
-                # own address says where the tab is.
+                # La page ne répond à rien tant qu'une boîte de dialogue est ouverte ; l'adresse de la boîte
+                # elle-même dit où est l'onglet.
                 frame = FrameInfo(url=tab.dialog_url or "", origin=_origin_or_none(tab.dialog_url), loader_id="", frame_id="")
             infos.append(TabInfo(tab_id=tab.tab_id, origin=origin_label(frame), adopted=tab.adopted))
         return infos
@@ -541,7 +537,7 @@ class TabRegistry:
         try:
             await self._connection.send("Target.closeTarget", {"targetId": tab.target_id})
         except CdpError:
-            pass  # already gone: forgetting it is all that is left to do
+            pass  # déjà parti : l'oublier est tout ce qui reste à faire
         finally:
             self._forget(tab)
 
@@ -552,11 +548,10 @@ class TabRegistry:
     async def navigate(
         self, tab: Tab, url: str, *, timeout_s: float = DEFAULT_NAVIGATION_TIMEOUT_S
     ) -> NavigationResult:
-        """Load ``url`` and wait for the load event or for the main frame to stop loading.
+        """Charger ``url`` et attendre l'événement de chargement ou que le cadre principal cesse de charger.
 
-        Never waits for a quiet network: a page that polls forever never
-        reaches it. At the deadline the result is ``loaded=False`` and a
-        notice is queued for ``drain_notices``; it is not an error.
+        N'attend jamais un réseau calme : une page qui interroge sans fin n'y arrive jamais. À l'échéance,
+        le résultat est ``loaded=False`` et un avis est mis en file pour ``drain_notices`` ; ce n'est pas une erreur.
         """
         self._require_owned(tab)
         check_navigable(url)
@@ -576,8 +571,7 @@ class TabRegistry:
             try:
                 result = await self._tab_call(tab, "Page.navigate", {"url": url}, timeout=limit)
             except ToolError as exc:
-                # A navigation that has not committed by the deadline is slow,
-                # not a lost browser, as long as the connection is alive.
+                # Une navigation qui n'a pas abouti à l'échéance est lente, pas un navigateur perdu, tant que la connexion est vivante.
                 if exc.code == "browser_unreachable" and not self._connection.closed:
                     return self._not_loaded(tab, limit)
                 raise
@@ -589,7 +583,7 @@ class TabRegistry:
                     extra_server={"tab_id": tab.tab_id},
                 )
             if not result.get("loaderId"):
-                # Same-document navigation: there is no load to wait for.
+                # Navigation dans le même document : il n'y a pas de chargement à attendre.
                 return NavigationResult(loaded=True)
             try:
                 await waiter
@@ -600,11 +594,11 @@ class TabRegistry:
             waiter.cancel()
 
     async def main_frame_info(self, tab: Tab, *, stop_on_dialog: bool = False) -> FrameInfo:
-        """Address and origin of the main frame as the browser reports them now.
+        """Adresse et origine du cadre principal telles que le navigateur les rapporte maintenant.
 
-        Read on every call: a redirect or a navigation started by the page
-        moves the origin without the server asking. With ``stop_on_dialog``,
-        an open dialog raises ``DialogBlocking`` instead of a long wait.
+        Lues à chaque appel : une redirection ou une navigation lancée par la page déplace l'origine sans
+        que le serveur le demande. Avec ``stop_on_dialog``, une boîte de dialogue ouverte lève
+        ``DialogBlocking`` au lieu d'une longue attente.
         """
         self._require_owned(tab)
         if stop_on_dialog:
@@ -635,7 +629,7 @@ class TabRegistry:
     async def read(
         self, tab: Tab, method: str, params: dict[str, Any] | None = None, *, timeout: float = DEFAULT_TIMEOUT_S
     ) -> dict[str, Any]:
-        """One call on an owned tab that gives up as soon as a dialog blocks the page."""
+        """Un appel sur un onglet possédé qui abandonne dès qu'une boîte de dialogue bloque la page."""
         return await self._until_dialog(tab, lambda: self._tab_call(tab, method, params, timeout=timeout), timeout)
 
     async def run_script(
@@ -647,7 +641,7 @@ class TabRegistry:
         arguments: list[dict[str, Any]] | None = None,
         timeout: float = DEFAULT_TIMEOUT_S,
     ) -> dict[str, Any]:
-        """An internal script on an owned tab, given up as soon as a dialog blocks the page."""
+        """Un script interne sur un onglet possédé, abandonné dès qu'une boîte de dialogue bloque la page."""
 
         async def call() -> dict[str, Any]:
             try:
@@ -689,11 +683,11 @@ class TabRegistry:
                     task.cancel()
                     try:
                         await task
-                    except (asyncio.CancelledError, Exception):  # noqa: BLE001 - only the cancellation matters here
+                    except (asyncio.CancelledError, Exception):  # noqa: BLE001 - seule l'annulation compte ici
                         pass
 
     async def wait_loaded(self, tab: Tab, *, timeout_s: float = DEFAULT_NAVIGATION_TIMEOUT_S) -> bool:
-        """True once the main frame is not loading, False at the deadline."""
+        """Vrai une fois que le cadre principal ne charge plus, faux à l'échéance."""
         self._require_owned(tab)
         limit = _navigation_timeout(timeout_s)
         session_id = tab.session_id
@@ -718,13 +712,13 @@ class TabRegistry:
             waiter.cancel()
 
     def ensure_no_dialog(self, tab: Tab) -> None:
-        """Refuse at once when a dialog blocks the page, instead of waiting for a call."""
+        """Refuser aussitôt quand une boîte de dialogue bloque la page, au lieu d'attendre un appel."""
         self._require_owned(tab)
         if tab.dialog is not None:
             raise dialog_refusal()
 
     async def handle_dialog(self, tab: Tab, accept: bool) -> None:
-        """Accept or dismiss the open dialog. Whether to do so is decided by the caller."""
+        """Accepter ou fermer la boîte de dialogue ouverte. C'est l'appelant qui décide de le faire ou non."""
         self._require_owned(tab)
         if not isinstance(accept, bool):
             raise TypeError("accept is a boolean")
@@ -732,7 +726,7 @@ class TabRegistry:
         tab.dialog = None
         tab.dialog_url = None
 
-    # --- internals ------------------------------------------------------------------
+    # --- internes -----------------------------------------------------------------------------
 
     def _register(self, target_id: str, session_id: str, *, adopted: bool) -> Tab:
         tab_id = secrets.token_hex(8)
@@ -829,8 +823,8 @@ class TabRegistry:
         return None
 
     def _on_target_created(self, params: dict[str, Any]) -> Any:
-        # Only a page opened by the page of an owned tab is looked at further;
-        # any other target is dropped here without keeping anything of it.
+        # Seule une page ouverte par la page d'un onglet possédé est regardée plus avant ;
+        # toute autre cible est écartée ici sans rien en garder.
         info = params.get("targetInfo")
         if not isinstance(info, dict) or info.get("type") != "page":
             return None
@@ -858,7 +852,7 @@ class TabRegistry:
             _log.debug("a window opened by an owned tab could not be attached (%s)", type(exc).__name__)
             return
         if target_id not in self._adopting:
-            return  # destroyed while attaching
+            return  # détruit pendant le rattachement
         self._adopting.discard(target_id)
         tab = self._register(target_id, session_id, adopted=True)
         try:

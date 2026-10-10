@@ -1,12 +1,11 @@
-"""Ask the operator, in a window the server opens itself, before an armed action.
+"""Interroger l'opérateur, dans une fenêtre que le serveur ouvre lui-même, avant une action armée.
 
-Why this module exists:
-    The MCP client may approve a request on its own, and the model writes
-    what it wants in the parameters of a tool. A confirmation that the
-    model, the client or a page can answer is no confirmation: the window is
-    opened by the server on the operator's desktop, its text is built by the
-    server from what it read in the browser, and only the operator can
-    press its button.
+Pourquoi ce module existe :
+    Le client MCP peut approuver une demande de lui-même, et le modèle écrit ce qu'il veut dans
+    les paramètres d'un outil. Une confirmation à laquelle le modèle, le client ou une page peut
+    répondre n'en est pas une : la fenêtre est ouverte par le serveur sur le bureau de l'opérateur,
+    son texte est construit par le serveur d'après ce qu'il a lu dans le navigateur, et seul
+    l'opérateur peut presser son bouton.
 """
 
 from __future__ import annotations
@@ -54,7 +53,7 @@ class ConfirmationDecision(enum.Enum):
 
 @dataclass(frozen=True)
 class ConfirmRequest:
-    """What the window says. Every field comes from the browser or the server, none from the model."""
+    """Ce que dit la fenêtre. Chaque champ vient du navigateur ou du serveur, aucun du modèle."""
 
     origin: str
     tool: str
@@ -75,7 +74,7 @@ class ConfirmRequest:
 
 
 def find_amounts(text: object, limit: int = MAX_AMOUNTS) -> tuple[str, ...]:
-    """Numbers next to a currency sign or code: a heuristic, said as such in the window."""
+    """Des nombres à côté d'un signe ou d'un code de devise : une heuristique, dite comme telle dans la fenêtre."""
     if not isinstance(text, str):
         return ()
     found: list[str] = []
@@ -89,7 +88,7 @@ def find_amounts(text: object, limit: int = MAX_AMOUNTS) -> tuple[str, ...]:
 
 
 def build_text(request: ConfirmRequest) -> str:
-    """The French text of the window, built from the state read in the browser at this moment."""
+    """Le texte français de la fenêtre, construit d'après l'état lu dans le navigateur à cet instant."""
     name = bounded_text(request.element_name, NAME_LIMIT)
     role = bounded_text(request.element_role, 40)
     lines = [
@@ -121,7 +120,7 @@ Spawn = Callable[..., Awaitable[Any]]
 
 
 class NativeDialogChannel:
-    """A kdialog or zenity window, started without a shell, that the server waits for and kills."""
+    """Une fenêtre kdialog ou zenity, démarrée sans interpréteur de commandes, que le serveur attend et tue."""
 
     def __init__(
         self,
@@ -182,7 +181,7 @@ class NativeDialogChannel:
             command = [path, "--title", WINDOW_TITLE, "--yes-label", GRANT_LABEL, "--no-label", DENY_LABEL]
             if await self._help_mentions(path, ["--help"], "--defaultno"):
                 command.append("--defaultno")
-            # kdialog reads its text as rich text: what the page wrote is shown, never interpreted.
+            # kdialog lit son texte comme du texte riche : ce que la page a écrit est montré, jamais interprété.
             return [*command, "--yesno", _escape_markup(text)]
         command = [
             path,
@@ -237,7 +236,7 @@ Elicit = Callable[[str], Awaitable[bool | None]]
 
 
 class ElicitationChannel:
-    """The client's own confirmation, used only when the operator declared it does not auto-approve."""
+    """La confirmation propre du client, employée seulement quand l'opérateur a déclaré qu'il n'approuve pas automatiquement."""
 
     def __init__(self, elicit: Elicit, *, announced: bool, timeout_s: float = TIMEOUT_S) -> None:
         self._elicit = elicit
@@ -254,7 +253,7 @@ class ElicitationChannel:
             answer = await asyncio.wait_for(self._elicit(text), self._timeout_s)
         except TimeoutError:
             return ConfirmationDecision.EXPIRED
-        except Exception:  # noqa: BLE001 - a failed request is no consent
+        except Exception:  # noqa: BLE001 - une demande échouée n'est pas un consentement
             return ConfirmationDecision.UNAVAILABLE
         if answer is True:
             return ConfirmationDecision.GRANTED
@@ -283,7 +282,7 @@ class _ProfileWithDeclarations(Protocol):
 def choose_channel(
     profile: _ProfileWithDeclarations, native: Channel | None, elicitation: Channel | None
 ) -> Channel:
-    """The native window if it can be shown; the client's confirmation only on the operator's declaration."""
+    """La fenêtre native si elle peut être montrée ; la confirmation du client seulement sur déclaration de l'opérateur."""
     if native is not None and native.available():
         return native
     if elicitation is not None and profile.declarations.client_does_not_auto_confirm and elicitation.available():
@@ -292,7 +291,7 @@ def choose_channel(
 
 
 async def request_confirmation(channel: Channel, request: ConfirmRequest) -> ConfirmationDecision:
-    """Ask once, for this action only; nothing of the answer is kept for another one."""
+    """Demander une fois, pour cette seule action ; rien de la réponse n'est gardé pour une autre."""
     if not channel.available():
         return ConfirmationDecision.UNAVAILABLE
     return await channel.ask(build_text(request))
@@ -315,6 +314,6 @@ _REFUSALS = {
 
 
 def refusal(decision: ConfirmationDecision, *, extra_server: Mapping[str, Any] | None = None) -> ToolError:
-    """The refusal that matches a decision other than granted."""
+    """Le refus qui correspond à une décision autre qu'accordée."""
     code, message, action = _REFUSALS[decision]
     return ToolError(code, message, action_expected=action, extra_server=dict(extra_server or {}))

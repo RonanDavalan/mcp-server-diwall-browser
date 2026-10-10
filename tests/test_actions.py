@@ -49,7 +49,7 @@ NEIGHBOURS = ("https://shop.example.test:8443", "http://shop.example.test", "htt
 GESTURE_METHODS = ("Input.dispatchMouseEvent", "Input.dispatchKeyEvent", "Input.insertText")
 
 
-# --- the bench ------------------------------------------------------------------------------------
+# --- le banc ----------------------------------------------------------------------------------------
 
 
 def make_profile(
@@ -120,7 +120,7 @@ async def bench(tmp_path: Path) -> AsyncIterator[Bench]:
     attachment = await BrowserAttachment.attach(attach_profile, home=str(tmp_path))
     registry = TabRegistry(attachment.connection)
     paths, mount, _volume = mounted_volume(tmp_path)
-    # With the encrypted directory known, an unmounted volume reads as closed.
+    # Avec le répertoire chiffré connu, un volume démonté se lit comme fermé.
     crypt = tmp_path / "Main.enc"
     crypt.mkdir(mode=0o700)
     fd = os.open(crypt / "gocryptfs.conf", os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -190,7 +190,7 @@ async def refused(code: str, action: Any) -> ToolError:
     return caught.value
 
 
-# --- identity of the marked element ----------------------------------------------------------------
+# --- identité de l'élément repéré -------------------------------------------------------------------
 
 
 async def test_a_click_on_a_mark_reaches_the_element_of_the_snapshot(bench: Bench) -> None:
@@ -251,11 +251,11 @@ async def test_an_origin_removed_from_the_profile_after_the_snapshot_is_refused(
     assert bench.gestures() == []
 
 
-# --- drift: an element inserted before the target, or the target replaced -----------------------------
+# --- dérive : un élément inséré avant la cible, ou la cible remplacée -------------------------------
 
 
 class ByRank(Actions):
-    """Defective: designates the element by its rank in a new reading of the page."""
+    """Défectueux : désigne l'élément par son rang dans une nouvelle lecture de la page."""
 
     async def click(self, tab_id: str, snapshot_id: str, mark: int, **kwargs: Any) -> ActionOutcome:
         tab = self._context.registry.get(tab_id)
@@ -298,11 +298,11 @@ async def test_a_target_replaced_by_a_clone_is_stale_and_nothing_is_clicked(benc
     assert bench.gestures() == [] and bench.browser.clicks == []
 
 
-# --- an element covered by another one ---------------------------------------------------------------
+# --- un élément recouvert par un autre --------------------------------------------------------------
 
 
 class NoHitTest(Actions):
-    """Defective: clicks at the centre of the element without looking at what is drawn there."""
+    """Défectueux : clique au centre de l'élément sans regarder ce qui est dessiné là."""
 
     async def _click_at(self, run: Any, tab: Tab, ref: Any) -> None:
         quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": ref.backend_node_id}))["quads"][0]
@@ -330,7 +330,7 @@ async def test_counter_proof_a_click_without_hit_test_lands_on_the_covering_laye
 
 
 async def test_a_click_on_a_child_of_the_target_counts_as_the_target(bench: Bench) -> None:
-    # The text of a button is drawn over the button: the hit is a child.
+    # Le texte d'un bouton est dessiné sur le bouton : ce qui est touché est un enfant.
     inner = El("SPAN", role=None, box=(24, 24, 112, 22), children=[text("Envoyer", (24, 24, 112, 22))])
     target = El("BUTTON", attrs={"type": "button"}, role="button", name="Envoyer", box=(20, 20, 120, 30), clickable=True, paint=(230, 230, 230), children=[inner])
     tab, snapshot = await bench.show(Page("Bouton", [target]))
@@ -338,7 +338,7 @@ async def test_a_click_on_a_child_of_the_target_counts_as_the_target(bench: Benc
     assert [hit for _, hit in bench.browser.clicks] == [inner.backend_id]
 
 
-# --- the gate on the pages of the list ------------------------------------------------------------------
+# --- la porte sur les pages de la liste -------------------------------------------------------------
 
 
 async def check_payment_click_is_confirmed(bench: Bench, intent_category: str | None) -> ActionOutcome:
@@ -499,7 +499,7 @@ async def test_a_change_of_the_element_during_the_question_stops_the_click(bench
 
 async def test_an_unwritable_journal_refuses_the_armed_action_but_not_reading(bench: Bench) -> None:
     tab, snapshot = await bench.show(payment_page())
-    # A file where the journal directory should be: no line can be appended.
+    # Un fichier là où devrait être le répertoire du journal : aucune ligne ne peut être ajoutée.
     blocker = bench.paths.project / "journal"
     fd = os.open(blocker, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
     os.close(fd)
@@ -558,7 +558,7 @@ async def test_the_operator_setting_asks_for_an_unarmed_change_on_its_origin_onl
     assert len(bench.channel.texts) == 3
     assert "geste : saisie dans un champ" in bench.channel.texts[1]
     assert "geste : choix d'une option" in bench.channel.texts[2]
-    # Not armed: no evidence is kept, the journal line says so.
+    # Non armé : aucune preuve n'est gardée, la ligne de journal le dit.
     assert bench.evidence_files() == []
     assert {line["gates"]["red_list"] for line in bench.journal_lines()} == {False}
 
@@ -576,7 +576,7 @@ async def test_scrolling_and_other_keys_never_ask_even_under_the_operator_settin
     assert bench.channel.texts == []
 
 
-# --- ceilings ------------------------------------------------------------------------------------------
+# --- plafonds ---------------------------------------------------------------------------------------
 
 
 async def test_the_201st_action_is_refused_with_the_counters(bench: Bench) -> None:
@@ -620,7 +620,7 @@ async def test_a_refused_attempt_still_counts(bench: Bench) -> None:
     assert bench.pacer.counters()["actions"] == 1
 
 
-# --- dialogs --------------------------------------------------------------------------------------------
+# --- boîtes de dialogue -----------------------------------------------------------------------------
 
 
 async def open_dialog_on(bench: Bench, page: Page, message: str, url: str = URL) -> Tab:
@@ -658,8 +658,8 @@ async def test_accepting_an_ordinary_dialog_needs_no_confirmation(bench: Bench) 
 async def test_a_dialog_saying_delete_permanently_arms_the_gate(bench: Bench) -> None:
     tab = await open_dialog_on(bench, neutral_page(), "Supprimer définitivement ?")
     error = await refused("capture_unavailable", bench.actions.handle_dialog(tab.tab_id, True))
-    # Armed: the request is journaled first; the dialog hides the page, so no
-    # evidence can be taken before, and without evidence nothing is accepted.
+    # Armé : la demande est journalisée d'abord ; la boîte de dialogue cache la page, donc aucune preuve ne
+    # peut être prise avant, et sans preuve rien n'est accepté.
     assert error.extra_server["gate"] == {"red_list": True, "confirmation": "requested"}
     [line] = bench.journal_lines()
     assert line["tool"] == "handle_dialog" and line["gates"]["red_list"] is True and line["origin"] == ORIGIN
@@ -725,7 +725,7 @@ async def test_a_dialog_opened_by_the_click_is_said_and_left_to_the_dialog_tool(
     assert bench.browser.accepted == [False]
 
 
-# --- keys -----------------------------------------------------------------------------------------------
+# --- touches ----------------------------------------------------------------------------------------
 
 
 async def test_enter_without_a_mark_is_refused(bench: Bench) -> None:
@@ -783,7 +783,7 @@ async def test_enter_in_a_comment_form_gives_the_focus_then_submits(bench: Bench
 
 
 class FocusFirst(Actions):
-    """Defective: gives the focus before the identity check, as the page would see it."""
+    """Défectueux : donne le focus avant le contrôle d'identité, comme la page le verrait."""
 
     async def verify_element(self, tab: Tab, snapshot: Snapshot, ref: Any) -> Any:
         await self._read(tab, "DOM.focus", {"backendNodeId": ref.backend_node_id})
@@ -791,7 +791,7 @@ class FocusFirst(Actions):
 
 
 async def check_enter_focuses_only_a_verified_element(bench: Bench) -> None:
-    # The focus itself runs the page's handlers: it goes only to a verified element.
+    # Le focus lui-même exécute les gestionnaires de la page : il ne va qu'à un élément vérifié.
     page = neutral_page()
     tab, snapshot = await bench.show(page)
     field = page.find(backend_of(snapshot, "Pseudonyme"))
@@ -812,7 +812,7 @@ async def test_counter_proof_a_focus_before_the_check_reaches_the_changed_elemen
         await check_enter_focuses_only_a_verified_element(bench)
 
 
-# --- choosing an option ---------------------------------------------------------------------------------
+# --- choisir une option -----------------------------------------------------------------------------
 
 
 async def test_an_existing_option_is_chosen_and_its_events_sent(bench: Bench) -> None:
@@ -838,7 +838,7 @@ async def test_choosing_an_option_on_something_else_than_a_list_is_refused(bench
     await refused("unsupported_element", bench.actions.select_option(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"), "France"))
 
 
-# --- scrolling ----------------------------------------------------------------------------------------
+# --- défiler ----------------------------------------------------------------------------------------
 
 
 async def test_scrolling_by_pixels_sends_a_wheel_at_the_centre_of_the_viewport(bench: Bench) -> None:
@@ -883,7 +883,7 @@ async def test_scrolling_to_a_mark_checks_its_identity_first(bench: Bench) -> No
     await refused("element_stale", bench.actions.scroll(tab.tab_id, mark=mark_of(snapshot, "Envoyer"), snapshot_id=snapshot.snapshot_id))
 
 
-# --- filling ------------------------------------------------------------------------------------------
+# --- remplir ----------------------------------------------------------------------------------------
 
 
 async def test_an_ordinary_field_is_filled_with_text(bench: Bench) -> None:
@@ -983,7 +983,7 @@ async def test_a_credential_is_typed_on_its_origin_and_never_leaves_the_server(
     }
     found = [where for where, content in leaks.items() if FAKE_PASSWORD in content or FAKE_USERNAME in content]
     assert found == [], f"a credential value appears in: {found}"
-    # Neither the value nor its length: the result says what was done, nothing of what was typed.
+    # Ni la valeur ni sa longueur : le résultat dit ce qui a été fait, rien de ce qui a été tapé.
     assert set(envelope["server"]) == {
         "notices", "tab_id", "action", "dialog_open", "counters", "mark", "origin", "typed", "gate", "operation_id", "tool"
     }
@@ -1014,7 +1014,7 @@ async def test_a_malformed_credential_reference_is_refused(bench: Bench) -> None
 
 
 class OriginFromSnapshot(Actions):
-    """Defective: binds the credential to the origin of the snapshot, not the one at typing time."""
+    """Défectueux : lie l'identifiant à l'origine de l'instantané, pas à celle du moment de la frappe."""
 
     def _resolve(self, frame: Any, key: str, name: str | None) -> credentials.Secret:
         snapshot = self._context.perception.latest_snapshot(next(iter(self._context.registry._tabs)))
@@ -1028,7 +1028,7 @@ async def check_origin_read_at_typing_time(bench: Bench) -> None:
     tab, snapshot = await bench.show(login_page())
 
     def move(target_id: str, backend_id: int) -> None:
-        # The page goes elsewhere between the identity check and the typing.
+        # La page va ailleurs entre le contrôle d'identité et la frappe.
         bench.browser.set_url(target_id, "https://evil.example.test/login")
 
     bench.browser.on_focus = move
@@ -1057,7 +1057,7 @@ async def test_a_credential_with_a_closed_volume_is_refused_as_such(bench: Bench
     assert bench.browser.typed == []
 
 
-# --- settling, windows and downloads ------------------------------------------------------------------------
+# --- régler, fenêtres et téléchargements ------------------------------------------------------------
 
 
 async def test_a_load_started_by_the_click_is_waited_for(bench: Bench) -> None:
@@ -1082,7 +1082,7 @@ async def test_a_load_started_by_the_click_is_waited_for(bench: Bench) -> None:
     bench.browser.on_click = navigate
     await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
     assert stopped and tab.loading is False
-    # The page moved on: the marks of the old one are no longer valid.
+    # La page a changé : les repères de l'ancienne ne sont plus valables.
     await refused("snapshot_stale", bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer")))
 
 
@@ -1142,16 +1142,15 @@ async def test_a_click_with_the_volume_closed_forbids_downloads(bench: Bench) ->
 
 
 async def test_downloads_are_forbidden_again_when_the_action_ends(bench: Bench) -> None:
-    # A page can start a download whenever it likes. If the volume is closed
-    # after the action, a setting left open would send the file where the
-    # browser creates the directory itself: outside the volume, in clear.
+    # Une page peut lancer un téléchargement quand elle veut. Si le volume est fermé après l'action, un
+    # réglage laissé ouvert enverrait le fichier là où le navigateur crée lui-même le répertoire : hors du volume, en clair.
     tab, snapshot = await bench.show(neutral_page())
     await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
     assert bench.browser.download_behaviors[-1] == {"behavior": "deny"}
 
 
 async def test_downloads_are_forbidden_again_when_the_gesture_is_refused(bench: Bench) -> None:
-    # The setting is given before the gesture; a refusal in the gesture must close it too.
+    # Le réglage est donné avant le geste ; un refus dans le geste doit aussi le fermer.
     tab, snapshot = await bench.show(obscured_page())
     with pytest.raises(ToolError) as caught:
         await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))

@@ -1,10 +1,10 @@
-"""Audit journal: one JSON line per operation, inside the encrypted volume.
+"""Journal d'audit : une ligne JSON par opération, à l'intérieur du volume chiffré.
 
-Why this module exists:
-    The operator needs to know afterwards what the model did, on which site
-    and with which confirmation. That record must never hold a secret, must
-    not make an ordinary operation fail when it cannot be written, and must
-    make an irreversible one fail when it cannot.
+Pourquoi ce module existe :
+    L'opérateur a besoin de savoir après coup ce que le modèle a fait, sur quel site et avec quelle
+    confirmation. Cette trace ne doit jamais contenir de secret, ne doit pas faire échouer une
+    opération ordinaire quand elle ne peut pas être écrite, et doit faire échouer une opération
+    irréversible quand elle ne le peut pas.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ JOURNAL_FILE = "operations.jsonl"
 INTENT_LIMIT = 500
 CLIENT_FIELD_LIMIT = 64
 TYPED_MARKER = "<typed>"
-# "unavailable": no window could be opened, so the action was refused.
+# "unavailable" : aucune fenêtre n'a pu être ouverte, donc l'action a été refusée.
 CONFIRMATION_STATES = frozenset({"none", "requested", "granted", "denied", "expired", "unavailable"})
 FIELDS = (
     "ts",
@@ -53,7 +53,7 @@ ClientInfo = tuple[str | None, str | None]
 
 @dataclass(frozen=True)
 class JournalEntry:
-    """What a tool reports about one operation; the journal adds the rest."""
+    """Ce qu'un outil rapporte d'une opération ; le journal ajoute le reste."""
 
     operation_id: str
     tool: str
@@ -77,17 +77,17 @@ class Journal:
         return self._not_journaled
 
     def write(self, entry: JournalEntry) -> bool:
-        """Append the entry; on failure count it and warn once, never raise."""
+        """Ajouter l'entrée ; en cas d'échec, le compter et avertir une fois, sans jamais lever."""
         line = self._line(entry)
         try:
             self._append(line)
-        except Exception as exc:  # noqa: BLE001 - an ordinary operation must not fail here
+        except Exception as exc:  # noqa: BLE001 - une opération ordinaire ne doit pas échouer ici
             self._record_failure(exc)
             return False
         return True
 
     def write_required(self, entry: JournalEntry) -> None:
-        """Append the entry or refuse: used before an irreversible action."""
+        """Ajouter l'entrée ou refuser : employé avant une action irréversible."""
         line = self._line(entry)
         try:
             self._append(line)
@@ -141,14 +141,14 @@ class Journal:
     def _client_info(self) -> tuple[str, str]:
         try:
             info = self._client_info_provider()
-        except Exception:  # noqa: BLE001 - client identity is informative only
+        except Exception:  # noqa: BLE001 - l'identité du client n'est qu'informative
             info = None
         name, version = info if info else (None, None)
         return _client_field(name), _client_field(version)
 
 
 def _text(value: object) -> str:
-    # A resolved credential is only ever written as its marker.
+    # Un identifiant résolu n'est jamais écrit que sous la forme de son marqueur.
     if isinstance(value, Secret):
         return repr(value)
     if not isinstance(value, str):
@@ -157,8 +157,8 @@ def _text(value: object) -> str:
 
 
 def _origin_text(value: str) -> str:
-    # Cleaning first drops userinfo, so an address that only failed on it
-    # still reduces to its origin.
+    # Nettoyer d'abord retire les informations d'utilisateur, si bien qu'une adresse qui n'avait échoué que
+    # là-dessus se réduit tout de même à son origine.
     cleaned = sanitize_url(value, for_journal=True)
     try:
         return _text(origin_of_url(cleaned).canonical)

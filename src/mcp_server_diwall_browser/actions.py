@@ -1,12 +1,11 @@
-"""Act in an owned tab: click, fill, choose an option, press a key, scroll, answer a dialog.
+"""Agir dans un onglet possédé : cliquer, remplir, choisir une option, presser une touche, défiler, répondre à une boîte de dialogue.
 
-Why this module exists:
-    An action is where an error or an injection becomes real: money spent,
-    data deleted, a secret typed on the wrong site. Every action goes through
-    one pipeline that checks the element is still the one the model saw,
-    asks the gate, writes the journal and keeps evidence before an armed
-    action, and lets it leave only with a human's consent given in a window
-    the model cannot reach.
+Pourquoi ce module existe :
+    Une action est l'endroit où une erreur ou une injection devient réelle : de l'argent dépensé,
+    des données supprimées, un secret saisi sur le mauvais site. Toute action passe par un seul
+    pipeline qui vérifie que l'élément est toujours celui que le modèle a vu, interroge la porte,
+    écrit le journal et garde une preuve avant une action armée, et ne la laisse partir qu'avec
+    le consentement d'un humain donné dans une fenêtre que le modèle ne peut pas atteindre.
 """
 
 from __future__ import annotations
@@ -32,8 +31,8 @@ from .output import ToolError, bounded_text, current_operation_id, new_operation
 from .perception import LIGHT_SNAPSHOT_PARAMS, NAME_LIMIT, Dom, ElementRef, Perception, Snapshot, name_hash
 
 FILL_INPUT_TYPES = frozenset({"", "text", "search", "email", "tel", "url", "number", "password"})
-# Key -> (code, Windows virtual key code). Only keys that move or validate:
-# no shortcut, no character typed through this path.
+# Touche -> (code, code de touche virtuelle Windows). Seules les touches qui déplacent ou valident :
+# aucun raccourci, aucun caractère tapé par ce chemin.
 KEYS: dict[str, tuple[str, int]] = {
     "Enter": ("Enter", 13),
     "Tab": ("Tab", 9),
@@ -51,9 +50,9 @@ MAX_SCROLL = 5000
 SCROLL_TO_ATTEMPTS = 20
 SETTLE_START_S = 0.5
 SETTLE_LOAD_S = 10.0
-# A load the gesture started may turn into a download; one begins this long, at
-# most, after the load ends, and the browser has the same time to take it up before
-# the setting is closed. A download that begins later is refused.
+# Un chargement que le geste a lancé peut devenir un téléchargement ; il commence au plus tard ce laps de
+# temps après la fin du chargement, et le navigateur a le même temps pour le prendre en charge avant que
+# le réglage soit refermé. Un téléchargement qui commence plus tard est refusé.
 SETTLE_DOWNLOAD_START_S = 0.5
 FORM_TEXT_LIMIT = 4000
 
@@ -72,7 +71,7 @@ _SENSITIVE = (
 
 @dataclass(frozen=True)
 class ActionOutcome:
-    """What an action reports; ``gate`` feeds the final journal line written by the tool."""
+    """Ce qu'une action rapporte ; ``gate`` alimente la ligne de journal finale que l'outil écrit."""
 
     server: dict[str, Any]
     typed_marker: str | None
@@ -81,7 +80,7 @@ class ActionOutcome:
 
 @dataclass
 class ActionContext:
-    """Everything an action needs, given by the caller; nothing is global."""
+    """Tout ce dont une action a besoin, donné par l'appelant ; rien n'est global."""
 
     profile: Callable[[], Profile]
     registry: TabRegistry
@@ -99,7 +98,7 @@ class ActionContext:
 
 @dataclass(frozen=True)
 class Verified:
-    """What the browser says now about a marked element, after the identity check."""
+    """Ce que le navigateur dit maintenant d'un élément repéré, après le contrôle d'identité."""
 
     frame: FrameInfo
     role: str
@@ -109,7 +108,7 @@ class Verified:
 
 @dataclass
 class _Run:
-    """The state of one action as it goes through the pipeline."""
+    """L'état d'une action quand elle traverse le pipeline."""
 
     tool: str
     operation_id: str
@@ -117,7 +116,7 @@ class _Run:
     notices: list[str] = field(default_factory=list)
     gate: dict[str, Any] = field(default_factory=lambda: {"red_list": False, "confirmation": "none"})
     dialog_opened: bool = False
-    # The origin checked against the allowed sites, for the journal line of the call.
+    # L'origine contrôlée contre les sites autorisés, pour la ligne de journal de l'appel.
     origin: str | None = None
 
 
@@ -125,7 +124,7 @@ class Actions:
     def __init__(self, context: ActionContext) -> None:
         self._context = context
 
-    # --- clicking ----------------------------------------------------------------------
+    # --- cliquer ------------------------------------------------------------------------------
 
     async def click(
         self, tab_id: str, snapshot_id: str, mark: int, *, intent: str = "", intent_category: str | None = None
@@ -153,8 +152,8 @@ class Actions:
         await self._read(tab, "DOM.scrollIntoViewIfNeeded", {"backendNodeId": backend})
         centre_x, centre_y = await self._centre(tab, backend)
         x, y = round(centre_x), round(centre_y)
-        # The quads and the mouse events are in the view, but the node lookup reads a point of the
-        # document: asked at a view point of a scrolled page, it answers for another place, or for none.
+        # Les quadrilatères et les événements de souris sont dans la vue, mais la recherche de nœud lit un point
+        # du document : demandée à un point de la vue d'une page défilée, elle répond pour un autre endroit, ou pour aucun.
         scroll_x, scroll_y = await self._viewport(tab, strict=True)
         await self._require_target_at(tab, backend, round(centre_x + scroll_x), round(centre_y + scroll_y))
         await self._gesture(
@@ -174,38 +173,38 @@ class Actions:
         )
 
     async def _recheck_before_press(self, tab: Tab, backend: int, x: int, y: int) -> None:
-        """Refuse the press unless the target, or one of its descendants, still lies under the pointer.
+        """Refuser la pression sauf si la cible, ou l'un de ses descendants, se trouve encore sous le pointeur.
 
-        The pointer's movement is what makes some pages move (a menu that opens, a banner that slides in)
-        or cover the target without moving it, and the press goes where the pointer is. So the question
-        is asked again every time, never only when the box or the offset changed: a target covered where
-        it stands has the same box and the same offset.
+        Le mouvement du pointeur est ce qui fait bouger certaines pages (un menu qui s'ouvre, une bannière qui
+        glisse) ou recouvre la cible sans la déplacer, et la pression va là où est le pointeur. La question est
+        donc reposée à chaque fois, jamais seulement quand la boîte ou le décalage a changé : une cible recouverte
+        là où elle se trouve a la même boîte et le même décalage.
         """
         try:
             await self._centre(tab, backend)
         except CdpError:
-            # The movement took the element away, or its box: nothing is there to press.
+            # Le mouvement a emporté l'élément, ou sa boîte : il n'y a rien à presser.
             raise ToolError("element_obscured", _OBSCURED) from None
         scroll_x, scroll_y = await self._viewport(tab, strict=True)
         await self._require_target_at(tab, backend, round(x + scroll_x), round(y + scroll_y))
 
     async def _centre(self, tab: Tab, backend: int) -> tuple[float, float]:
-        """The middle of the box of an element, in the view; refuse an element with no box."""
+        """Le milieu de la boîte d'un élément, dans la vue ; refuser un élément sans boîte."""
         quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": backend})).get("quads") or []
         if not quads or len(quads[0]) != 8:
             raise ToolError("element_obscured", _OBSCURED)
         return sum(quads[0][0::2]) / 4, sum(quads[0][1::2]) / 4
 
     async def _require_target_at(self, tab: Tab, backend: int, x: int, y: int) -> None:
-        """Refuse unless the target, or one of its descendants, is what lies at a point of the document."""
+        """Refuser sauf si la cible, ou l'un de ses descendants, est ce qui se trouve à un point du document."""
         hit = await self._read(tab, "DOM.getNodeForLocation", {"x": x, "y": y, "includeUserAgentShadowDOM": False})
         hit_id = hit.get("backendNodeId")
         if hit_id != backend:
-            # The click lands on what the human sees there, never on what lies under it.
+            # Le clic tombe sur ce que l'humain voit à cet endroit, jamais sur ce qui se trouve dessous.
             if not isinstance(hit_id, int) or not await self._contains(tab, backend, hit_id):
                 raise ToolError("element_obscured", _OBSCURED)
 
-    # --- filling and choosing ---------------------------------------------------------------
+    # --- remplir et choisir -------------------------------------------------------------------
 
     async def fill(
         self,
@@ -234,15 +233,14 @@ class Actions:
         key = name = None
         if credential_ref is not None:
             key, name = _credential_reference(credential_ref)
-            # Refused before any confirmation: consent does not make a wrong site right.
+            # Refusé avant toute confirmation : le consentement ne rend pas bon un mauvais site.
             self._resolve(await self._frame(tab), key, name)
         await self._guard(run, tab, profile, "fill", ref, verified, NOT_ARMED)
         if run.gate["confirmation"] == "granted":
             verified = await self.verify_element(tab, snapshot, ref)
         await self._with_gate(run, self._focus_into(tab, ref, verified.object_id, select=clear))
         if key is not None:
-            # The origin read in the browser at the moment of typing, not the
-            # snapshot's nor the one the model names.
+            # L'origine lue dans le navigateur au moment de la frappe, pas celle de l'instantané ni celle que le modèle nomme.
             secret = self._resolve(await self._frame(tab), key, name)
             await self._with_gate(run, self._read(tab, "Input.insertText", {"text": secret.reveal()}))
             del secret
@@ -274,7 +272,7 @@ class Actions:
             raise ToolError("option_not_found", "aucune option de cette liste ne porte ce texte ou cette valeur")
         return await self._finish(run, tab, mark=mark)
 
-    # --- keys -----------------------------------------------------------------------------------
+    # --- touches ------------------------------------------------------------------------------
 
     async def press_key(
         self,
@@ -320,12 +318,12 @@ class Actions:
         code, virtual = KEYS[key]
         down: dict[str, Any] = {"type": "keyDown", "key": key, "code": code, "windowsVirtualKeyCode": virtual}
         if key == "Enter":
-            # Without the character, the browser does not submit the form.
+            # Sans le caractère, le navigateur ne soumet pas le formulaire.
             down.update(text="\r", unmodifiedText="\r")
         up = {"type": "keyUp", "key": key, "code": code, "windowsVirtualKeyCode": virtual}
         await self._gesture(run, tab, [("Input.dispatchKeyEvent", down), ("Input.dispatchKeyEvent", up)])
 
-    # --- scrolling ---------------------------------------------------------------------------------
+    # --- défiler ------------------------------------------------------------------------------
 
     async def scroll(
         self,
@@ -374,24 +372,24 @@ class Actions:
         )
 
     async def _viewport(self, tab: Tab, *, strict: bool = False) -> tuple[float, float]:
-        """Where the view starts in the document, in CSS pixels.
+        """Où la vue commence dans le document, en pixels CSS.
 
-        An offset the browser does not give reads as 0, which is enough to see whether a scroll moved.
-        ``strict`` refuses it instead: a click that cannot place its lookup in the document does not
-        know what lies under the point it would click.
+        Un décalage que le navigateur ne donne pas se lit comme 0, ce qui suffit pour voir si un défilement a
+        bougé. ``strict`` le refuse à la place : un clic qui ne peut pas placer sa recherche dans le document ne
+        sait pas ce qui se trouve sous le point qu'il cliquerait.
         """
         visual = (await self._read(tab, "Page.getLayoutMetrics")).get("cssVisualViewport", {})
         if strict and not (isinstance(visual, dict) and all(_is_finite_number(visual.get(key)) for key in ("pageX", "pageY"))):
             raise ToolError("element_obscured", _NO_OFFSET)
         return float(visual.get("pageX", 0)), float(visual.get("pageY", 0))
 
-    # --- dialogs ---------------------------------------------------------------------------------
+    # --- boîtes de dialogue -------------------------------------------------------------------
 
     async def handle_dialog(self, tab_id: str, accept: bool, *, intent: str = "", intent_category: str | None = None) -> ActionOutcome:
-        """Answer the open dialog. Dismissing is always allowed; accepting goes through the gate.
+        """Répondre à la boîte de dialogue ouverte. Fermer est toujours permis ; accepter passe par la porte.
 
-        No page read happens here: while a dialog is open the page answers
-        no call. Its origin comes from the address of its opening event.
+        Aucune lecture de page n'a lieu ici : tant qu'une boîte de dialogue est ouverte, la page ne répond à
+        aucun appel. Son origine vient de l'adresse de son événement d'ouverture.
         """
         if not isinstance(accept, bool):
             raise ValueError("accept is a boolean")
@@ -428,7 +426,7 @@ class Actions:
         await context.registry.handle_dialog(tab, True)
         return await self._finish(run, tab, mark=None)
 
-    # --- evidence the operator asks for ---------------------------------------------------------------
+    # --- preuve demandée par l'opérateur ------------------------------------------------------
 
     async def save_evidence(self, tab_id: str, label: str) -> ActionOutcome:
         context = self._context
@@ -440,17 +438,17 @@ class Actions:
         path = context.evidence.manual(run.operation_id, label, png)
         outcome = await self._finish(run, tab, mark=None, settle=False)
         outcome.server["evidence_file"] = path.name
-        # Relative to the server's directory in the volume: evidence/<day>/<operation>/<file>.
+        # Relatif au répertoire du serveur dans le volume : evidence/<jour>/<opération>/<fichier>.
         outcome.server["evidence_path"] = "/".join(path.parts[-4:])
         return outcome
 
-    # --- identity of an element ------------------------------------------------------------------------
+    # --- identité d'un élément ----------------------------------------------------------------
 
     async def verify_element(self, tab: Tab, snapshot: Snapshot, ref: ElementRef) -> Verified:
-        """Is the marked node still the one of the snapshot? Stops at the first difference.
+        """Le nœud repéré est-il toujours celui de l'instantané ? S'arrête à la première différence.
 
-        A mark is the identity (tab, document, node) the snapshot recorded,
-        never a rank in a new reading of the page.
+        Un repère est l'identité (onglet, document, nœud) que l'instantané a enregistrée, jamais un rang dans
+        une nouvelle lecture de la page.
         """
         frame = await self._frame(tab)
         if frame.loader_id != snapshot.loader_id:
@@ -479,7 +477,7 @@ class Actions:
             raise ToolError("snapshot_stale", _STALE_SNAPSHOT)
         return Verified(frame=frame, role=role, name=name, object_id=object_id)
 
-    # --- the pipeline ------------------------------------------------------------------------------
+    # --- le pipeline --------------------------------------------------------------------------
 
     def _start(self, tool: str, intent: str) -> _Run:
         return _Run(tool=tool, operation_id=current_operation_id() or new_operation_id(), intent=intent if isinstance(intent, str) else "")
@@ -509,7 +507,7 @@ class Actions:
         verified: Verified,
         decision: GateDecision,
     ) -> None:
-        """Journal, evidence and the human's consent, when the gate or the operator asks for them."""
+        """Journal, preuve et consentement de l'humain, quand la porte ou l'opérateur les demandent."""
         operator_setting = verified.frame.origin in profile.confirm_each_change
         if not decision.armed and not operator_setting:
             return
@@ -551,7 +549,7 @@ class Actions:
     async def _ask(self, run: _Run, tab: Tab, request: ConfirmRequest, *, red_list: bool) -> None:
         context = self._context
         run.gate = {"red_list": red_list, "confirmation": "requested"}
-        # Written before acting; an armed action that cannot be journaled does not leave.
+        # Écrit avant d'agir ; une action armée qui ne peut pas être journalisée ne part pas.
         context.journal.write_required(
             JournalEntry(
                 operation_id=run.operation_id,
@@ -565,8 +563,7 @@ class Actions:
             )
         )
         if red_list:
-            # An irreversible action without a trace that survives it has no
-            # audit value: no evidence, no action.
+            # Une action irréversible sans trace qui lui survive n'a aucune valeur d'audit : pas de preuve, pas d'action.
             png = await self._with_gate(run, context.perception.capture_masked_png(tab))
             await self._with_gate(run, _sync(lambda: context.evidence.before(run.operation_id, png)))
         decision = await request_confirmation(context.channel, request)
@@ -576,7 +573,7 @@ class Actions:
         run.gate = {"red_list": red_list, "confirmation": "granted"}
 
     async def _form_context(self, tab: Tab, frame: FrameInfo, ref: ElementRef) -> tuple[str | None, tuple[str, ...]]:
-        """Where the element's form sends and the amounts it shows, read now in the browser."""
+        """Où le formulaire de l'élément envoie et les montants qu'il montre, lus maintenant dans le navigateur."""
         raw = await self._read(tab, "DOMSnapshot.captureSnapshot", LIGHT_SNAPSHOT_PARAMS)
         try:
             dom = Dom(raw)
@@ -624,7 +621,7 @@ class Actions:
         return ActionOutcome(server=server, typed_marker=typed_marker, gate=dict(run.gate))
 
     async def _settle(self, run: _Run, tab: Tab) -> bool:
-        """Wait for a load the gesture started, never for a quiet network; say whether one started."""
+        """Attendre un chargement que le geste a lancé, jamais un réseau calme ; dire si un chargement a commencé."""
         context = self._context
         deadline = time.monotonic() + context.settle_start_s
         while not tab.loading and time.monotonic() < deadline and tab.dialog is None:
@@ -636,14 +633,14 @@ class Actions:
         return started
 
     async def _with_gate(self, run: _Run, awaitable: Any) -> Any:
-        """Run a step after the journal line; a refusal carries the gate state for the final line."""
+        """Exécuter une étape après la ligne de journal ; un refus porte l'état de la porte pour la ligne finale."""
         try:
             return await awaitable
         except ToolError as exc:
             exc.extra_server.setdefault("gate", dict(run.gate))
             raise
 
-    # --- browser calls -----------------------------------------------------------------------------
+    # --- appels au navigateur -----------------------------------------------------------------
 
     async def _frame(self, tab: Tab) -> FrameInfo:
         try:
@@ -682,7 +679,7 @@ class Actions:
         return _script_value(result) is True
 
     async def _focus_into(self, tab: Tab, ref: ElementRef, object_id: str, *, select: bool) -> None:
-        """Give the focus to the element and check it is there: keys go wherever the focus is."""
+        """Donner le focus à l'élément et vérifier qu'il y est : les touches vont là où est le focus."""
         try:
             await self._read(tab, "DOM.focus", {"backendNodeId": ref.backend_node_id})
             if select:
@@ -703,10 +700,10 @@ class Actions:
     async def _gesture(
         self, run: _Run, tab: Tab, calls: list[tuple[str, dict[str, Any]]], *, started: bool = False
     ) -> None:
-        """Send the events of a gesture; a dialog it opens stops it, the gesture being done.
+        """Envoyer les événements d'un geste ; une boîte de dialogue qu'il ouvre l'arrête, le geste étant fait.
 
-        ``started`` says that events of the same gesture were already sent: a dialog is then never
-        a refusal, since the gesture is under way.
+        ``started`` dit que des événements du même geste ont déjà été envoyés : une boîte de dialogue n'est alors
+        jamais un refus, puisque le geste est en cours.
         """
         for number, (method, params) in enumerate(calls):
             try:

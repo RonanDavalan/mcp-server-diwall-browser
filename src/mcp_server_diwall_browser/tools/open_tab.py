@@ -1,9 +1,9 @@
-"""Tool open_tab: a new tab of the server, blank or on an http or https address.
+"""Outil open_tab : un nouvel onglet du serveur, vierge ou sur une adresse http ou https.
 
-Why this module exists:
-    The server acts only in tabs it owns. Opening one is never locked, as
-    going to see is never locked; it counts against the page ceiling, and
-    only http and https addresses are opened.
+Pourquoi ce module existe :
+    Le serveur n'agit que dans les onglets qu'il possède. En ouvrir un n'est jamais verrouillé, comme
+    aller voir n'est jamais verrouillé ; cela compte contre le plafond de pages, et seules les adresses
+    http et https sont ouvertes.
 """
 
 from __future__ import annotations

@@ -1,8 +1,7 @@
-"""Facts measured against a real Chromium-family browser.
+"""Des faits mesurés contre un vrai navigateur de la famille Chromium.
 
-The perception and the actions are designed on what the browser actually
-returns. These tests replay those measurements: when a new browser version
-changes one of them, the test fails, and the design must be looked at again.
+La perception et les actions sont conçues sur ce que le navigateur rend vraiment. Ces tests rejouent ces
+mesures : quand une nouvelle version du navigateur en change une, le test échoue, et la conception doit être réexaminée.
 """
 
 from __future__ import annotations
@@ -56,7 +55,7 @@ def pages() -> Iterator[tuple[PageServer, PageServer]]:
 
 
 class RecordingConnection(CdpConnection):
-    """The production client, with a record of the methods it was asked to send."""
+    """Le client de production, avec le relevé des méthodes qu'on lui a demandé d'envoyer."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -97,7 +96,7 @@ async def call(attachment: BrowserAttachment, tab: Tab, method: str, params: dic
 
 
 class Snapshot:
-    """Lookup helpers over a DOMSnapshot.captureSnapshot result."""
+    """Assistants de recherche dans un résultat de DOMSnapshot.captureSnapshot."""
 
     def __init__(self, raw: dict[str, Any]) -> None:
         self.raw = raw
@@ -146,7 +145,7 @@ async def snapshot(attachment: BrowserAttachment, tab: Tab) -> Snapshot:
     return Snapshot(raw)
 
 
-# --- 1. the browser and its debugging endpoint ------------------------------------------
+# --- 1. le navigateur et son point d'accès de débogage ----------------------------------------------
 
 
 async def test_fact_1_browser_is_chromium_and_endpoint_is_loopback(
@@ -160,7 +159,7 @@ async def test_fact_1_browser_is_chromium_and_endpoint_is_loopback(
     assert url.startswith(f"ws://127.0.0.1:{launched.port}/devtools/browser/")
 
 
-# --- 2. the accessibility tree -------------------------------------------------------------
+# --- 2. l'arbre d'accessibilité ---------------------------------------------------------------------
 
 
 async def test_fact_2_accessibility_tree_fields_and_hidden_buttons(
@@ -171,10 +170,10 @@ async def test_fact_2_accessibility_tree_fields_and_hidden_buttons(
         assert {"nodeId", "role", "ignored"} <= set(node), node.get("nodeId")
         if not node["ignored"]:
             assert {"name", "properties"} <= set(node), node["nodeId"]
-        # Text runs are the only nodes without a DOM node behind them.
+        # Les séries de texte sont les seuls nœuds sans nœud DOM derrière eux.
         if node["role"].get("value") != "InlineTextBox":
             assert "backendDOMNodeId" in node, node["nodeId"]
-    # The frame is named on the root of the document only, not on every node.
+    # Le cadre n'est nommé que sur la racine du document, pas sur chaque nœud.
     with_frame = [node for node in nodes if "frameId" in node]
     assert [node["role"]["value"] for node in with_frame] == ["RootWebArea"]
     assert with_frame[0]["frameId"] == basic_tab.main_frame_id
@@ -185,15 +184,15 @@ async def test_fact_2_accessibility_tree_fields_and_hidden_buttons(
         if not node["ignored"] and node["role"].get("value") == "button"
     }
     assert "Hidden button" not in buttons
-    # Fact to keep: a fully transparent button is in the tree, with its name.
-    # The tree alone does not tell what the human sees.
+    # Fait à garder : un bouton entièrement transparent est dans l'arbre, avec son nom.
+    # L'arbre seul ne dit pas ce que l'humain voit.
     assert "Transparent button" in buttons
     assert "Sign in" in buttons
-    # The tree of the main frame does not descend into the srcdoc frame.
+    # L'arbre du cadre principal ne descend pas dans le cadre srcdoc.
     assert "Inner button" not in buttons
 
 
-# --- 3. the DOM snapshot -------------------------------------------------------------------
+# --- 3. l'instantané du DOM -------------------------------------------------------------------------
 
 
 async def test_fact_3_dom_snapshot_fields_layout_clickability_and_frames(
@@ -218,7 +217,7 @@ async def test_fact_3_dom_snapshot_fields_layout_clickability_and_frames(
     assert "Inner document" in inner_texts
 
 
-# --- 4. the typed password is in the snapshot ------------------------------------------------
+# --- 4. le mot de passe tapé est dans l'instantané --------------------------------------------------
 
 
 async def test_fact_4_password_value_is_in_the_snapshot(attachment: BrowserAttachment, basic_tab: Tab) -> None:
@@ -228,12 +227,12 @@ async def test_fact_4_password_value_is_in_the_snapshot(attachment: BrowserAttac
     await call(attachment, basic_tab, "Input.insertText", {"text": TYPED_PASSWORD})
     after = await snapshot(attachment, basic_tab)
     value_index = after.rare("inputValue", after.index_of("password"))
-    # Fact to keep: the value of a password field is in clear in the
-    # snapshot; it must be neutralized before anything leaves the server.
+    # Fait à garder : la valeur d'un champ de mot de passe est en clair dans l'instantané ;
+    # elle doit être neutralisée avant que quoi que ce soit quitte le serveur.
     assert after.strings[value_index] == TYPED_PASSWORD
 
 
-# --- 5. a screenshot of the visual viewport ------------------------------------------------
+# --- 5. une capture de la fenêtre d'affichage visuelle ----------------------------------------------
 
 
 async def test_fact_5_screenshot_has_the_size_of_the_css_viewport(attachment: BrowserAttachment, basic_tab: Tab) -> None:
@@ -253,7 +252,7 @@ async def test_fact_5_screenshot_has_the_size_of_the_css_viewport(attachment: Br
     assert (width, height) == (viewport["clientWidth"], viewport["clientHeight"])
 
 
-# --- 6. the node under a point -------------------------------------------------------------
+# --- 6. le nœud sous un point -----------------------------------------------------------------------
 
 
 async def test_fact_6_node_at_the_centre_of_the_password_field(attachment: BrowserAttachment, basic_tab: Tab) -> None:
@@ -267,7 +266,7 @@ async def test_fact_6_node_at_the_centre_of_the_password_field(attachment: Brows
     assert located["backendNodeId"] == described["node"]["backendNodeId"] == snap.backend_id("password")
 
 
-# --- 7. a browser-level session sees every tab ---------------------------------------------
+# --- 7. une session au niveau du navigateur voit tous les onglets -----------------------------------
 
 
 async def raw_call(ws: Any, message_id: int, method: str, params: dict[str, Any] | None = None, session_id: str | None = None) -> dict[str, Any]:
@@ -284,7 +283,7 @@ async def raw_call(ws: Any, message_id: int, method: str, params: dict[str, Any]
 async def test_fact_7_a_raw_browser_session_sees_more_targets_than_the_server_owns(
     launched: LaunchedBrowser, registry: TabRegistry, basic_tab: Tab
 ) -> None:
-    # Target.getTargets is not in the production list: read it outside cdp.py.
+    # Target.getTargets n'est pas dans la liste de production : le lire hors de cdp.py.
     async with connect(launched.version_info["webSocketDebuggerUrl"], proxy=None, max_size=2**26) as ws:
         targets = (await raw_call(ws, 1, "Target.getTargets"))["targetInfos"]
     pages_seen = [target for target in targets if target["type"] == "page"]
@@ -294,7 +293,7 @@ async def test_fact_7_a_raw_browser_session_sees_more_targets_than_the_server_ow
     assert len(pages_seen) > len(owned)
 
 
-# --- 8. attachment checks against the real browser ---------------------------------------
+# --- 8. contrôles de rattachement contre le vrai navigateur -----------------------------------------
 
 
 async def test_fact_8_attachment_checks_pass_against_the_test_browser(
@@ -309,7 +308,7 @@ async def test_fact_8_attachment_checks_pass_against_the_test_browser(
     assert attachment.connection.methods[:2] == ["Browser.getVersion", "Target.setDiscoverTargets"]
 
 
-# --- 9. navigation and origin --------------------------------------------------------------
+# --- 9. navigation et origine -----------------------------------------------------------------------
 
 
 async def test_fact_9_origin_follows_navigation_and_local_files_are_refused(
@@ -337,28 +336,28 @@ async def test_fact_9_origin_follows_navigation_and_local_files_are_refused(
 
 
 async def test_unreachable_address_gives_navigation_failed(registry: TabRegistry, basic_tab: Tab) -> None:
-    # Port 1 is on the browser's list of unsafe ports: refused without network.
+    # Le port 1 est sur la liste des ports dangereux du navigateur : refusé sans réseau.
     with pytest.raises(ToolError) as caught:
         await registry.navigate(basic_tab, "http://127.0.0.1:1/")
     assert caught.value.code == "navigation_failed"
     assert "net::ERR_UNSAFE_PORT" in caught.value.message
 
 
-# --- adoption of a window opened by an owned page ------------------------------------------
+# --- adoption d'une fenêtre ouverte par une page possédée -------------------------------------------
 
 
 async def test_a_window_opened_by_the_page_of_an_owned_tab_is_adopted(
     launched: LaunchedBrowser, registry: TabRegistry, basic_tab: Tab
 ) -> None:
-    # The page opens the window as after a click (a gesture is needed, or
-    # the popup blocker stops it); the script runs outside cdp.py.
+    # La page ouvre la fenêtre comme après un clic (un geste est nécessaire, sinon le bloqueur de
+    # fenêtres l'arrête) ; le script s'exécute hors de cdp.py.
     async with connect(launched.version_info["webSocketDebuggerUrl"], proxy=None, max_size=2**26) as ws:
         session = (await raw_call(ws, 1, "Target.attachToTarget", {"targetId": basic_tab.target_id, "flatten": True}))["sessionId"]
         await raw_call(
             ws, 2, "Runtime.evaluate", {"expression": "window.open('/basic.html'); 1", "userGesture": True}, session
         )
         notices: list[str] = []
-        # The notice comes once the adopted tab is attached and prepared.
+        # L'avis arrive une fois l'onglet adopté rattaché et préparé.
         await until(lambda: bool(notices.extend(registry.drain_notices()) or notices), timeout=10)
     infos = await registry.list_tabs()
     assert [info.adopted for info in infos] == [False, True]

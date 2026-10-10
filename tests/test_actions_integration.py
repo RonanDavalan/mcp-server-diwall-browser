@@ -1,4 +1,4 @@
-"""The actions replayed against a real Chromium-family browser, with a fake confirmation channel."""
+"""Les actions rejouées contre un vrai navigateur de la famille Chromium, avec un faux canal de confirmation."""
 
 from __future__ import annotations
 
@@ -159,7 +159,7 @@ async def until_true(probe: Any, timeout: float = 5.0) -> None:
         await asyncio.sleep(0.05)
 
 
-# --- identity and drift -------------------------------------------------------------------------
+# --- identité et dérive -----------------------------------------------------------------------------
 
 
 async def test_an_insertion_before_the_target_does_not_move_the_click(rig: Rig) -> None:
@@ -188,7 +188,7 @@ async def test_a_covered_button_is_not_clicked(rig: Rig) -> None:
     assert '  StaticText "Nothing clicked"' in await rig.tree(tab)
 
 
-# --- the gate ------------------------------------------------------------------------------------
+# --- la porte ---------------------------------------------------------------------------------------
 
 
 async def test_pay_now_is_asked_and_done_only_with_consent(rig: Rig) -> None:
@@ -240,7 +240,7 @@ async def test_the_pay_button_of_the_hostile_page_is_asked(rig: Rig) -> None:
     assert '  StaticText "Not paid"' in await rig.tree(tab)
 
 
-# --- ordinary actions ------------------------------------------------------------------------------
+# --- actions ordinaires -----------------------------------------------------------------------------
 
 
 async def test_click_fill_and_enter_on_a_comment_form_ask_nothing(rig: Rig) -> None:
@@ -287,7 +287,7 @@ async def _above(read: Any, value: float) -> bool:
     return bool(await read() > value)
 
 
-# --- dialogs --------------------------------------------------------------------------------------
+# --- boîtes de dialogue -----------------------------------------------------------------------------
 
 
 async def test_dialogs_opened_by_a_click_are_answered_through_the_gate(rig: Rig) -> None:
@@ -303,8 +303,8 @@ async def test_dialogs_opened_by_a_click_are_answered_through_the_gate(rig: Rig)
     assert outcome.server["dialog_open"] is True
     with pytest.raises(ToolError) as caught:
         await rig.actions.handle_dialog(tab.tab_id, True)
-    # Armed by its message; while the dialog is open the page cannot be
-    # captured, and without evidence nothing irreversible is accepted.
+    # Armé par son message ; tant que la boîte de dialogue est ouverte la page ne peut pas être capturée,
+    # et sans preuve rien d'irréversible n'est accepté.
     assert caught.value.code == "capture_unavailable"
     assert caught.value.extra_server["gate"] == {"red_list": True, "confirmation": "requested"}
     with pytest.raises(ToolError) as blocked:
@@ -314,7 +314,7 @@ async def test_dialogs_opened_by_a_click_are_answered_through_the_gate(rig: Rig)
     assert '  StaticText "Kept"' in await rig.tree(tab)
 
 
-# --- credentials ---------------------------------------------------------------------------------
+# --- identifiants -----------------------------------------------------------------------------------
 
 
 @tool("fill")
@@ -342,7 +342,7 @@ async def test_a_credential_is_typed_on_its_origin_only(rig: Rig, other_pages: P
         assert await raw.evaluate("document.getElementById('password').value") == ""
 
 
-# --- downloads ---------------------------------------------------------------------------------
+# --- téléchargements --------------------------------------------------------------------------------
 
 
 async def test_a_downloaded_file_lands_in_the_volume_under_a_safe_name(rig: Rig) -> None:
@@ -362,10 +362,9 @@ async def test_a_downloaded_file_lands_in_the_volume_under_a_safe_name(rig: Rig)
 
 
 async def test_a_download_begun_by_the_click_ends_in_the_volume_after_the_setting_is_closed(rig: Rig) -> None:
-    # Measured fact frozen here: closing the setting with ``deny`` once the
-    # action ends does not cancel a download that already began, but a
-    # download that has not begun yet is refused, so the action waits a
-    # moment for the one a load may turn into.
+    # Fait mesuré figé ici : fermer le réglage avec ``deny`` une fois l'action terminée n'annule pas un
+    # téléchargement déjà commencé, mais un téléchargement qui n'a pas encore commencé est refusé, si bien
+    # que l'action attend un instant celui qu'un chargement peut produire.
     tab, snapshot = await rig.open("download-slow.html")
     await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger l'archive"))
     downloads = rig.paths.project / "downloads"
@@ -377,8 +376,8 @@ async def test_a_download_begun_by_the_click_ends_in_the_volume_after_the_settin
 
 
 async def test_a_download_that_begins_a_moment_after_the_click_ends_in_the_volume(rig: Rig) -> None:
-    # The response begins after the gesture returned: the wait for a download
-    # to begin is what keeps the setting open long enough for it.
+    # La réponse commence après le retour du geste : l'attente du début d'un téléchargement est ce qui
+    # garde le réglage ouvert assez longtemps pour lui.
     tab, snapshot = await rig.open("download-late.html")
     await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger le rapport"))
     downloads = rig.paths.project / "downloads"
@@ -398,7 +397,7 @@ async def test_a_page_download_between_two_actions_goes_nowhere(rig: Rig, browse
         return len([p for p in downloads.rglob("*") if p.is_file()]) == 1
 
     await until_true(saved)
-    # The volume closes after the action: its directories are not there any more.
+    # Le volume se ferme après l'action : ses répertoires n'y sont plus.
     shutil.rmtree(downloads)
     default_dir = browser_home / "Downloads"
     before = set(default_dir.iterdir()) if default_dir.exists() else set()
@@ -437,9 +436,8 @@ async def test_counter_proof_a_setting_left_open_writes_outside_the_volume(
 async def test_the_download_setting_ends_with_the_connection_that_set_it(
     rig: Rig, launched: LaunchedBrowser, browser_home: Path
 ) -> None:
-    # Measured fact frozen here: after the connection that set the download
-    # behaviour closes, the browser saves with its own defaults again. The
-    # server therefore sets it before every gesture, never once for all.
+    # Fait mesuré figé ici : une fois fermée la connexion qui a posé le comportement de téléchargement,
+    # le navigateur enregistre de nouveau avec ses valeurs par défaut. Le serveur le pose donc avant chaque geste, jamais une fois pour toutes.
     tab, snapshot = await rig.open("download.html")
     await rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Télécharger la facture"))
     directory = rig.paths.project / "downloads"

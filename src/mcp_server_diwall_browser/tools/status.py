@@ -1,9 +1,9 @@
-"""Tool status: what is configured, open, attached and allowed, without acting.
+"""Outil status : ce qui est configuré, ouvert, rattaché et autorisé, sans agir.
 
-Why this module exists:
-    Before anything else the model and the operator need to know what stands
-    in the way: a missing profile, a closed encrypted directory, a browser
-    that does not answer. This tool works even with nothing configured.
+Pourquoi ce module existe :
+    Avant toute chose, le modèle et l'opérateur doivent savoir ce qui bloque : un profil manquant,
+    un répertoire chiffré fermé, un navigateur qui ne répond pas. Cet outil fonctionne même sans
+    rien de configuré.
 """
 
 from __future__ import annotations

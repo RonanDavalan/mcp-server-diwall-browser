@@ -14,7 +14,7 @@ from mcp_server_diwall_browser.output import ToolError
 
 @dataclass
 class Ref:
-    """The fields of a marked element the gate reads."""
+    """Les champs d'un élément repéré que la porte lit."""
 
     name: str = ""
     form_has_card_field: bool = False
@@ -39,13 +39,13 @@ def label_categories(label: str) -> tuple[str, ...]:
     return classify(Ref(label), action_kind="click", intent_category=None, snapshot=PLAIN_PAGE).categories
 
 
-# --- the table of cases, replayed on the real module ---------------------------------------------
+# --- le tableau des cas, rejoué sur le vrai module --------------------------------------------------
 
 P, D, S = ("payment",), ("deletion",), ("secret_change",)
 NONE: tuple[str, ...] = ()
 
 LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
-    # Payment, in French and English, with case, accents and punctuation.
+    # Paiement, en français et en anglais, avec casse, accents et ponctuation.
     ("Payer maintenant", P),
     ("PAYER", P),
     ("Payer 49,90 €", P),
@@ -70,7 +70,7 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Donate", P),
     ("pay-now", P),
     ("Confirmer et payer", P),
-    # Irreversible deletion.
+    # Suppression irréversible.
     ("Supprimer", D),
     ("SUPPRIMER", D),
     ("Supprimer définitivement", D),
@@ -92,7 +92,7 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Erase all data", D),
     ("Empty trash", D),
     ("Remove permanently", D),
-    # Change of a secret.
+    # Changement d'un secret.
     ("Changer le mot de passe", S),
     ("CHANGER LE MOT DE PASSE", S),
     ("Changer le mot de passe →", S),
@@ -113,7 +113,7 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Rotate key", S),
     ("Revoke", S),
     ("Revoke token", S),
-    # Not armed.
+    # Non armé.
     ("Annuler", NONE),
     ("Retour", NONE),
     ("Rechercher", NONE),
@@ -134,13 +134,13 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Repay later", NONE),
     ("Paypal", NONE),
     ("Undelete", NONE),
-    # Known false positives, accepted: a false positive adds a confirmation.
+    # Faux positifs connus, acceptés : un faux positif ajoute une confirmation.
     ("Supprimer le filtre", D),
     ("Pay attention", P),
     ("Supprimer du panier", D),
 ]
 
-# Known misses of the starting vocabulary: listed so the gap is visible.
+# Manques connus du vocabulaire de départ : listés pour que l'écart se voie.
 KNOWN_MISSES = ["Reset your password", "Regenerate API key", "Finaliser l'achat", "Valider mon panier"]
 
 
@@ -173,27 +173,27 @@ def test_normalization() -> None:
     assert normalize(None) == ""
 
 
-# --- one hundred common button labels: what the gate arms --------------------------------------
+# --- cent libellés de boutons courants : ce que la porte arme ---------------------------------------
 
 COMMON_BUTTONS = [
     # Navigation.
     "Accueil", "Retour", "Suivant", "Précédent", "Continuer", "Fermer", "Menu", "Plus", "Voir plus", "Afficher",
     "Home", "Back", "Next", "Previous", "Close", "More", "Show all", "Open", "Expand", "Collapse",
-    # Forms.
+    # Formulaires.
     "Envoyer", "Valider", "Enregistrer", "Annuler", "Effacer le formulaire", "Rechercher", "Filtrer", "Trier", "Réinitialiser", "Appliquer",
     "Submit", "Save", "Cancel", "Search", "Clear", "Apply", "Reset", "Upload", "Attach", "Send",
-    # Account.
+    # Compte.
     "Se connecter", "Se déconnecter", "Créer un compte", "Mon compte", "Mot de passe oublié ?", "Changer le mot de passe", "Modifier mon profil", "Supprimer mon compte", "Paramètres", "Notifications",
     "Sign in", "Sign out", "Sign up", "My account", "Forgot password?", "Change password", "Edit profile", "Delete account", "Settings", "Revoke access",
     # Commerce.
     "Ajouter au panier", "Voir le panier", "Commander", "Payer maintenant", "Valider la commande", "Appliquer le code promo", "Choisir la livraison", "Suivre ma commande", "Télécharger la facture", "Retourner un article",
     "Add to cart", "View cart", "Checkout", "Pay now", "Place order", "Apply coupon", "Track order", "Download invoice", "Return item", "Buy now",
-    # Documents and other.
+    # Documents et autres.
     "Télécharger", "Imprimer", "Partager", "Copier le lien", "Supprimer le filtre", "Renouveler", "Déclarer", "Résilier", "Signer", "Accepter",
     "Download", "Print", "Share", "Copy link", "Remove filter", "Renew", "Archive", "Unsubscribe", "Accept cookies", "Decline",
 ]
 
-# What a careful reader would require a confirmation for in this list.
+# Ce pour quoi un lecteur attentif exigerait une confirmation dans cette liste.
 TRULY_LOCKED = {
     "Changer le mot de passe", "Supprimer mon compte", "Change password", "Delete account", "Revoke access",
     "Commander", "Payer maintenant", "Valider la commande", "Checkout", "Pay now", "Place order", "Buy now",
@@ -205,14 +205,14 @@ ARMED_ON_COMMON_BUTTONS = sorted(TRULY_LOCKED | {"Effacer le formulaire", "Suppr
 def test_measure_on_one_hundred_common_buttons() -> None:
     assert len(COMMON_BUTTONS) == 100 and len(set(COMMON_BUTTONS)) == 100
     armed = sorted(label for label in COMMON_BUTTONS if label_categories(label))
-    # Frozen measurement: 14 armed, 2 false positives (2 % of the labels), no miss.
+    # Mesure figée : 14 armés, 2 faux positifs (2 % des libellés), aucun manque.
     assert armed == ARMED_ON_COMMON_BUTTONS
     assert len(armed) == 14
     assert sorted(set(armed) - TRULY_LOCKED) == ["Effacer le formulaire", "Supprimer le filtre"]
     assert TRULY_LOCKED <= set(armed)
 
 
-# --- other signals and the rule that the model's intent only adds ----------------------------------
+# --- autres signaux et la règle selon laquelle l'intention du modèle ne fait qu'ajouter -------------
 
 Classifier = Callable[..., GateDecision]
 
@@ -223,7 +223,7 @@ def payment_click_is_armed(classifier: Classifier) -> bool:
 
 
 def never_armed(*args: Any, **kwargs: Any) -> GateDecision:
-    # Defective: detection switched off.
+    # Défectueux : détection désactivée.
     return NOT_ARMED
 
 
@@ -287,7 +287,7 @@ def test_the_vocabulary_is_fixed_in_code() -> None:
     assert set(gate.VOCABULARY) == set(gate.CATEGORIES)
 
 
-# --- pace and ceilings -----------------------------------------------------------------------------
+# --- rythme et plafonds -----------------------------------------------------------------------------
 
 
 class FakeTime:

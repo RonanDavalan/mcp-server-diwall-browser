@@ -1,10 +1,10 @@
-"""Put the process into a safe state before any secret is loaded.
+"""Mettre le processus dans un état sûr avant qu'aucun secret soit chargé.
 
-Why this module exists:
-    Clearing a Python string after use does not remove its bytes from memory,
-    so a core dump written to disk after a crash would hold every resolved
-    secret. The only reliable defence is to forbid core dumps before the
-    first secret is read, and to refuse to read one if that cannot be done.
+Pourquoi ce module existe :
+    Effacer une chaîne Python après usage n'enlève pas ses octets de la mémoire, si bien qu'un
+    vidage mémoire écrit sur le disque après un plantage contiendrait chaque secret résolu. La seule
+    défense fiable est d'interdire les vidages mémoire avant que le premier secret soit lu, et de
+    refuser d'en lire un si cela ne peut pas être fait.
 """
 
 from __future__ import annotations
@@ -14,14 +14,14 @@ import resource
 
 
 class HardeningError(RuntimeError):
-    """The process could not be put into the state required to hold secrets."""
+    """Le processus n'a pas pu être mis dans l'état exigé pour détenir des secrets."""
 
 
 def disable_core_dumps() -> None:
-    """Set both core-dump limits to zero; raise if the kernel refuses.
+    """Mettre à zéro les deux limites de vidage mémoire ; lever si le noyau refuse.
 
-    Calling it again is harmless: lowering an already-zero limit to zero is
-    accepted, and the limit is re-read so a silent failure cannot pass.
+    L'appeler de nouveau est sans danger : abaisser à zéro une limite déjà nulle est accepté, et la
+    limite est relue pour qu'un échec silencieux ne passe pas.
     """
     try:
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -33,8 +33,8 @@ def disable_core_dumps() -> None:
 
 
 def restrict_umask() -> int:
-    """Make every file the process creates private by default.
+    """Rendre privé par défaut chaque fichier que le processus crée.
 
-    Returns the previous mask so the caller can log it if needed.
+    Rend le masque précédent pour que l'appelant puisse le journaliser si besoin.
     """
     return os.umask(0o077)

@@ -1,9 +1,9 @@
-"""Tool scroll: move the view of a tab by pixels, to an end, or to a marked element.
+"""Outil scroll : déplacer la vue d'un onglet de quelques pixels, jusqu'à une extrémité, ou jusqu'à un élément repéré.
 
-Why this module exists:
-    Going to see is never locked: scrolling depends on no list of sites and
-    asks no confirmation. It is a gesture all the same, so it counts against
-    the ceilings, and a mark is checked before the view moves to it.
+Pourquoi ce module existe :
+    Aller voir n'est jamais verrouillé : défiler ne dépend d'aucune liste de sites et ne demande aucune
+    confirmation. C'est tout de même un geste, il compte donc contre les plafonds, et un repère est
+    contrôlé avant que la vue s'y déplace.
 """
 
 from __future__ import annotations

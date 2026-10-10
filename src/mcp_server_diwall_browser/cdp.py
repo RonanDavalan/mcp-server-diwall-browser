@@ -1,12 +1,11 @@
-"""The only module that talks to the browser, over the DevTools protocol.
+"""Le seul module qui parle au navigateur, par le protocole DevTools.
 
-Why this module exists:
-    The debugging connection gives full control of the operator's browser,
-    every tab included. Every call the project makes passes through one
-    method that checks it against a list fixed in code before a byte is
-    sent, never logs parameters (typed text may be a secret), and runs page
-    scripts only from a fixed table, so that no text from the model or from
-    a page ever becomes code.
+Pourquoi ce module existe :
+    La connexion de débogage donne le plein contrôle du navigateur de l'opérateur, tous les onglets
+    compris. Chaque appel que fait le projet passe par une seule méthode qui le contrôle contre une
+    liste fixée dans le code avant qu'un octet soit envoyé, ne journalise jamais les paramètres (un
+    texte saisi peut être un secret), et n'exécute des scripts de page que depuis une table fixe, pour
+    qu'aucun texte venu du modèle ou d'une page ne devienne jamais du code.
 """
 
 from __future__ import annotations
@@ -31,44 +30,43 @@ MAX_MESSAGE_BYTES = 64 * 1024 * 1024
 DEFAULT_TIMEOUT_S = 30.0
 OPEN_TIMEOUT_S = 10.0
 
-# Every method the server may send. A method missing here cannot be called,
-# whatever the caller; adding one is a reviewed change of this file.
+# Toute méthode que le serveur peut envoyer. Une méthode absente ici ne peut pas être appelée, quel que
+# soit l'appelant ; en ajouter une est un changement relu de ce fichier.
 ALLOWED_METHODS = frozenset(
     {
-        # Attachment and tab ownership (browser.py).
+        # Rattachement et possession des onglets (browser.py).
         "Browser.getVersion",
         "Target.setDiscoverTargets",
         "Target.createTarget",
         "Target.attachToTarget",
         "Target.closeTarget",
         "Page.enable",
-        # Without it the browser never sends Inspector.targetCrashed, and a
-        # crashed tab would stay listed as usable.
+        # Sans elle, le navigateur n'envoie jamais Inspector.targetCrashed, et un onglet planté resterait
+        # listé comme utilisable.
         "Inspector.enable",
         "Page.navigate",
         "Page.getFrameTree",
         "Page.handleJavaScriptDialog",
-        # Perception: the reads whose results the browser tests pin down.
+        # Perception : les lectures dont les tests du navigateur figent les résultats.
         "Accessibility.getFullAXTree",
         "DOMSnapshot.captureSnapshot",
         "Page.getLayoutMetrics",
         "Page.captureScreenshot",
         "DOM.getNodeForLocation",
         "DOM.describeNode",
-        # Typing into a field.
+        # Saisie dans un champ.
         "DOM.focus",
         "Input.insertText",
         "Input.dispatchKeyEvent",
-        # Actions: identity of an element, where it is, the gesture itself,
-        # and where downloads go.
+        # Actions : identité d'un élément, où il se trouve, le geste lui-même, et où vont les téléchargements.
         "Accessibility.getPartialAXTree",
-        # The page object of a node: what a constant script of the table runs on.
+        # L'objet de page d'un nœud : ce sur quoi s'exécute un script constant de la table.
         "DOM.resolveNode",
         "DOM.getContentQuads",
         "DOM.scrollIntoViewIfNeeded",
         "Input.dispatchMouseEvent",
         "Browser.setDownloadBehavior",
-        # Page scripts: only through call_internal, from INTERNAL_SCRIPTS.
+        # Scripts de page : seulement par call_internal, depuis INTERNAL_SCRIPTS.
         "Runtime.evaluate",
         "Runtime.callFunctionOn",
     }
@@ -76,8 +74,8 @@ ALLOWED_METHODS = frozenset(
 
 ScriptKind = Literal["evaluate", "call_function_on"]
 
-# Method that runs a script, the kind of script it takes, the parameter that
-# carries the script text, and every parameter call_internal may set.
+# Méthode qui exécute un script, sorte de script qu'elle prend, paramètre qui porte le texte du script,
+# et chaque paramètre que call_internal peut poser.
 _SCRIPT_METHODS: dict[str, tuple[str, str, frozenset[str]]] = {
     "Runtime.evaluate": ("evaluate", "expression", frozenset({"expression", "returnByValue"})),
     "Runtime.callFunctionOn": (
@@ -87,7 +85,7 @@ _SCRIPT_METHODS: dict[str, tuple[str, str, frozenset[str]]] = {
     ),
 }
 
-# Methods that load an address: a javascript: address is a script too.
+# Méthodes qui chargent une adresse : une adresse javascript: est aussi un script.
 _ADDRESS_METHODS = frozenset({"Page.navigate", "Target.createTarget"})
 
 _UNREACHABLE_MESSAGE = "le navigateur ne répond pas : vérifier qu'il est lancé avec le port de débogage du profil"
@@ -95,20 +93,19 @@ _TIMEOUT_MESSAGE = "le navigateur n'a pas répondu dans le délai"
 
 _log = logging.getLogger(__name__)
 
-# The websockets library logs every frame, parameters included, at DEBUG
-# level. It writes to this logger, held above DEBUG whatever the root level.
+# La bibliothèque websockets journalise chaque trame, paramètres compris, au niveau DEBUG. Elle écrit
+# sur ce journal, tenu au-dessus de DEBUG quel que soit le niveau de la racine.
 _frame_log = logging.getLogger(__name__ + ".frames")
 _frame_log.setLevel(logging.WARNING)
 
 
 @dataclass(frozen=True)
 class InternalScript:
-    """A page script written in this code base; never built from data."""
+    """Un script de page écrit dans cette base de code ; jamais construit à partir de données."""
 
     kind: ScriptKind
     text: str
-    # False when the result is an object the next call refers to (an element),
-    # True when it is a plain value.
+    # Faux quand le résultat est un objet auquel l'appel suivant se réfère (un élément), vrai quand c'est une valeur simple.
     by_value: bool = True
 
     def __post_init__(self) -> None:
@@ -118,8 +115,8 @@ class InternalScript:
             raise ValueError("an internal script has a non-empty text")
 
 
-# Name -> script. Read-only at run time; scripts are added by editing this
-# literal, and every text is a plain string with no value formatted in.
+# Nom -> script. En lecture seule à l'exécution ; on ajoute des scripts en modifiant ce littéral, et
+# chaque texte est une chaîne simple sans valeur formatée dedans.
 INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType(
     {
         "contains": InternalScript(
@@ -145,22 +142,22 @@ INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType(
 
 
 class CdpError(Exception):
-    """The browser answered a call with a protocol error."""
+    """Le navigateur a répondu à un appel par une erreur de protocole."""
 
     def __init__(self, code: int, message: str) -> None:
-        # Only the code goes into the exception text; the message stays an
-        # attribute so that printing the exception repeats nothing.
+        # Seul le code entre dans le texte de l'exception ; le message reste un attribut pour qu'afficher
+        # l'exception ne répète rien.
         super().__init__(code)
         self.code = code
         self.message = message
 
 
 class DisallowedMethodError(Exception):
-    """A call this module refuses to send: a programming error, never a tool error."""
+    """Un appel que ce module refuse d'envoyer : une erreur de programmation, jamais une erreur d'outil."""
 
 
 class UnknownScriptError(DisallowedMethodError):
-    """call_internal was given a name that is not in the script table."""
+    """call_internal a reçu un nom qui n'est pas dans la table des scripts."""
 
 
 Event = tuple[str, dict[str, Any], str | None]
@@ -173,12 +170,11 @@ def _unreachable(message: str = _UNREACHABLE_MESSAGE) -> ToolError:
 
 
 class EventWaiter:
-    """Waits for the first event that satisfies a predicate.
+    """Attend le premier événement qui satisfait un prédicat.
 
-    It listens from the moment it is created, so a caller can start waiting
-    before sending the call that triggers the event. Awaiting it returns
-    ``(method, params, session_id)``; it raises ``TimeoutError`` at the
-    deadline and ``browser_unreachable`` if the connection closes.
+    Il écoute dès sa création, si bien qu'un appelant peut commencer à attendre avant d'envoyer l'appel qui
+    déclenche l'événement. L'attendre rend ``(méthode, paramètres, session_id)`` ; il lève ``TimeoutError`` à
+    l'échéance et ``browser_unreachable`` si la connexion se ferme.
     """
 
     def __init__(self, connection: CdpConnection, predicate: EventPredicate, timeout: float) -> None:
@@ -187,7 +183,7 @@ class EventWaiter:
         self._predicate = predicate
         self._deadline = loop.time() + timeout
         self._future: asyncio.Future[Event] = loop.create_future()
-        # A failure nobody awaits must not be reported as never retrieved.
+        # Un échec que personne n'attend ne doit pas être signalé comme jamais récupéré.
         self._future.add_done_callback(lambda f: f.cancelled() or f.exception())
 
     def _offer(self, method: str, params: dict[str, Any], session_id: str | None) -> None:
@@ -195,7 +191,7 @@ class EventWaiter:
             return
         try:
             matched = self._predicate(method, params, session_id)
-        except Exception as exc:  # noqa: BLE001 - a bad predicate must not stop the reader
+        except Exception as exc:  # noqa: BLE001 - un prédicat défectueux ne doit pas arrêter le lecteur
             _log.debug("event predicate failed with %s", type(exc).__name__)
             return
         if matched:
@@ -221,11 +217,11 @@ class EventWaiter:
 
 
 class CdpConnection:
-    """One WebSocket connection to the browser; every call goes through ``send``."""
+    """Une connexion WebSocket au navigateur ; chaque appel passe par ``send``."""
 
     def __init__(self, *, internal_scripts: Mapping[str, InternalScript] | None = None) -> None:
-        # The table can be replaced here, and only here, so that tests run
-        # their own scripts; nothing in the configuration reaches it.
+        # La table peut être remplacée ici, et seulement ici, pour que les tests exécutent leurs propres scripts ;
+        # rien dans la configuration ne l'atteint.
         table = INTERNAL_SCRIPTS if internal_scripts is None else internal_scripts
         for name, script in table.items():
             if not isinstance(name, str) or not isinstance(script, InternalScript):
@@ -248,8 +244,8 @@ class CdpConnection:
         if self._ws is not None:
             raise RuntimeError("the connection is already open")
         try:
-            # proxy=None: the library would otherwise route through the
-            # proxy named in the environment, and so hand the browser over.
+            # proxy=None : la bibliothèque passerait sinon par le mandataire nommé dans l'environnement, et
+            # livrerait ainsi le navigateur.
             self._ws = await connect(
                 ws_url,
                 proxy=None,
@@ -265,7 +261,7 @@ class CdpConnection:
         self._reader = asyncio.create_task(self._read_loop())
 
     async def close(self) -> None:
-        """Close this connection; the browser itself is left running."""
+        """Fermer cette connexion ; le navigateur lui-même reste en marche."""
         self._closed = True
         ws = self._ws
         if ws is not None:
@@ -281,11 +277,10 @@ class CdpConnection:
         self._fail_all()
 
     def add_event_handler(self, callback: EventHandler) -> None:
-        """Call ``callback(method, params, session_id)`` for every event.
+        """Appeler ``callback(method, params, session_id)`` pour chaque événement.
 
-        A callback runs inside the reader and must return quickly; if it
-        returns an awaitable, that awaitable runs as a separate task, so it
-        may itself call ``send``.
+        Une fonction de rappel s'exécute dans le lecteur et doit rendre vite ; si elle rend un objet attendable,
+        cet objet s'exécute comme une tâche séparée, de sorte qu'elle peut elle-même appeler ``send``.
         """
         self._handlers.append(callback)
 
@@ -309,17 +304,17 @@ class CdpConnection:
         timeout: float = DEFAULT_TIMEOUT_S,
         _script: InternalScript | None = None,
     ) -> dict[str, Any]:
-        """Send one call and return its ``result``.
+        """Envoyer un appel et rendre son ``result``.
 
-        ``_script`` is private to ``call_internal``: a script method is
-        refused without it, and its text must be the table's text.
+        ``_script`` est privé à ``call_internal`` : une méthode de script est refusée sans lui, et son texte doit
+        être celui de la table.
         """
         payload = dict(params) if params is not None else {}
         self._check_call(method, payload, _script)
         return await self._exchange(method, payload, session_id, timeout)
 
     async def attach(self, target_id: str) -> str:
-        """Open a flat session on a target and return its identifier."""
+        """Ouvrir une session à plat sur une cible et rendre son identifiant."""
         result = await self.send("Target.attachToTarget", {"targetId": target_id, "flatten": True})
         session_id = result.get("sessionId")
         if not isinstance(session_id, str) or not session_id:
@@ -335,7 +330,7 @@ class CdpConnection:
         arguments: Sequence[Mapping[str, Any]] | None = None,
         timeout: float = DEFAULT_TIMEOUT_S,
     ) -> dict[str, Any]:
-        """Run the table script ``name``; values travel as protocol arguments, never in the text."""
+        """Exécuter le script ``name`` de la table ; les valeurs voyagent comme arguments de protocole, jamais dans le texte."""
         script = self._scripts.get(name) if isinstance(name, str) else None
         if script is None:
             raise UnknownScriptError(f"unknown internal script: {name!r}")
@@ -356,7 +351,7 @@ class CdpConnection:
             method = "Runtime.callFunctionOn"
         return await self.send(method, params, session_id=session_id, timeout=timeout, _script=script)
 
-    # --- checks -----------------------------------------------------------------
+    # --- contrôles ------------------------------------------------------------------
 
     def _check_call(self, method: str, params: dict[str, Any], script: InternalScript | None) -> None:
         if not isinstance(method, str) or method not in ALLOWED_METHODS:
@@ -381,7 +376,7 @@ class CdpConnection:
         if not set(params) <= allowed_params:
             raise DisallowedMethodError(f"unexpected parameter for {method}")
 
-    # --- transport --------------------------------------------------------------
+    # --- transport ------------------------------------------------------------------
 
     async def _exchange(
         self, method: str, params: dict[str, Any], session_id: str | None, timeout: float
@@ -426,7 +421,7 @@ class CdpConnection:
                 self._dispatch(raw)
         except ConnectionClosed:
             pass
-        except Exception as exc:  # noqa: BLE001 - whatever stops the reader closes the connection
+        except Exception as exc:  # noqa: BLE001 - tout ce qui arrête le lecteur ferme la connexion
             _log.debug("cdp reader stopped with %s", type(exc).__name__)
         finally:
             self._closed = True
@@ -459,7 +454,7 @@ class CdpConnection:
         for handler in list(self._handlers):
             try:
                 outcome = handler(method, params, session_id)
-            except Exception as exc:  # noqa: BLE001 - one handler must not starve the others
+            except Exception as exc:  # noqa: BLE001 - un gestionnaire ne doit pas affamer les autres
                 _log.warning("cdp event handler failed with %s", type(exc).__name__)
                 continue
             if inspect.isawaitable(outcome):
@@ -482,8 +477,8 @@ class CdpConnection:
 
 
 def _check_address(method: str, url: object) -> None:
-    # The tab module refuses these first, with a tool error; this is the
-    # last line, for a caller that forgot.
+    # Le module des onglets les refuse d'abord, avec une erreur d'outil ; ceci est la dernière ligne, pour un
+    # appelant qui l'aurait oublié.
     if isinstance(url, str) and is_blank(url):
         return
     try:

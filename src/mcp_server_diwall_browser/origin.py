@@ -1,10 +1,10 @@
-"""Turn an address into an origin and compare origins.
+"""Transformer une adresse en origine et comparer des origines.
 
-Why this module exists:
-    Every decision about where a credential may be typed or which site is
-    allowed rests on comparing origins. Text comparison is wrong in both
-    directions (default ports, case, userinfo tricks, numeric hosts), so the
-    parsing lives here once and every other module asks this one.
+Pourquoi ce module existe :
+    Toute décision sur l'endroit où un identifiant peut être saisi ou sur le site autorisé repose sur
+    la comparaison d'origines. Comparer du texte est faux dans les deux sens (ports par défaut, casse,
+    ruses d'informations d'utilisateur, hôtes numériques) : l'analyse vit donc ici une seule fois et
+    tout autre module interroge celui-ci.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ _MAX_HOST_LENGTH = 253
 
 
 class OriginError(ValueError):
-    """An address was refused; ``reason`` is a stable English word."""
+    """Une adresse a été refusée ; ``reason`` est un mot anglais stable."""
 
     def __init__(self, reason: str) -> None:
         if reason not in ORIGIN_ERROR_REASONS:
@@ -51,15 +51,15 @@ class OriginError(ValueError):
 
 @dataclass(frozen=True)
 class Origin:
-    """A web origin with its effective port; equal when all three fields are."""
+    """Une origine web avec son port effectif ; égale quand les trois champs le sont."""
 
     scheme: str
     host: str
     port: int
 
     def __post_init__(self) -> None:
-        # A hand-built Origin must not be able to smuggle a value that
-        # parse_origin would have refused or written differently.
+        # Une Origin construite à la main ne doit pas pouvoir faire passer une valeur que parse_origin aurait
+        # refusée ou écrite autrement.
         if self.scheme not in DEFAULT_PORTS:
             raise OriginError("forbidden_scheme")
         if not isinstance(self.port, int) or isinstance(self.port, bool):
@@ -84,7 +84,7 @@ class Origin:
 
 @dataclass(frozen=True)
 class UrlParts:
-    """The raw pieces of an address, without any normalization of the host."""
+    """Les morceaux bruts d'une adresse, sans aucune normalisation de l'hôte."""
 
     scheme: str
     has_authority: bool
@@ -96,8 +96,8 @@ class UrlParts:
 
 
 def split_url(url: str) -> UrlParts:
-    """Cut an address into its pieces; refuse anything a browser could read
-    differently from this code (control characters, spaces, backslashes)."""
+    """Découper une adresse en morceaux ; refuser tout ce qu'un navigateur pourrait lire autrement que ce
+    code (caractères de contrôle, espaces, barres obliques inverses)."""
     if not isinstance(url, str):
         raise OriginError("malformed")
     for char in url:
@@ -140,7 +140,7 @@ def split_url(url: str) -> UrlParts:
 
 
 def parse_origin(text: str) -> Origin:
-    """Parse a list entry: scheme, host and optional port, nothing else."""
+    """Analyser une entrée de liste : schéma, hôte et port facultatif, rien d'autre."""
     parts, origin = _parse(text)
     if parts.path or parts.query is not None or parts.fragment is not None:
         raise OriginError("trailing_data")
@@ -148,7 +148,7 @@ def parse_origin(text: str) -> Origin:
 
 
 def origin_of_url(url: str) -> Origin:
-    """Origin of a full address; path, query and fragment are ignored."""
+    """Origine d'une adresse complète ; chemin, requête et fragment sont ignorés."""
     return _parse(url)[1]
 
 
@@ -157,19 +157,19 @@ def is_blank(url: str) -> bool:
 
 
 def origin_allowed(origin: Origin | None, allowed: Iterable[Origin]) -> bool:
-    """True only for an origin equal to one of ``allowed``.
+    """Vrai seulement pour une origine égale à l'une de ``allowed``.
 
-    No origin (about:blank, an address that cannot be read) and an empty
-    list allow nothing: the default protects, it never permits.
+    Aucune origine (about:blank, une adresse illisible) et une liste vide n'autorisent rien : la valeur
+    par défaut protège, elle ne permet jamais.
     """
     return isinstance(origin, Origin) and any(origin == item for item in allowed)
 
 
 def form_target_origin(page_url: str, action: str | None) -> Origin | None:
-    """The origin a form sends to: its ``action`` read against the page address.
+    """L'origine à laquelle un formulaire envoie : son ``action`` lue par rapport à l'adresse de la page.
 
-    ``None`` when it cannot be read or is not a web origin (a script address
-    for one); an empty or relative action sends to the page's own origin.
+    ``None`` quand elle est illisible ou n'est pas une origine web (une adresse de script, par exemple) ;
+    une action vide ou relative envoie à l'origine même de la page.
     """
     try:
         page: Origin | None = origin_of_url(page_url)
@@ -189,7 +189,7 @@ def form_target_origin(page_url: str, action: str | None) -> Origin | None:
 
 
 def split_host_port(hostport: str) -> tuple[str, str | None]:
-    """Host (an IPv6 address keeps its brackets) and port text of an authority."""
+    """Hôte (une adresse IPv6 garde ses crochets) et texte du port d'une autorité."""
     return _split_hostport(hostport)
 
 
@@ -244,13 +244,12 @@ def _split_hostport(hostport: str) -> tuple[str, str | None]:
 
 
 def _ascii_host(host: str) -> str:
-    """The punycode form of a non-Latin host, only when it is unambiguous.
+    """La forme punycode d'un hôte non latin, seulement quand elle est sans ambiguïté.
 
-    Python converts with IDNA 2003, browsers with IDNA 2008. They disagree
-    on a few characters (``ß``, ``ς``, the joiners) and Python silently maps
-    others: ``faß.test`` becomes ``fass.test``, another domain than the one
-    the browser opens. A name that does not come back unchanged from the
-    conversion is refused, so a disagreement can only refuse, never allow.
+    Python convertit avec IDNA 2003, les navigateurs avec IDNA 2008. Ils divergent sur quelques
+    caractères (``ß``, ``ς``, les jointeurs) et Python en transpose d'autres en silence : ``faß.test``
+    devient ``fass.test``, un autre domaine que celui que le navigateur ouvre. Un nom qui ne revient pas
+    inchangé de la conversion est refusé, si bien qu'un désaccord ne peut que refuser, jamais autoriser.
     """
     try:
         converted = host.encode("idna").decode("ascii").lower()
@@ -264,7 +263,7 @@ def _ascii_host(host: str) -> str:
 
 def _normalize_host(host: str, *, bracketed: bool) -> str:
     if bracketed:
-        # A zone identifier names a local interface, never a web origin.
+        # Un identifiant de zone nomme une interface locale, jamais une origine web.
         if "%" in host:
             raise OriginError("invalid_host")
         try:
@@ -281,8 +280,8 @@ def _normalize_host(host: str, *, bracketed: bool) -> str:
         host = _ascii_host(host)
 
     labels = host.split(".")
-    # A host whose last label is a number is an IPv4 address to a browser,
-    # whatever its spelling; only the plain dotted quad is accepted.
+    # Un hôte dont la dernière étiquette est un nombre est une adresse IPv4 pour un navigateur, quelle que
+    # soit son écriture ; seul le quadruplet pointé simple est accepté.
     if _NUMERIC_LABEL_RE.fullmatch(labels[-1]):
         if not _DOTTED_QUAD_RE.fullmatch(host):
             raise OriginError("invalid_host")
