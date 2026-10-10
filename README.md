@@ -187,4 +187,16 @@ Known limits:
 - The content of frames is never read; frames are masked in the image.
 - What the model provider keeps of what it receives is not confirmed by this project.
 
+## Credits
+
+mcp-server-diwall-browser is built in an asymmetric human–LLM collaboration. The roles are written
+down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
+- **Ronan Davalan**: architect and arbiter. Vision, security requirements, decisions, validation and testing.
+- **Claude Code (Anthropic)**: systems engineer and lead developer. Server implementation, tests, documentation, and the working framework.
+- **Claude Cloud (Anthropic)**: wrote part of the code on branches, from prompts, reviewed before every merge.
+- **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
+- **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
+- **Local vision**: Qwen3-VL (Alibaba), run through Ollama, for the optional visual location and comparison.
+
 License: not chosen yet.
