@@ -401,15 +401,25 @@ async def _run(
             "page_content": None,
         }
     except Exception as exc:  # noqa: BLE001 - tout échec doit sortir sous forme d'enveloppe
-        # Seul le nom du type est journalisé : le texte de l'exception et la pile peuvent contenir des données
-        # de page ou un secret jamais enregistré.
-        _log.error("tool %s failed with %s", name, type(exc).__name__)
+        # Seuls le nom du type et, pour une erreur du protocole, son code sont journalisés : le texte de
+        # l'exception et la pile peuvent contenir des données de page ou un secret jamais enregistré.
+        _log.error("tool %s failed with %s", name, _failure_label(exc))
         envelope = _internal_error(name, operation_id)
     try:
         return finalize(envelope), image
     except Exception as exc:  # noqa: BLE001
         _log.error("tool %s produced an invalid result: %s", name, type(exc).__name__)
         return finalize(_internal_error(name, operation_id)), None
+
+
+def _failure_label(exc: Exception) -> str:
+    """Le nom du type de l'exception, suivi du code numérique d'une erreur du protocole."""
+    # Importé ici : le client du protocole importe ce module.
+    from .cdp import CdpError
+
+    if isinstance(exc, CdpError):
+        return f"{type(exc).__name__} (code {exc.code})"
+    return type(exc).__name__
 
 
 def _internal_error(name: str, operation_id: str) -> dict[str, Any]:

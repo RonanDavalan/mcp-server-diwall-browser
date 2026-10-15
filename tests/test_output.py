@@ -11,6 +11,7 @@ from typing import Any
 import pytest
 
 from mcp_server_diwall_browser import output
+from mcp_server_diwall_browser.cdp import CdpError
 from mcp_server_diwall_browser.output import (
     EnvelopeError,
     ToolError,
@@ -275,6 +276,20 @@ async def test_unexpected_exception_leaves_no_trace_and_no_raw_text(caplog: pyte
     assert result["server"]["error"] == {"code": "internal_error", "message": "erreur interne du serveur"}
     assert "boom" not in text and "Traceback" not in text and SECRET not in text
     assert "boom" not in caplog.text and SECRET not in caplog.text
+
+
+async def test_a_protocol_error_that_escapes_is_logged_by_type_and_code_and_never_by_text(caplog: pytest.LogCaptureFixture) -> None:
+    @tool("click")
+    async def click() -> ToolOutput:
+        raise CdpError(-32000, "texte témoin")
+
+    with caplog.at_level(logging.DEBUG):
+        result, _image = await click()
+    assert result["server"]["error"] == {"code": "internal_error", "message": "erreur interne du serveur"}
+    failed = [record.getMessage() for record in caplog.records if "failed" in record.getMessage()]
+    assert len(failed) == 1 and "CdpError" in failed[0] and "-32000" in failed[0], failed
+    assert "texte témoin" not in caplog.text and "Traceback" not in caplog.text
+    assert "texte témoin" not in dumped(result)
 
 
 async def test_tool_returning_a_bad_envelope_becomes_an_internal_error() -> None:

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Footer link under the view</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  main { height: 3000px; padding: 16px; font: 16px sans-serif; }
+  footer { height: 120px; padding: 16px; font: 16px sans-serif; background: #eee; }
+</style>
+</head>
+<body>
+<main><h1>Long page</h1><p>The footer holds the only link and lies far below the view.</p></main>
+<footer><a id="footer-link" href="#footer">Footer link</a></footer>
+<script>
+  // What the link received, read from outside by the test; the click does not leave the page.
+  window.__clicks = 0;
+  document.getElementById("footer-link").addEventListener("click", function (event) {
+    event.preventDefault();
+    window.__clicks += 1;
+  });
+</script>
+</body>
+</html>

@@ -859,7 +859,9 @@ again.
 `le curseur n'est pas dans l'élément visé : rien n'a été saisi`, or
 `une boîte de dialogue est ouverte dans cet onglet : la traiter (handle_dialog) avant toute autre action`
 (`action_expected`: `handle_dialog`). Close what covers the element (a banner, a pop-up) or let the
-model answer the dialog.
+model answer the dialog. A click is also refused this way when the browser
+gives no box for the element (a protocol error while reading it, before or after the pointer moves);
+the server does not try again by itself, the model observes again.
 
 `unsupported_element`: the action does not apply, for example
 `seule une liste de choix native (select) se règle ainsi`,
@@ -928,7 +930,7 @@ did not come; nothing for you to do.
 parameter the tool does not have, or a value of the wrong kind; nothing was done.
 
 `internal_error`: `erreur interne du serveur`. An unexpected failure; the server's standard error
-(kept by the MCP client) holds the name of the tool and the type of the failure, never page data.
+(kept by the MCP client) holds the name of the tool and the type of the failure (for a protocol error of the browser, its numeric code too), never page data or the text of the error.
 
 ## 12. Known limits
 

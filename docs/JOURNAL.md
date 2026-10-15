@@ -1957,3 +1957,24 @@ scrolls 1000 CSS pixels a second, none on another button, and the protocol the a
 the three mouse events. A lost click is a click that did nothing; the harm to avoid is a click on the wrong element, and
 none was seen. Check that it still holds: replay the measure of the previous entry; reopen if a click ever lands on another
 element, or if one dispatch of the three events becomes allowed.
+
+## 2026-10-15 — A protocol error reading the box of the click target is a refused click
+
+Done:
+
+- `Actions._centre` turns a `CdpError` of `DOM.getContentQuads` into `element_obscured`, in one place;
+  `_recheck_before_press` no longer converts it. Before, the read made before the pointer moved let the
+  error out as `internal_error`; only the read after the movement was converted.
+- A result `internal_error` logs the type name and, for a `CdpError`, its code
+  (`tool click failed with CdpError (code -32000)`); never its text or its stack.
+- No automatic retry of the click: a second click can duplicate an action.
+
+Proof:
+
+- `tests/test_output.py::test_a_protocol_error_that_escapes_is_logged_by_type_and_code_and_never_by_text`
+  failed before (the line had no `-32000`), passes now.
+- `tests/test_click_protocol_error.py`: a double whose `DOM.getContentQuads` raises at the first call
+  failed before (`CdpError: -32000` left `click`), passes now: `element_obscured`, no `mousePressed`.
+- `tests/test_click_footer_integration.py`, Chrome 155.0.8059.79, a footer link under the view, twenty
+  clicks each in a new tab: 20 landed, 0 `internal_error`, before and after. The defect of one click in
+  eleven (REX-4) was not reproduced; the conversion rests on the reading of the code and on the double.

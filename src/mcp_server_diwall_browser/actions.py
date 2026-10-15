@@ -180,17 +180,17 @@ class Actions:
         donc reposée à chaque fois, jamais seulement quand la boîte ou le décalage a changé : une cible recouverte
         là où elle se trouve a la même boîte et le même décalage.
         """
-        try:
-            await self._centre(tab, backend)
-        except CdpError:
-            # Le mouvement a emporté l'élément, ou sa boîte : il n'y a rien à presser.
-            raise ToolError("element_obscured", _OBSCURED) from None
+        await self._centre(tab, backend)
         scroll_x, scroll_y = await self._viewport(tab, strict=True)
         await self._require_target_at(tab, backend, round(x + scroll_x), round(y + scroll_y))
 
     async def _centre(self, tab: Tab, backend: int) -> tuple[float, float]:
         """Le milieu de la boîte d'un élément, dans la vue ; refuser un élément sans boîte."""
-        quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": backend})).get("quads") or []
+        try:
+            quads = (await self._read(tab, "DOM.getContentQuads", {"backendNodeId": backend})).get("quads") or []
+        except CdpError:
+            # Le navigateur ne donne pas de boîte (nœud détaché, emporté par le mouvement du pointeur) : rien à presser.
+            raise ToolError("element_obscured", _OBSCURED) from None
         if not quads or len(quads[0]) != 8:
             raise ToolError("element_obscured", _OBSCURED)
         return sum(quads[0][0::2]) / 4, sum(quads[0][1::2]) / 4
