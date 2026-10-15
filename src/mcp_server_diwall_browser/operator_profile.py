@@ -13,14 +13,14 @@ import errno
 import json
 import os
 import stat
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, NoReturn
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, ValidationError, field_validator
 
-from .origin import Origin, OriginError, parse_origin
+from .origin import Origin, OriginEntry, OriginError, parse_origin, parse_origin_pattern
 from .output import ToolError
 
 ENV_VAR = "MCP_DIWALL_BROWSER_PROFILE"
@@ -31,7 +31,6 @@ MAX_PATH_LENGTH = 4096
 REDLIST_KEYS = frozenset(
     {"payment", "deletion", "delete", "secret_rotation", "rotate_secret", "red_list", "redlist"}
 )
-_ORIGIN_LIST_KEYS = ("allowed_origins", "confirm_each_change", "local_model_origins")
 
 
 def _absolute_path(value: str) -> str:
@@ -100,8 +99,8 @@ class Profile:
     schema_version: int
     secrets_dir: Path
     secrets_crypt_dir: Path | None
-    allowed_origins: tuple[Origin, ...]
-    confirm_each_change: tuple[Origin, ...]
+    allowed_origins: tuple[OriginEntry, ...]
+    confirm_each_change: tuple[OriginEntry, ...]
     local_model_origins: tuple[Origin, ...]
     declarations: Declarations
     browser: BrowserSettings
@@ -242,27 +241,30 @@ def _validate(data: Any, path: Path, standard: Path) -> Profile:
         model = _ProfileModel.model_validate(data)
     except ValidationError as exc:
         _raise_from_validation(exc, standard)
-    origin_lists: dict[str, tuple[Origin, ...]] = {}
-    for key in _ORIGIN_LIST_KEYS:
-        parsed = []
-        for index, text in enumerate(getattr(model, key)):
-            try:
-                parsed.append(parse_origin(text))
-            except OriginError as error:
-                _invalid(f"profil refusé : {key}[{index}] ({error.reason})", "bad_origin")
-        origin_lists[key] = tuple(parsed)
     return Profile(
         source=path,
         schema_version=model.schema_version,
         secrets_dir=Path(model.secrets_dir),
         secrets_crypt_dir=None if model.secrets_crypt_dir is None else Path(model.secrets_crypt_dir),
-        allowed_origins=origin_lists["allowed_origins"],
-        confirm_each_change=origin_lists["confirm_each_change"],
-        local_model_origins=origin_lists["local_model_origins"],
+        allowed_origins=_origins(model.allowed_origins, "allowed_origins", parse_origin_pattern),
+        confirm_each_change=_origins(model.confirm_each_change, "confirm_each_change", parse_origin_pattern),
+        local_model_origins=_origins(model.local_model_origins, "local_model_origins", parse_origin),
         declarations=model.declarations,
         browser=model.browser,
         limits=model.limits,
     )
+
+
+def _origins[T](texts: list[str], key: str, parse: Callable[[str], T]) -> tuple[T, ...]:
+    """Analyser une liste d'origines. Seules ``allowed_origins`` et ``confirm_each_change`` admettent un joker de
+    sous-domaine : ``local_model_origins`` désigne des origines exactes."""
+    parsed = []
+    for index, text in enumerate(texts):
+        try:
+            parsed.append(parse(text))
+        except OriginError as error:
+            _invalid(f"profil refusé : {key}[{index}] ({error.reason})", "bad_origin")
+    return tuple(parsed)
 
 
 def _raise_from_validation(exc: ValidationError, standard: Path) -> NoReturn:

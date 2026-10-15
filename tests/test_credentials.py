@@ -445,3 +445,29 @@ def test_a_duplicated_key_in_a_credential_file_is_refused(tmp_path: Path) -> Non
 def test_duplicate_check_catches_a_credential_parser_where_the_last_value_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(credentials, "_no_duplicates", dict)
     assert not duplicated_credential_refused(tmp_path)
+
+
+# --- le joker n'étend jamais la saisie d'un identifiant -----------------------------------------
+
+
+@pytest.mark.parametrize("entry", ["https://*.example.invalid", "https://*.test", "*", "https://a.*.example.invalid"])
+def test_a_credential_file_bound_to_a_wildcard_is_refused(tmp_path: Path, entry: str) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    write_credential(paths, "service.json", allowed_origins=[entry])
+    error = resolve_error(volume, parse_origin("https://a.example.invalid"))
+    assert (error.code, error.extra_server["reason"]) == ("credential_invalid", "bad_origin")
+    assert FAKE_PASSWORD not in error.message
+
+
+def test_a_wildcard_next_to_an_exact_origin_refuses_the_whole_file(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    write_credential(paths, "service.json", allowed_origins=["https://example.invalid", "https://*.example.invalid"])
+    assert resolve_error(volume).code == "credential_invalid"
+
+
+def test_a_credential_bound_to_the_domain_is_not_bound_to_its_subdomain(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    write_credential(paths, "service.json", allowed_origins=["https://example.invalid"])
+    for name in (None, "service"):
+        error = resolve_error(volume, parse_origin("https://a.example.invalid"), name=name)
+        assert error.code == "credential_not_bound"

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from ..cdp import CdpError
 from ..mount import verdict_error
 from ..operator_profile import ENV_VAR, standard_profile_path
+from ..origin import entry_listed
 from ..output import ToolError, ToolOutput, tool
 from ..server import ToolArguments, server_version
 
@@ -86,7 +87,7 @@ async def run(ctx: ToolContext) -> ToolOutput:
     server["allowed_origins"] = [
         {
             "origin": origin.canonical,
-            "confirm_each_change": origin in profile.confirm_each_change,
+            "confirm_each_change": entry_listed(origin, profile.confirm_each_change),
             "local_model_only": origin in profile.local_model_origins,
         }
         for origin in profile.allowed_origins

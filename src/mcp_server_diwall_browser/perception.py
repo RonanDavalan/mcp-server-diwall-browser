@@ -31,7 +31,7 @@ from PIL import Image, ImageDraw, ImageFile, ImageFont
 
 from . import observation_filter
 from .browser import DialogBlocking, FrameInfo, Tab, TabRegistry, origin_label
-from .origin import Origin, OriginError, origin_allowed, origin_of_url
+from .origin import Origin, OriginEntry, OriginError, origin_allowed, origin_of_url
 from .output import ToolError, ToolOutput, bounded_text, redact_text
 from .sensitive_field import ATTRIBUTE_ARGUMENTS, is_sensitive
 
@@ -1162,7 +1162,7 @@ def _overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool
 
 # --- Le module qu'utilisent les outils ----------------------------------------------------
 
-AllowedOrigins = Callable[[], Iterable[Origin]]
+AllowedOrigins = Callable[[], Iterable[OriginEntry]]
 
 
 class _PageChanged(Exception):

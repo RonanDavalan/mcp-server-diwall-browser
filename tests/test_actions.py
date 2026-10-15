@@ -568,6 +568,36 @@ async def test_the_operator_setting_asks_for_an_unarmed_change_on_its_origin_onl
     assert bench.channel.texts == []
 
 
+WILDCARD = "https://*.example.test"
+
+
+async def test_a_wildcard_of_the_allowed_list_lets_the_server_act_on_a_subdomain(bench: Bench) -> None:
+    bench.profile = make_profile(bench.tmp, allowed=(WILDCARD,))
+    tab, snapshot = await bench.show(neutral_page(), "https://pay.shop.example.test/page")
+    outcome = await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
+    assert outcome.gate == {"red_list": False, "confirmation": "none"}
+    await refused("origin_not_allowed", bench.show(neutral_page(), "https://example.test/page"))
+
+
+async def test_a_wildcard_of_the_confirmation_list_asks_for_each_change_on_a_subdomain(bench: Bench) -> None:
+    bench.profile = make_profile(bench.tmp, allowed=(ORIGIN,), confirm=(WILDCARD,))
+    tab, snapshot = await bench.show(neutral_page())
+    outcome = await bench.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Envoyer"))
+    [question] = bench.channel.texts
+    assert "réglage de l'opérateur" in question
+    assert outcome.gate == {"red_list": False, "confirmation": "granted"}
+
+
+@pytest.mark.parametrize("name", [None, "shop"])
+async def test_a_wildcard_of_the_allowed_list_gives_no_credential_to_a_subdomain(bench: Bench, name: str | None) -> None:
+    write_credential(bench.paths, "shop.json", allowed_origins=[ORIGIN])
+    bench.profile = make_profile(bench.tmp, allowed=(WILDCARD,))
+    tab, snapshot = await bench.show(login_page(), "https://pay.shop.example.test/login")
+    reference: dict[str, Any] = {"key": "password"} if name is None else {"key": "password", "name": name}
+    await refused("credential_not_bound", bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Mot de passe"), credential_ref=reference))
+    assert bench.browser.typed == [] and bench.channel.texts == []
+
+
 async def test_scrolling_and_other_keys_never_ask_even_under_the_operator_setting(bench: Bench) -> None:
     bench.profile = make_profile(bench.tmp, confirm=(ORIGIN,))
     tab, _snapshot = await bench.show(neutral_page())

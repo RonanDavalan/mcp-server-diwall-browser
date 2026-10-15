@@ -83,6 +83,63 @@ class Origin:
 
 
 @dataclass(frozen=True)
+class OriginPattern:
+    """Un joker de sous-domaine, ``https://*.example.test`` : tout sous-domaine de ``suffix``, d'un niveau ou de
+    plusieurs, avec le même schéma et le même port, jamais ``suffix`` lui-même.
+
+    Ce n'est pas une ``Origin`` : il ne désigne aucune page, et ``Origin`` reste la seule valeur que la
+    liaison d'un identifiant compare.
+    """
+
+    scheme: str
+    suffix: str
+    port: int
+
+    def __post_init__(self) -> None:
+        if self.scheme not in DEFAULT_PORTS:
+            raise OriginError("forbidden_scheme")
+        if not isinstance(self.port, int) or isinstance(self.port, bool):
+            raise OriginError("invalid_port")
+        if not 1 <= self.port <= 65535:
+            raise OriginError("invalid_port")
+        if not isinstance(self.suffix, str) or not self.suffix:
+            raise OriginError("empty_host")
+        if "*" in self.suffix:
+            raise OriginError("wildcard")
+        if self.suffix != _normalize_host(self.suffix, bracketed=False) or _NUMERIC_LABEL_RE.fullmatch(
+            self.suffix.rsplit(".", 1)[-1]
+        ):
+            raise OriginError("invalid_host")
+        if "." not in self.suffix:
+            raise OriginError("wildcard")
+
+    @property
+    def canonical(self) -> str:
+        if self.port == DEFAULT_PORTS[self.scheme]:
+            return f"{self.scheme}://*.{self.suffix}"
+        return f"{self.scheme}://*.{self.suffix}:{self.port}"
+
+    def __str__(self) -> str:
+        return self.canonical
+
+    def covers(self, origin: Origin) -> bool:
+        return (
+            origin.scheme == self.scheme and origin.port == self.port and origin.host.endswith("." + self.suffix)
+        )
+
+    def contains(self, other: OriginPattern) -> bool:
+        """Vrai quand tout ce que ``other`` couvre, ``self`` le couvre."""
+        return (
+            other.scheme == self.scheme
+            and other.port == self.port
+            and (other.suffix == self.suffix or other.suffix.endswith("." + self.suffix))
+        )
+
+
+OriginEntry = Origin | OriginPattern
+
+
+@dataclass(frozen=True)
 class UrlParts:
     """Les morceaux bruts d'une adresse, sans aucune normalisation de l'hôte."""
 
@@ -147,6 +204,35 @@ def parse_origin(text: str) -> Origin:
     return origin
 
 
+def parse_origin_pattern(text: str) -> OriginEntry:
+    """Analyser une entrée de ``allowed_origins`` ou de ``confirm_each_change`` : une origine exacte, ou un
+    joker de sous-domaine en tête du nom (``https://*.example.test``) devant au moins deux niveaux.
+
+    Refusés : un joker sans schéma, seul, ailleurs qu'en tête, devant un nom d'un seul niveau, devant une
+    adresse numérique ; le reste est refusé comme par ``parse_origin``.
+    """
+    parts = split_url(text)
+    if "*" not in parts.hostport:
+        return parse_origin(text)
+    if parts.scheme not in DEFAULT_PORTS:
+        raise OriginError("forbidden_scheme")
+    if not parts.has_authority:
+        raise OriginError("malformed")
+    if parts.userinfo is not None:
+        raise OriginError("userinfo")
+    if parts.path or parts.query is not None or parts.fragment is not None:
+        raise OriginError("trailing_data")
+    host_text, port_text = _split_hostport(parts.hostport)
+    if not host_text.startswith("*.") or "*" in host_text[2:]:
+        raise OriginError("wildcard")
+    suffix_text = host_text[2:]
+    if not suffix_text or suffix_text.startswith("["):
+        raise OriginError("invalid_host")
+    suffix = _normalize_host(suffix_text, bracketed=False)
+    port = DEFAULT_PORTS[parts.scheme] if port_text is None else _port(port_text)
+    return OriginPattern(parts.scheme, suffix, port)
+
+
 def origin_of_url(url: str) -> Origin:
     """Origine d'une adresse complète ; chemin, requête et fragment sont ignorés."""
     return _parse(url)[1]
@@ -156,13 +242,23 @@ def is_blank(url: str) -> bool:
     return url == "about:blank"
 
 
-def origin_allowed(origin: Origin | None, allowed: Iterable[Origin]) -> bool:
-    """Vrai seulement pour une origine égale à l'une de ``allowed``.
+def origin_allowed(origin: Origin | None, allowed: Iterable[OriginEntry]) -> bool:
+    """Vrai seulement pour une origine égale à l'une de ``allowed``, ou couverte par un joker de sous-domaine.
 
     Aucune origine (about:blank, une adresse illisible) et une liste vide n'autorisent rien : la valeur
     par défaut protège, elle ne permet jamais.
     """
-    return isinstance(origin, Origin) and any(origin == item for item in allowed)
+    if not isinstance(origin, Origin):
+        return False
+    return any(item.covers(origin) if isinstance(item, OriginPattern) else origin == item for item in allowed)
+
+
+def entry_listed(entry: OriginEntry, listed: Iterable[OriginEntry]) -> bool:
+    """Vrai quand tout ce que ``entry`` désigne est désigné par ``listed`` : une origine exacte couverte par un
+    joker de ``listed`` l'est, un joker l'est par un joker égal ou plus large."""
+    if isinstance(entry, Origin):
+        return origin_allowed(entry, listed)
+    return any(isinstance(item, OriginPattern) and item.contains(entry) for item in listed)
 
 
 def form_target_origin(page_url: str, action: str | None) -> Origin | None:
@@ -210,15 +306,17 @@ def _parse(text: str) -> tuple[UrlParts, Origin]:
     if bracketed:
         host_text = host_text[1:-1]
     host = _normalize_host(host_text, bracketed=bracketed)
-    if port_text is None:
-        port = DEFAULT_PORTS[parts.scheme]
-    else:
-        if not _PORT_RE.fullmatch(port_text):
-            raise OriginError("invalid_port")
-        port = int(port_text)
-        if not 1 <= port <= 65535:
-            raise OriginError("invalid_port")
+    port = DEFAULT_PORTS[parts.scheme] if port_text is None else _port(port_text)
     return parts, Origin(parts.scheme, host, port)
+
+
+def _port(text: str) -> int:
+    if not _PORT_RE.fullmatch(text):
+        raise OriginError("invalid_port")
+    port = int(text)
+    if not 1 <= port <= 65535:
+        raise OriginError("invalid_port")
+    return port
 
 
 def _cut(text: str, sep: str) -> tuple[str, str | None]:

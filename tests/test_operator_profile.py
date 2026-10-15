@@ -11,7 +11,7 @@ from conftest import DELETE, default_profile, write_profile
 
 from mcp_server_diwall_browser import operator_profile
 from mcp_server_diwall_browser.operator_profile import ENV_VAR, EnvironmentDirs, Limits, Profile, environment_dirs, load_profile
-from mcp_server_diwall_browser.origin import Origin
+from mcp_server_diwall_browser.origin import Origin, OriginPattern
 from mcp_server_diwall_browser.output import ToolError
 
 
@@ -24,6 +24,25 @@ def load_error(tmp_path: Path, **overrides: Any) -> ToolError:
     with pytest.raises(ToolError) as caught:
         load_profile(env_for(tmp_path))
     return caught.value
+
+
+def test_a_wildcard_is_accepted_in_the_two_lists_that_read_and_act_and_kept_as_written(tmp_path: Path) -> None:
+    write_profile(
+        tmp_path,
+        allowed_origins=["https://example.invalid", "https://*.example.invalid"],
+        confirm_each_change=["https://*.example.invalid:8443"],
+    )
+    profile = load_profile(env_for(tmp_path))
+    assert profile.allowed_origins == (Origin("https", "example.invalid", 443), OriginPattern("https", "example.invalid", 443))
+    assert profile.confirm_each_change == (OriginPattern("https", "example.invalid", 8443),)
+    assert [entry.canonical for entry in profile.allowed_origins] == ["https://example.invalid", "https://*.example.invalid"]
+
+
+def test_a_refused_wildcard_names_its_list_and_its_place(tmp_path: Path) -> None:
+    error = load_error(tmp_path, allowed_origins=["https://example.invalid", "https://*.test"])
+    assert error.code == "profile_invalid"
+    assert "allowed_origins[1]" in error.message and "wildcard" in error.message
+    assert error.extra_server["reason"] == "bad_origin"
 
 
 def test_valid_profile_is_loaded_with_typed_values_and_defaults(tmp_path: Path) -> None:
@@ -67,14 +86,24 @@ INVALID_ROWS: list[tuple[str, dict[str, Any]]] = [
     ("secrets_dir", {"secrets_dir": 42}),
     ("secrets_crypt_dir", {"secrets_crypt_dir": "relative/Main.enc"}),
     ("secrets_crypt_dir", {"secrets_crypt_dir": "~/x"}),
-    ("allowed_origins", {"allowed_origins": ["https://*.example.invalid"]}),
+    ("allowed_origins", {"allowed_origins": ["*"]}),
+    ("allowed_origins", {"allowed_origins": ["https://*"]}),
+    ("allowed_origins", {"allowed_origins": ["https://*.test"]}),
+    ("allowed_origins", {"allowed_origins": ["https://a.*.test"]}),
+    ("allowed_origins", {"allowed_origins": ["*.example.invalid"]}),
+    ("allowed_origins", {"allowed_origins": ["https://*.example.invalid/path"]}),
     ("allowed_origins", {"allowed_origins": ["https://alice@example.invalid"]}),
     ("allowed_origins", {"allowed_origins": ["https://example.invalid/path"]}),
     ("allowed_origins", {"allowed_origins": ["https://example.invalid/"]}),
     ("allowed_origins", {"allowed_origins": ["example.invalid"]}),
     ("allowed_origins", {"allowed_origins": [f"https://h{i}.example.invalid" for i in range(201)]}),
     ("allowed_origins", {"allowed_origins": "https://example.invalid"}),
-    ("confirm_each_change", {"confirm_each_change": ["https://*.example.invalid"]}),
+    ("confirm_each_change", {"confirm_each_change": ["*"]}),
+    ("confirm_each_change", {"confirm_each_change": ["https://*"]}),
+    ("confirm_each_change", {"confirm_each_change": ["https://*.test"]}),
+    ("confirm_each_change", {"confirm_each_change": ["https://a.*.test"]}),
+    ("confirm_each_change", {"confirm_each_change": ["*.example.invalid"]}),
+    ("local_model_origins", {"local_model_origins": ["https://*.example.invalid"]}),
     ("local_model_origins", {"local_model_origins": ["http://127.0.0.1:8080/v1"]}),
     ("declarations", {"declarations": {"local_model_client": 1}}),
     ("declarations", {"declarations": {"client_does_not_auto_confirm": "yes"}}),

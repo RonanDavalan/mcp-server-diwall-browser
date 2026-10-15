@@ -19,7 +19,7 @@ from typing import Any
 
 from mcp_server_diwall_browser.confirm import ConfirmationDecision
 from mcp_server_diwall_browser.operator_profile import BrowserSettings, Declarations, Limits, Profile
-from mcp_server_diwall_browser.origin import parse_origin
+from mcp_server_diwall_browser.origin import parse_origin_pattern
 
 
 class FakeChannel:
@@ -70,8 +70,8 @@ def make_profile(
         schema_version=1,
         secrets_dir=Path("~/Vaults/Main"),
         secrets_crypt_dir=None,
-        allowed_origins=tuple(parse_origin(o) for o in allowed),
-        confirm_each_change=tuple(parse_origin(o) for o in confirm),
+        allowed_origins=tuple(parse_origin_pattern(o) for o in allowed),
+        confirm_each_change=tuple(parse_origin_pattern(o) for o in confirm),
         local_model_origins=(),
         declarations=Declarations(),
         browser=BrowserSettings(family="chromium", profile_dir="~/Vaults/Main/browser-profile"),

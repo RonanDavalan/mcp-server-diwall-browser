@@ -508,7 +508,7 @@ class Actions:
         decision: GateDecision,
     ) -> None:
         """Journal, preuve et consentement de l'humain, quand la porte ou l'opérateur les demandent."""
-        operator_setting = verified.frame.origin in profile.confirm_each_change
+        operator_setting = origin_allowed(verified.frame.origin, profile.confirm_each_change)
         if not decision.armed and not operator_setting:
             return
         target, amounts = await self._form_context(tab, verified.frame, ref)
@@ -529,7 +529,7 @@ class Actions:
     async def _guard_dialog(
         self, run: _Run, tab: Tab, profile: Profile, origin: Origin, dialog: dict[str, str], decision: GateDecision
     ) -> None:
-        if not decision.armed and origin not in profile.confirm_each_change:
+        if not decision.armed and not origin_allowed(origin, profile.confirm_each_change):
             return
         message = dialog.get("message", "")
         request = ConfirmRequest(

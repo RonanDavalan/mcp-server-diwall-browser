@@ -2031,3 +2031,24 @@ that is only the value of a password field returns nothing.
   does in section 7 (`grep -c "tab_id" docs/OPERATOR_GUIDE.md` reads 2).
 - `pytest -q -m "not browser"`: 1687 passed, 1 skipped, 538 deselected. The browser tests of the
   perception (`tests/test_perception_integration.py`, `tests/test_ranking_integration.py`): 31 passed.
+
+## Subdomain wildcard in the allowed origins
+
+`allowed_origins` and `confirm_each_change` accept `https://*.example.test`: a type of its own,
+`OriginPattern` (`origin.py`), distinct from `Origin`, read by `origin_allowed`. The profile refuses
+`*`, `https://*`, `https://*.test`, `https://a.*.test` and `*.example.test` (`profile_invalid`,
+`bad_origin`); `local_model_origins` and the credential files keep exact origins
+(`credentials.py` is unchanged and still refuses a wildcard with `credential_invalid`).
+
+- Proof: the tests were written first and failed at import (`OriginPattern` and `parse_origin_pattern`
+  absent from `origin.py`); after the code, the 44 tests selected by `-k "wildcard or subdomain"`
+  pass (`tests/test_origin.py`, `tests/test_operator_profile.py`, `tests/test_credentials.py`,
+  `tests/test_server.py`, `tests/test_actions.py`).
+- Counter-proof: with `credentials.py` made to parse and compare with the wildcard type, 3 tests fail
+  (`test_a_credential_file_bound_to_a_wildcard_is_refused`,
+  `test_a_wildcard_next_to_an_exact_origin_refuses_the_whole_file` and the `bad_origin` row of
+  `test_schema_violations_are_refused`); the file was restored.
+- `status` gives the entries as written; an origin covered by a wildcard of `confirm_each_change`
+  asks for a confirmation (`tests/test_actions.py`), and no credential reaches a subdomain.
+- `pytest -q -m "not browser"`: 1741 passed, 1 skipped, 543 deselected. Browser tests of the wait and
+  of the perception (`test_wait_state_integration.py`, `test_perception_integration.py`): 26 passed.

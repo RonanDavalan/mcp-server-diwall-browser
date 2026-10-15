@@ -608,6 +608,19 @@ async def test_a_client_that_cannot_ask_its_user_gets_no_question(rig: Rig) -> N
 # --- status -----------------------------------------------------------------------------------------
 
 
+async def test_status_gives_the_entries_as_written_and_does_not_expand_a_wildcard(rig: Rig) -> None:
+    rig.write_profile(
+        allowed_origins=[ORIGIN, "https://*.example.test"],
+        confirm_each_change=["https://*.example.test"],
+    )
+    async with connected(rig) as client:
+        status = await client.call("status")
+    assert status["server"]["allowed_origins"] == [
+        {"origin": ORIGIN, "confirm_each_change": True, "local_model_only": False},
+        {"origin": "https://*.example.test", "confirm_each_change": True, "local_model_only": False},
+    ]
+
+
 async def test_status_says_the_sites_the_declarations_and_the_channel(rig: Rig) -> None:
     rig.write_profile(
         allowed_origins=[ORIGIN, OTHER],

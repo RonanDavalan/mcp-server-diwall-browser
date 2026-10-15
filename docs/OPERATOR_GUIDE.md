@@ -381,14 +381,14 @@ origins and the browser to yours:
 - `secrets_crypt_dir` (optional): the encrypted directory on disk. With it, the server tells a
   closed encrypted directory from one that was never created; without it, a closed one reads
   `closed_or_absent`.
-- `allowed_origins`: the sites the server reads and acts on, each an exact origin (scheme, host,
-  port), at most 200. Of any other page, only the origin is returned.
-- `confirm_each_change`: origins of `allowed_origins` where every `click`, `fill`,
+- `allowed_origins`: the sites the server reads and acts on, each an origin (scheme, host, port) or
+  a subdomain wildcard (below), at most 200. Of any other page, only the origin is returned.
+- `confirm_each_change`: origins of `allowed_origins`, or wildcards, where every `click`, `fill`,
   `select_option`, Enter key and accepted dialog asks for a confirmation, not only payments,
   deletions and secret changes.
-- `local_model_origins`: origins you want handled by a model that runs on this machine. The server
-  shows them in `status` (`local_model_only`) and does nothing else with them: it cannot know where
-  the model runs.
+- `local_model_origins`: exact origins, never a wildcard, that you want handled by a model that runs
+  on this machine. The server shows them in `status` (`local_model_only`) and does nothing else with
+  them: it cannot know where the model runs.
 - `declarations.local_model_client`: your statement that the MCP client runs its model on this
   machine.
 - `declarations.client_does_not_auto_confirm`: your statement that the MCP client never answers a
@@ -415,6 +415,35 @@ refused before reaching the browser does not count against the ceilings. Restart
 A key that is not in this list is refused, and a key that would configure the locked actions (such
 as `payment` or `deletion`) is refused with `redlist_in_profile`: only the code decides what is
 locked.
+
+### A subdomain wildcard
+
+An entry of `allowed_origins` or `confirm_each_change` can be written `https://*.example.invalid`.
+It covers every subdomain of `example.invalid`, one level or several, with the same scheme and the
+same port: `https://a.example.invalid` and `https://a.b.example.invalid` are read and acted on;
+`https://example.invalid` itself (an entry of its own to add), `https://notexample.invalid`,
+`https://example.invalid.other.test`, `http://a.example.invalid` and
+`https://a.example.invalid:8443` are not (`origin_not_allowed`). A port is part of the entry:
+`https://*.example.invalid:8443` covers the subdomains on that port only.
+
+The profile is refused (`profile_invalid`, reason `bad_origin`, with the list and the place of the
+entry) when a wildcard is alone (`*`), has no scheme (`*.example.invalid`), is not the first label
+(`https://a.*.example.invalid`), or stands before a name of one level (`https://*.test`). A
+wildcard in `local_model_origins` is refused too.
+
+A wildcard widens reading and acting, never the typing of a credential: a credential file stays
+bound to exact origins (section 6), and a file that lists a wildcard is refused
+(`credential_invalid`, `bad_origin`). With `https://*.example.invalid` in the profile, a page of
+`https://a.example.invalid` receives no credential from a file bound to `https://example.invalid`
+(`credential_not_bound`). An origin covered by a wildcard of `confirm_each_change` asks for a
+confirmation even when an exact entry of `allowed_origins` names it: a wildcard never removes a
+confirmation. `status` gives the entries as written in the profile (`https://*.example.invalid`),
+without expanding them.
+
+Choose a wildcard only on a domain whose subdomains you control: a subdomain that hosts the content of
+a third party passes that content to the model. The server holds no list of public suffixes, so a
+wildcard before a public suffix of two levels (one that ends in `co.uk`, for example) is accepted and
+is yours to avoid.
 
 ## 6. A credential file
 
@@ -858,7 +887,8 @@ directory.
 
 `origin_not_allowed`: `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
 or for an action `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Add the exact origin to `allowed_origins` if you want the server to work there.
+Add the origin, or a subdomain wildcard (section 5), to `allowed_origins` if you want the server to
+work there.
 
 `forbidden_scheme`: `seules les adresses http et https peuvent être ouvertes`. Nothing to do: the
 server opens no `file:`, `javascript:` or other address.
@@ -918,7 +948,8 @@ Write a credential file for this origin (section 6).
 `credential_ambiguous`: `plusieurs fichiers d'identifiants sont liés à l'origine https://account.example.invalid : account.json, account-admin.json`.
 The model names one file in `credential_ref`; or keep one file per origin.
 
-`credential_invalid`: `fichier d'identifiants « account.json » refusé (bad_mode) : corriger avec : chmod 600 account.json`;
+`credential_invalid`: `fichier d'identifiants « account.json » refusé (bad_mode) : corriger avec : chmod 600 account.json`
+(`bad_origin` also when an entry is a wildcard: a credential is bound to exact origins);
 the reason in parentheses is one of `bad_mode`, `bad_owner`, `not_regular_file`, `too_large`,
 `not_json`, `unknown_keys`, `missing_allowed_origins`, `bad_origin`, `no_username_or_password`,
 `key_missing`. For the directory:

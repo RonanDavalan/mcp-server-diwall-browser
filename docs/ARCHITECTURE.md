@@ -42,7 +42,7 @@ refusals that do not depend on the model's judgement.
 |---|---|
 | `__main__` | entry point: hardening, logging to standard error through redaction, the server over standard streams |
 | `hardening` | core files off, umask 077 |
-| `origin` | parsing, normalising and comparing addresses and origins |
+| `origin` | parsing, normalising and comparing addresses and origins; the subdomain wildcard, a type of its own |
 | `output` | the single exit point: redaction, envelope, `server` and `page_content` kept apart |
 | `sensitive_field` | the predicate that says a field is sensitive |
 | `mount` | whether the encrypted directory is mounted as expected, and every path inside it |
@@ -70,7 +70,9 @@ Tests check this, and that no tool bypasses the exit point.
   (read in `/proc/net` at each attachment), if the declared profile is not the browser's default
   one, and if the browser announces a debugging address on that same loopback port.
 - Allowed origins: a page outside them is neither read nor acted on; only its origin is returned.
-  A credential is typed only on the exact origin its file names.
+  An entry is an origin or a subdomain wildcard (`https://*.example.invalid`), written by the
+  operator; a wildcard widens reading and acting, never typing. A credential is typed only on the
+  exact origin its file names, and a file that lists a wildcard is refused.
 - Locked actions: payment, irreversible deletion and secret change are detected from a vocabulary
   written in the code and from card fields. Heuristics and the model's `intent_category` can only
   add a lock; nothing removes one, and the operator profile cannot configure them.
@@ -133,8 +135,6 @@ that the client never answers it by itself.
 - A network transport: a listening port can be reached by any local process; standard streams tie
   the server to the client that started it. Would reopen it: an MCP client the operator needs that
   reaches servers over the network only.
-- Subdomain wildcards in the allowed origins: one wildcard covers hosts the operator never saw.
-  Would reopen it: a site spread over more subdomains than a profile can list (200 origins).
 - Raising the caps: they keep what the model receives bounded. Would reopen it: a page whose only
   layer is cut under the present ranking.
 - A search by text in `observe`: the tools are fourteen with fixed parameters. Would reopen it: a

@@ -8,11 +8,13 @@ import pytest
 from mcp_server_diwall_browser.origin import (
     Origin,
     OriginError,
+    OriginPattern,
     form_target_origin,
     is_blank,
     origin_allowed,
     origin_of_url,
     parse_origin,
+    parse_origin_pattern,
     split_host_port,
 )
 
@@ -311,6 +313,96 @@ def test_an_origin_is_allowed_only_when_equal_to_one_of_the_list() -> None:
 
 def test_allowance_check_catches_a_prefix_comparison() -> None:
     assert not allowance_table_holds(prefix_allowance)
+
+
+# --- le joker de sous-domaine ---------------------------------------------------------------
+
+WILDCARD = "https://*.example.test"
+
+
+@pytest.mark.parametrize("url", ["https://a.example.test", "https://a.b.example.test", "HTTPS://A.Example.TEST/page?x=1"])
+def test_a_wildcard_covers_a_subdomain_of_one_or_several_levels(url: str) -> None:
+    assert origin_allowed(origin_of_url(url), [parse_origin_pattern(WILDCARD)])
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.test",
+        "https://example.test.autre.test",
+        "https://notexample.test",
+        "http://a.example.test",
+        "https://a.example.test:8443",
+        "https://a.example.test.autre.test",
+    ],
+)
+def test_a_wildcard_covers_nothing_else(url: str) -> None:
+    assert not origin_allowed(origin_of_url(url), [parse_origin_pattern(WILDCARD)])
+
+
+def test_a_wildcard_keeps_its_port_and_scheme() -> None:
+    pattern = parse_origin_pattern("http://*.example.test:8080")
+    assert origin_allowed(origin_of_url("http://a.example.test:8080"), [pattern])
+    assert not origin_allowed(origin_of_url("http://a.example.test"), [pattern])
+    assert not origin_allowed(origin_of_url("https://a.example.test:8080"), [pattern])
+    assert pattern.canonical == "http://*.example.test:8080"
+
+
+def test_a_wildcard_is_written_as_it_was_given() -> None:
+    assert parse_origin_pattern("HTTPS://*.Example.TEST:443").canonical == WILDCARD
+    assert str(parse_origin_pattern(WILDCARD)) == WILDCARD
+
+
+def test_an_entry_without_wildcard_is_the_exact_origin() -> None:
+    assert parse_origin_pattern("https://example.test:443") == Origin("https", "example.test", 443)
+
+
+def test_a_list_mixes_exact_entries_and_wildcards() -> None:
+    entries = [parse_origin_pattern("https://example.test"), parse_origin_pattern(WILDCARD)]
+    assert origin_allowed(origin_of_url("https://example.test"), entries)
+    assert origin_allowed(origin_of_url("https://a.example.test"), entries)
+    assert not origin_allowed(None, entries)
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ("*", "malformed"),
+        ("https://*", "wildcard"),
+        ("https://*.test", "wildcard"),
+        ("https://a.*.test", "wildcard"),
+        ("https://*.*.example.test", "wildcard"),
+        ("https://*example.test", "wildcard"),
+        ("https://a.example.*", "wildcard"),
+        ("*.example.test", "malformed"),
+        ("https://*.example.test/", "trailing_data"),
+        ("https://*.example.test/path", "trailing_data"),
+        ("https://alice@*.example.test", "userinfo"),
+        ("https://*.1.2.3.4", "invalid_host"),
+        ("https://*.[::1]", "invalid_host"),
+        ("ftp://*.example.test", "forbidden_scheme"),
+        ("https://*.example.test:0", "invalid_port"),
+    ],
+)
+def test_a_wildcard_in_a_forbidden_place_is_refused(text: str, reason: str) -> None:
+    with pytest.raises(OriginError) as caught:
+        parse_origin_pattern(text)
+    assert caught.value.reason == reason
+
+
+def test_an_exact_origin_is_never_a_wildcard() -> None:
+    with pytest.raises(OriginError) as caught:
+        parse_origin(WILDCARD)
+    assert caught.value.reason == "wildcard"
+    with pytest.raises(OriginError):
+        origin_of_url("https://*.example.test/page")
+
+
+def test_a_pattern_built_by_hand_is_checked_as_the_parsed_one() -> None:
+    assert OriginPattern("https", "example.test", 443) == parse_origin_pattern(WILDCARD)
+    for fields in (("https", "test", 443), ("ftp", "example.test", 443), ("https", "*.example.test", 443), ("https", "Example.test", 443), ("https", "example.test", 0)):
+        with pytest.raises(OriginError):
+            OriginPattern(*fields)
 
 
 @pytest.mark.parametrize(
