@@ -73,6 +73,20 @@ def test_every_rule_carries_its_consequence() -> None:
     assert head.strip() and tail.strip()
 
 
+def test_the_core_says_where_tab_id_and_snapshot_id_live() -> None:
+    work = core_of(guide.INSTRUCTIONS).split(guide.RULES_HEADING, 1)[0]
+    line = next(line for line in work.splitlines() if "tab_id" in line and "snapshot_id" in line)
+    assert line.index("tab_id") < line.index("snapshot_id") < line.index("under server")
+    assert line.index("under server") < line.index("tree") < line.index("elements") < line.index("under page_content")
+
+
+def test_the_reference_says_what_the_two_filters_of_observe_do() -> None:
+    reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
+    row = next(line for line in reference.splitlines() if line.startswith("| observe |"))
+    assert "region" in row and "contains" in row
+    assert "region_found" in reference
+
+
 def test_two_rules_speak_of_a_human_confirmation() -> None:
     assert sum("human confirmation" in rule for rule in rules_of(guide.INSTRUCTIONS)) == 2
 

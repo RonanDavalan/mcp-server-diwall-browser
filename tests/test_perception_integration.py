@@ -380,3 +380,35 @@ async def test_a_full_observation_is_quick(registry: TabRegistry, pages: PageSer
     observation = await percept.observe(tab)
     assert observation.server["capture"] == "ok"
     assert time.monotonic() - started < 5
+
+
+# --- the filtered observation, on a page with three landmarks -------------------------------------
+
+
+async def test_the_filter_keeps_one_landmark_and_never_probes_a_password(registry: TabRegistry, pages: PageServer, percept: Perception) -> None:
+    tab = await open_page(registry, pages, "landmarks.html")
+    plain = await percept.observe(tab, image=False)
+    in_main = await percept.observe(tab, image=False, region="main")
+    in_footer = await percept.observe(tab, image=False, region="contentinfo")
+    probe = await percept.observe(tab, image=False, contains="hunter2-probe-value")
+    word = await percept.observe(tab, image=False, contains="returns accepted")
+    missing = await percept.observe(tab, image=False, region="search")
+    assert plain.page_content is not None and in_main.page_content is not None and in_footer.page_content is not None
+    assert "Home" in "\n".join(plain.page_content["tree"])
+    main_tree = "\n".join(in_main.page_content["tree"])
+    assert "Order now" in main_tree and "Home" not in main_tree and "Copyright" not in main_tree
+    assert [e["name"] for e in in_footer.page_content["elements"]] == ["Legal notice"]
+    assert in_footer.page_content["elements"][0]["mark"] == 1
+    assert in_main.server["counters"]["region_found"] is True
+    assert probe.page_content is not None and probe.page_content["tree"] == [] and probe.page_content["elements"] == []
+    assert probe.server["counters"]["lines_after_filter"] == 0
+    assert "hunter2-probe-value" not in serialized(probe)
+    assert word.page_content is not None and any("Returns accepted" in line for line in word.page_content["tree"])
+    assert not any("Home" in line for line in word.page_content["tree"])
+    assert missing.page_content is not None and missing.page_content["tree"] == []
+    assert missing.server["counters"]["region_found"] is False
+
+
+async def test_without_a_filter_the_observation_has_no_filter_counter(registry: TabRegistry, pages: PageServer, percept: Perception) -> None:
+    observation = await percept.observe(await open_page(registry, pages, "landmarks.html"), image=False)
+    assert not {"lines_before_filter", "lines_after_filter", "region_found"} & set(observation.server["counters"])

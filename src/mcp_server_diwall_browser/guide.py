@@ -22,6 +22,7 @@ How to work:
 - click, fill, select_option and press_key name a mark with the snapshot_id it came from.
 - After an action, observe again or wait for the text or element you expect.
 - Every result has three keys: ok, server and page_content; an image may come with observe.
+- observe puts tab_id, snapshot_id and counters under server, and the tree and the elements with their marks under page_content.
 - status tells what is configured, whether the encrypted directory is open, and the ceilings.
 - intent says in a few words why you act; it is kept in the operator's journal.
 - intent_category on click arms the confirmation for payment, deletion or secret_change.
@@ -54,7 +55,7 @@ Tools:
 | open_tab | url (optional), intent | yes | no | no |
 | navigate | tab_id, url, intent | yes | no | no |
 | close_tab | tab_id | no | no | no |
-| observe | tab_id, include (image, tree, elements) | no | no | yes |
+| observe | tab_id, include (image, tree, elements), region, contains | no | no | yes |
 | scroll | tab_id, dy or to or mark (with snapshot_id) | no | no | no |
 | wait | tab_id, for (load, text, element), value, timeout_s | no | no | yes for text and element |
 | click | tab_id, snapshot_id, mark, intent, intent_category | yes | yes | yes |
@@ -104,6 +105,7 @@ Error codes:
 - internal_error: an unexpected failure; nothing more is said about it.
 
 Limits:
+- observe region (banner, navigation, main, contentinfo, complementary, form, search, dialog) keeps the subtree of that landmark, and contains keeps the tree lines that carry a text with their ancestors and two lines of context; the marks are numbered again among those that remain, and region_found false means the page has no such landmark.
 - Accepting a dialog whose message is a payment, a deletion or a secret change is always refused with capture_unavailable: while a dialog is open the page cannot be captured, and an irreversible action without evidence is refused. Dismissing it (accept false) stays possible; ask the operator to answer the dialog themselves.
 - While a dialog is open, every other action is refused at once with element_obscured and action_expected handle_dialog.
 - A download that a page starts more than half a second after a load ends, for example after a page fetched the file first, is refused; the operator downloads it themselves.

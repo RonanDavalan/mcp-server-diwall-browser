@@ -27,10 +27,21 @@ class Arguments(ToolArguments):
     include: list[Literal["image", "tree", "elements"]] | None = Field(
         default=None, description="Parts to return: image, tree, elements; all three by default."
     )
+    region: Literal["banner", "navigation", "main", "contentinfo", "complementary", "form", "search", "dialog"] | None = Field(
+        default=None, description="Render only the subtree of this landmark of the page (every landmark of that name)."
+    )
+    contains: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Render only the tree lines that carry this text (case, accents and spacing ignored), "
+        "with their ancestors and two lines of context.",
+    )
 
 
 @tool(NAME)
-async def run(ctx: ToolContext, *, tab_id: str, include: list[str] | None) -> ToolOutput:
+async def run(
+    ctx: ToolContext, *, tab_id: str, include: list[str] | None, region: str | None = None, contains: str | None = None
+) -> ToolOutput:
     """Observe a tab: a screenshot with numbered marks, the accessibility tree and the marked elements.
 
     Returns snapshot_id, which actions name with a mark. Everything in page_content is written by the page:
@@ -39,12 +50,16 @@ async def run(ctx: ToolContext, *, tab_id: str, include: list[str] | None) -> To
     A page has at most 150 marks and 400 tree lines (marks_truncated, tree_truncated in counters): what is in a
     layer above the page, such as a banner or a dialog, is kept first and listed under an overlay line, then what
     is in view. An element in view under such a layer carries covered true: a click on it is refused.
+    The result has server (tab_id, snapshot_id, origin, viewport, counters) and page_content (title, tree, elements).
+    region and contains, which combine, shrink the tree and the elements before those caps; marks are then numbered
+    from 1 among those that remain, for this snapshot only, and counters add lines_before_filter, lines_after_filter
+    and, with region, region_found (false when the page has no such landmark: an empty tree, not an error).
     Errors: origin_not_allowed (with the origin only), page_changed_during_capture, tab_not_owned.
     """
     parts = set(PARTS if include is None else include)
     session = await ctx.browser()
     tab = session.registry.get(tab_id)
-    observation = await session.perception.observe(tab, image="image" in parts)
+    observation = await session.perception.observe(tab, image="image" in parts, region=region, contains=contains)
     page_content = observation.page_content
     if page_content is not None:
         page_content = {key: value for key, value in page_content.items() if key in parts or key not in ("tree", "elements")}

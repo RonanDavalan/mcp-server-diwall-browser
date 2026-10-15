@@ -29,6 +29,7 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFile, ImageFont
 
+from . import observation_filter
 from .browser import DialogBlocking, FrameInfo, Tab, TabRegistry, origin_label
 from .origin import Origin, OriginError, origin_allowed, origin_of_url
 from .output import ToolError, ToolOutput, bounded_text, redact_text
@@ -700,16 +701,62 @@ def mask_boxes(dom: Dom, viewport: Box, fields: dict[int, _Field]) -> tuple[list
     return sensitive, frames  # type: ignore[return-value]
 
 
+def _published_line(item: _Shown) -> str:
+    """Le texte d'une ligne de l'arbre tel qu'il quitte le module : la valeur d'un champ n'y figure pas."""
+    return redact_text(item.line or "")
+
+
+def _filtered(
+    walk: _Walk, region: str | None, contains: str | None, filter_text: Callable[[_Shown], str]
+) -> tuple[_Walk, observation_filter.Selection]:
+    """Le parcours réduit à ce que le filtre garde ; les profondeurs repartent de la plus haute ligne gardée."""
+    shown = walk.shown
+    selection = observation_filter.select(
+        walk.ax,
+        [item.ax.get("nodeId") for item in shown],
+        [item.line is not None for item in shown],
+        walk.depths,
+        region=region,
+        contains=contains,
+        text_of=lambda position: filter_text(shown[position]),
+    )
+    kept = selection.positions
+    base = min((walk.depths[p] for p in kept if shown[p].line is not None), default=0)
+    reduced = _Walk(
+        shown=[shown[p] for p in kept],
+        depths=[max(walk.depths[p] - base, 0) for p in kept],
+        omitted=walk.omitted,
+        root=walk.root,
+        ax=walk.ax,
+    )
+    return reduced, selection
+
+
 def build(
-    ax_raw: dict[str, Any], dom: Dom, viewport: Box, origin: Origin, *, tree_builder: Callable[..., list[str]] | None = None
+    ax_raw: dict[str, Any],
+    dom: Dom,
+    viewport: Box,
+    origin: Origin,
+    *,
+    tree_builder: Callable[..., list[str]] | None = None,
+    region: str | None = None,
+    contains: str | None = None,
+    filter_text: Callable[[_Shown], str] | None = None,
 ) -> Built:
     """Fusionne l'arbre d'accessibilité et l'instantané du document principal.
 
     ``counters.redacted_fields`` compte les champs sensibles visibles dont la valeur n'était pas vide
     et a été retenue ; un champ sensible vide est marqué sensible mais ne compte rien, puisqu'il n'y a
     rien à retenir. ``counters.omitted_not_visible`` compte chaque sous-arbre caché une fois.
+
+    ``region`` et ``contains`` réduisent l'arbre et les éléments avant les plafonds ; ils lisent les lignes
+    déjà rédigées, ``filter_text`` ne sert qu'aux tests. La porte lit toute la page, filtrée ou non.
     """
-    walk = _walk(ax_raw, dom, viewport)
+    full_walk = _walk(ax_raw, dom, viewport)
+    walk = full_walk
+    selection: observation_filter.Selection | None = None
+    if observation_filter.active(region, contains):
+        walk, selection = _filtered(full_walk, region, contains, filter_text or _published_line)
     candidates = sorted(
         (item for item in walk.shown if item.role in MARKABLE_ROLES or (item.role == "generic" and item.dom.clickable)),
         key=lambda item: item.dom.index,
@@ -726,13 +773,18 @@ def build(
         "tree_lines": 0,
         "tree_truncated": False,
     }
+    if selection is not None:
+        counters["lines_before_filter"] = selection.lines_before
+        counters["lines_after_filter"] = selection.lines_after
+        if selection.region_found is not None:
+            counters["region_found"] = selection.region_found
     fields = field_verdicts(dom, walk.ax)
 
     # Les éléments que le modèle peut désigner : quand il y en a trop, ceux au-dessus de la page d'abord,
     # puis ceux en vue ; ceux qui sont gardés sont numérotés dans l'ordre du document.
     kept, counters["marks_truncated"] = _keep(candidates, MAX_MARKS, key=lambda item: item.dom.index, rank=_rank)
     elements = [
-        _with_gate_texts(_element(mark, item, dom, fields, origin, counters), item, dom, walk)
+        _with_gate_texts(_element(mark, item, dom, fields, origin, counters), item, dom, full_walk)
         for mark, item in enumerate(kept, start=1)
     ]
     if counters["marks_truncated"]:
@@ -742,7 +794,7 @@ def build(
                 element.public["covered"] = True
     counters["marks"] = len(elements)
     page_has_card_field = any(
-        fields[item.dom.index].card for item in walk.shown if item.dom.index in fields
+        fields[item.dom.index].card for item in full_walk.shown if item.dom.index in fields
     )
 
     notices: list[str] = []
@@ -1150,8 +1202,12 @@ class Perception:
 
     # --- opérations publiques -----------------------------------------------------------------
 
-    async def observe(self, tab: Tab, *, image: bool = True) -> Observation:
-        """Lit la page une fois, vérifie son origine avant et après, et construit ce que voit le modèle."""
+    async def observe(
+        self, tab: Tab, *, image: bool = True, region: str | None = None, contains: str | None = None
+    ) -> Observation:
+        """Lit la page une fois, vérifie son origine avant et après, et construit ce que voit le modèle.
+
+        ``region`` et ``contains`` réduisent l'arbre et les éléments rendus (``observation_filter``)."""
         for _attempt in range(2):
             try:
                 reading = await self._read(tab, image=image, full=True)
@@ -1159,7 +1215,7 @@ class Perception:
                 return self._dialog_observation(tab)
             except _PageChanged:
                 continue
-            return self._observation(tab, reading, image=image)
+            return self._observation(tab, reading, image=image, region=region, contains=contains)
         raise ToolError("page_changed_during_capture", _CHANGED_MESSAGE)
 
     def latest_snapshot(self, tab_id: str) -> Snapshot | None:
@@ -1306,8 +1362,18 @@ class Perception:
 
     # --- construction des sorties -------------------------------------------------------------
 
-    def _observation(self, tab: Tab, reading: _Reading, *, image: bool) -> Observation:
-        built = build(reading.ax, reading.dom, reading.viewport, reading.origin, tree_builder=self._tree_builder)
+    def _observation(
+        self, tab: Tab, reading: _Reading, *, image: bool, region: str | None = None, contains: str | None = None
+    ) -> Observation:
+        built = build(
+            reading.ax,
+            reading.dom,
+            reading.viewport,
+            reading.origin,
+            tree_builder=self._tree_builder,
+            region=region,
+            contains=contains,
+        )
         notices = list(built.notices)
         published: bytes | None = None
         server_image: dict[str, Any] | None = None

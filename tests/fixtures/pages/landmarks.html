@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Landmarks page</title>
+<style>
+  body { margin: 0; font-family: sans-serif; }
+  nav, main, footer { display: block; padding: 8px 16px; }
+  nav a { margin-right: 12px; }
+  label { display: block; margin: 8px 0; }
+  input { font-size: 16px; color: #000000; background: #ffffff; border: 1px solid #333333; }
+</style>
+</head>
+<body>
+<nav aria-label="Primary">
+  <a href="#home">Home</a>
+  <a href="#pricing">Pricing</a>
+  <a href="#contact">Contact</a>
+</nav>
+<main>
+  <h1>Welcome to the shop</h1>
+  <p>Delivery within two days</p>
+  <button type="button">Order now</button>
+  <label>Password <input id="password" type="password" autocomplete="current-password"></label>
+  <label>Comment <input id="comment" type="text" value="plain comment"></label>
+  <p>Returns accepted for thirty days</p>
+</main>
+<footer>
+  <p>Copyright 2026 Example</p>
+  <a href="#legal">Legal notice</a>
+</footer>
+<script>
+  window.addEventListener("DOMContentLoaded", function () {
+    document.getElementById("password").value = "hunter2-probe-value";
+  });
+</script>
+</body>
+</html>

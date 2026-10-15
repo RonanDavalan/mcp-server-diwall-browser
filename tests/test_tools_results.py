@@ -224,6 +224,33 @@ async def check_observe(rig: Rig, server: FastMCP) -> None:
     assert tree_only["server"]["capture"] == "not_requested"
 
 
+async def check_observe_filter(rig: Rig, server: FastMCP) -> None:
+    from test_perception_filter import PASSWORD_VALUE, landmarks_page
+
+    async with client_of(server) as client:
+        opened = await client.call("open_tab", url=URL)
+        tab = opened["server"]["tab_id"]
+        rig.page_of(URL).body = landmarks_page().body
+        unfiltered = await client.call("observe", tab_id=tab, include=["tree", "elements"])
+        in_main = await client.call("observe", tab_id=tab, include=["tree", "elements"], region="main")
+        probe = await client.call("observe", tab_id=tab, include=["tree", "elements"], contains=PASSWORD_VALUE)
+        invalid = await client.call("observe", tab_id=tab, region="header")
+        tools = (await client.session.list_tools()).tools
+    assert unfiltered["ok"] and in_main["ok"] and probe["ok"]
+    assert "lines_before_filter" not in unfiltered["server"]["counters"]
+    assert [e["name"] for e in in_main["page_content"]["elements"]] == ["Order now", "Password", "Comment"]
+    assert in_main["server"]["counters"]["region_found"] is True
+    assert in_main["server"]["counters"]["lines_before_filter"] == len(unfiltered["page_content"]["tree"])
+    assert probe["page_content"]["tree"] == [] and probe["page_content"]["elements"] == []
+    assert PASSWORD_VALUE not in json.dumps(probe)
+    assert invalid["ok"] is False and code_of(invalid) == "invalid_arguments"
+    assert len(tools) == 14
+
+
+async def test_observe_filters_by_region_and_text_and_the_tool_list_stays_at_fourteen(rig: Rig) -> None:
+    assert await holds(check_observe_filter, rig, create_server(rig.deps()))
+
+
 async def observe_without_counters(ctx: Any, *, tab_id: str, include: list[str] | None) -> ToolOutput:
     # Défectueux : la vraie observation, avec les compteurs et l'identité du document laissés de côté.
     output = await observe.run.__wrapped__(ctx, tab_id=tab_id, include=include)

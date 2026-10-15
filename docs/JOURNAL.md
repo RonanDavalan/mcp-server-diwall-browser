@@ -2012,3 +2012,22 @@ printed the browser attached each time.
   Chromium 154 is on the machine (Playwright's copies are 136 and 151; Brave 155.1.97.56; Opera
   137). Chromium 154 is therefore not covered by this run; the specification asks for 154 or later.
 - No test failed, so no cause (target changed, test wrong, code regressed) is to be separated.
+
+## Filtered observation: `region` and `contains`
+
+`observe` takes two optional parameters, `region` (one landmark: banner, navigation, main,
+contentinfo, complementary, form, search, dialog) and `contains` (a text). The filter is
+`observation_filter.py`; `perception.build` applies it to the walk of the page before the caps of 150
+marks and 400 tree lines, and reads the tree lines after the sensitive fields were withheld, so a text
+that is only the value of a password field returns nothing.
+
+- Proof: `tests/test_perception_filter.py` (18 tests, `TypeError` before the code, 18 passed after);
+  with the filter reading raw values, before the withholding, the two password tests fail
+  (`2 failed, 1 passed`), which is the counter-proof the test carries.
+- Without a parameter the output is unchanged (`test_without_a_parameter_the_output_is_the_one_of_before`,
+  and `check_observe` of `tests/test_tools_results.py`, which pins the counter keys); the list of tools
+  stays at fourteen (`test_the_fourteen_tools_and_nothing_else`).
+- The model's guide says where `tab_id` and `snapshot_id` live (`tests/test_guide.py`); the manual
+  does in section 7 (`grep -c "tab_id" docs/OPERATOR_GUIDE.md` reads 2).
+- `pytest -q -m "not browser"`: 1687 passed, 1 skipped, 538 deselected. The browser tests of the
+  perception (`tests/test_perception_integration.py`, `tests/test_ranking_integration.py`): 31 passed.

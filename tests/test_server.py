@@ -198,7 +198,7 @@ async def test_the_parameters_are_those_of_the_operators_table(rig: Rig) -> None
         "open_tab": {"url", "intent"},
         "navigate": {"tab_id", "url", "intent"},
         "close_tab": {"tab_id"},
-        "observe": {"tab_id", "include"},
+        "observe": {"tab_id", "include", "region", "contains"},
         "scroll": {"tab_id", "dy", "to", "mark", "snapshot_id"},
         "wait": {"tab_id", "for", "value", "timeout_s"},
         "click": {"tab_id", "snapshot_id", "mark", "intent", "intent_category"},

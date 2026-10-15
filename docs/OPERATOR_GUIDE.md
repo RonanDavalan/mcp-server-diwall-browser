@@ -547,6 +547,28 @@ What the model's provider keeps of what it receives is not confirmed by this pro
 another origin embedded in a page of the allowed origins is transmitted with that page: the server
 masks frames in the image, but it cannot filter what a model receives from elsewhere.
 
+### Where to read an observation
+
+An `observe` result has three keys: `ok`, `server` and `page_content`. What the server states is under
+`server`: `tab_id`, `snapshot_id` (which the actions name with a mark), `origin`, `loader_id`,
+`viewport`, `capture`, `counters` and `notices`. What the page contains is under `page_content`:
+`title`, `tree` (one text line per node) and `elements` (each with its `mark`, `role`, `name`, `value`
+and `state`). A client that reads `tab_id` at the root of the result finds nothing there.
+
+`observe` takes two optional parameters that shrink the tree and the elements before the caps of
+section 12, and change neither the page nor the image. `region` is one landmark of the page
+(`banner`, `navigation`, `main`, `contentinfo`, `complementary`, `form`, `search` or `dialog`): only
+its subtree is returned, and every landmark of that name. `contains` is a text, compared without case,
+accents or extra spaces: the tree lines that carry it are returned with their ancestors and two lines
+of context on each side. The marks that remain are numbered again from 1 and hold for that observation
+only. `counters` then adds `lines_before_filter`, `lines_after_filter` and, with `region`,
+`region_found`, which is false when the page has no such landmark (an empty tree, not an error).
+Without either parameter the result is the same as before, and the three counters are absent.
+
+`contains` reads the tree lines after the server has withheld the values of sensitive fields, so it
+cannot be used to guess a password: a text that is only the value of a password field returns nothing
+(`tests/test_perception_filter.py`, `tests/test_perception_integration.py`).
+
 ### Marks and masks at any screen scale
 
 The boxes of the marks and of the masks, `viewport.height` and `viewport.content_height` are in CSS
