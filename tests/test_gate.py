@@ -70,6 +70,9 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Donate", P),
     ("pay-now", P),
     ("Confirmer et payer", P),
+    ("Finaliser l'achat", P),
+    ("Finaliser l’achat", P),
+    ("Valider mon panier", P),
     # Suppression irréversible.
     ("Supprimer", D),
     ("SUPPRIMER", D),
@@ -113,6 +116,8 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Rotate key", S),
     ("Revoke", S),
     ("Revoke token", S),
+    ("Reset your password", S),
+    ("Regenerate API key", S),
     # Non armé.
     ("Annuler", NONE),
     ("Retour", NONE),
@@ -134,14 +139,15 @@ LABEL_TABLE: list[tuple[str, tuple[str, ...]]] = [
     ("Repay later", NONE),
     ("Paypal", NONE),
     ("Undelete", NONE),
+    ("Finaliser l'inscription", NONE),
+    ("Valider mon compte", NONE),
+    ("Reset your search", NONE),
+    ("Regenerate API docs", NONE),
     # Faux positifs connus, acceptés : un faux positif ajoute une confirmation.
     ("Supprimer le filtre", D),
     ("Pay attention", P),
     ("Supprimer du panier", D),
 ]
-
-# Manques connus du vocabulaire de départ : listés pour que l'écart se voie.
-KNOWN_MISSES = ["Reset your password", "Regenerate API key", "Finaliser l'achat", "Valider mon panier"]
 
 
 def test_the_table_has_enough_rows_of_each_kind() -> None:
@@ -154,11 +160,6 @@ def test_the_table_has_enough_rows_of_each_kind() -> None:
 @pytest.mark.parametrize(("label", "expected"), LABEL_TABLE)
 def test_label_table_row(label: str, expected: tuple[str, ...]) -> None:
     assert label_categories(label) == expected
-
-
-@pytest.mark.parametrize("label", KNOWN_MISSES)
-def test_known_misses_of_the_starting_vocabulary(label: str) -> None:
-    assert label_categories(label) == NONE
 
 
 def test_words_are_matched_whole() -> None:

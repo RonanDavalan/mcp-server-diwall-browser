@@ -1978,3 +1978,18 @@ Proof:
 - `tests/test_click_footer_integration.py`, Chrome 155.0.8059.79, a footer link under the view, twenty
   clicks each in a new tab: 20 landed, 0 `internal_error`, before and after. The defect of one click in
   eleven (REX-4) was not reproduced; the conversion rests on the reading of the code and on the double.
+
+## The gate's vocabulary: four labels added
+
+`Finaliser l'achat` and `Valider mon panier` arm the payment category; `Reset your password` and
+`Regenerate API key` arm the change of a secret. They were the four known misses of the starting
+vocabulary.
+
+- The apostrophe, straight or typographic, is not a letter or a digit: `normalize` turns it into a
+  space, so both read `finaliser l achat` and match the same phrase.
+- Proof: the four rows of `LABEL_TABLE` (and the typographic apostrophe variant) failed before
+  (`5 failed, 129 passed`), pass now; four neighbouring labels that must stay open
+  (`Finaliser l'inscription`, `Valider mon compte`, `Reset your search`, `Regenerate API docs`) were
+  not armed before and are not now. The measure on one hundred common buttons is unchanged: 14 armed,
+  2 false positives, no miss.
+- `pytest -q -m "not browser"`: 1666 passed, 1 skipped, 536 deselected.

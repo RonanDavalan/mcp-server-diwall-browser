@@ -963,8 +963,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   does not recognise as sensitive is shown.
 - The detection of payments, deletions and changes of secret relies on words and on card fields;
   measured on 100 common button labels, it missed none and locked 2 that a careful reader would
-  not (`Effacer le formulaire`, `Supprimer le filtre`). Known misses: `Reset your password`,
-  `Regenerate API key`, `Finaliser l'achat`, `Valider mon panier`.
+  not (`Effacer le formulaire`, `Supprimer le filtre`). It also locks `Finaliser l'achat`,
+  `Valider mon panier`, `Reset your password` and `Regenerate API key`. A label that says the same
+  thing in other words is not locked: the guard is a list of words, not a reading of the page.
 - A client that gives the model a shell lifts the guard of the profile: the model can edit the
   operator profile and read credential files of the open encrypted directory, and the server does
   not see it (section 8). Use the dedicated agent of section 2.1.
