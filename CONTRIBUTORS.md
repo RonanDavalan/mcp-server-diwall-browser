@@ -11,6 +11,7 @@ the work actually done.
 - **Gemini (Google)**: architectural advisor and synthesizer. Proposed the name **Diwall**.
 - **Space Bunny Free (opencode)**: cleanup and pruning of the working framework at the start of the project.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude (14 October 2026), on a local instance of a web application: thirteen driver scripts, a procedure record, and the field report that shaped the next fixes.
+- **gemini-3.5-flash (Google, through OpenCode)**: proofs of the dedicated-agent connection (15 October 2026): the server's tools reach the `navigateur` agent only, with the client recorded in the journal, and a shell command is not run without an answer.
 
 ## Heritage
 
