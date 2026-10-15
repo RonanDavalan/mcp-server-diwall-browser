@@ -2074,3 +2074,20 @@ at least is refused. A sub-directory is ignored; a link is listed and refused (`
   named after a value prints it and the test shows it.
 - Invariant of `tests/test_invariants.py`: the option set of the command is now four (`--source-dir`).
 - `pytest -q -m "not browser"`: 1757 passed, 1 skipped, 543 deselected.
+
+## The summary of a `<details>` gets a mark
+
+`MARKABLE_ROLES` (`perception.py`) gains `DisclosureTriangle`, the role Chrome gives to `<summary>`.
+Before it, a `<details>` was a control that the model saw in the tree and could not name with a mark.
+
+- Measured on Google Chrome 155.0.8059.79, local page `tests/fixtures/pages/details.html`
+  (`<details><summary>Plus</summary><p>Texte</p></details>`), `Accessibility.getFullAXTree`: the node of
+  the summary has the role `DisclosureTriangle`, the name `Plus`, and the properties `focusable: true`,
+  `expanded: false`. The paragraph is not in the tree while the element is closed.
+- Proof: the two tests of `tests/test_summary_integration.py` were written first and failed without
+  the role (`assert 0 == 1` on the elements named `Plus`, then `no mark named 'Plus'`; `marks: 0`). With
+  it: one element `DisclosureTriangle "Plus"`, `expanded` absent from its `state`; after a click on its
+  mark, `expanded` is in its `state` and the paragraph is in the tree.
+- Other tests: none pins a count that the role changes (no test page held a `<details>`). `pytest -q -m
+  "not browser"`: 1757 passed, 1 skipped, 545 deselected; `pytest -q` complete on Chrome 155.0.8059.79:
+  2302 passed, 1 skipped.

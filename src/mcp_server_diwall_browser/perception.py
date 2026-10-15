@@ -54,6 +54,7 @@ MARKABLE_ROLES = frozenset(
         "menuitemradio",
         "option",
         "treeitem",
+        "DisclosureTriangle",
     }
 )
 STATES = ("checked", "disabled", "expanded", "focused", "required")
