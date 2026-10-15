@@ -1993,3 +1993,22 @@ vocabulary.
   not armed before and are not now. The measure on one hundred common buttons is unchanged: 14 armed,
   2 false positives, no miss.
 - `pytest -q -m "not browser"`: 1666 passed, 1 skipped, 536 deselected.
+
+## Browser suite replayed on Chrome 155 and Chromium 155
+
+`pytest -q -m browser` (536 tests), then the four click, scale and zoom files on their own, each
+with one browser forced through the `PATH` (a launcher named `google-chrome` placed first; the
+tests pick the first of `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser`,
+`brave-browser` found, `tests/fixtures/browser_launcher.py`; no code changed). The smoke test
+printed the browser attached each time.
+
+| Browser | `-m browser` | click (264) | scale (21) | zoom (43) | click shifting (80) |
+|---|---|---|---|---|---|
+| Google Chrome 155.0.8059.79 | 536 passed, 0 failed, 0 skipped, 223 s | 264 passed | 21 passed | 43 passed | 80 passed |
+| Chromium 155.0.8059.39 (Debian 13) | 536 passed, 0 failed, 0 skipped, 229 s | 264 passed | 21 passed | 43 passed | 80 passed |
+
+- Versions differ from those the plan expected (Chrome 155.0.8059.39, Chromium 154.0.8037.92):
+  `google-chrome --version` reads 155.0.8059.79 and `chromium --version` reads 155.0.8059.39. No
+  Chromium 154 is on the machine (Playwright's copies are 136 and 151; Brave 155.1.97.56; Opera
+  137). Chromium 154 is therefore not covered by this run; the specification asks for 154 or later.
+- No test failed, so no cause (target changed, test wrong, code regressed) is to be separated.

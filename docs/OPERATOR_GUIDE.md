@@ -50,7 +50,8 @@ write, and only while the encrypted directory is open.
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
-  machine. Brave was not tried.
+  machine; the 536 browser tests also passed on Google Chrome 155.0.8059.79 and on Chromium
+  155.0.8059.39 (Debian 13), each alone. Chromium 154 was not available there. Brave was not tried.
 - `fuse3` and `gocryptfs` for the encrypted directory.
 - `kdialog` or `zenity` for the confirmation window.
 - `git`, and `ss` (package `iproute2`) for the loopback check.
@@ -644,10 +645,10 @@ browser on your `PATH`:
 .venv/bin/python -m pytest -q tests/test_click_targets_page.py tests/test_click_lookup_point.py
 ```
 
-The second command needs no browser. Not measured: Chrome 154 (the browser tests of the clicks were
-not replayed there: if its node lookup reads a point of the view, the tests of a click on a scrolled
-page fail on it), the zoom of the Ctrl and + keys of a browser that is not headless, a screen whose
-scale really is 1.5, and a click on an element inside a frame of a scrolled page. The page that
+The second command needs no browser. The 264 browser tests of the clicks passed on Google Chrome
+155.0.8059.79 and on Chromium 155.0.8059.39, none failed and none was skipped. Not measured: the
+zoom of the Ctrl and + keys of a browser that is not headless, a screen whose scale really is 1.5,
+and a click on an element inside a frame of a scrolled page. The page that
 moves under the click is in the next part.
 
 #### A page that moves when the pointer arrives
@@ -683,7 +684,8 @@ instant between the last lookup and the press is not covered. To replay the meas
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 
-The second command needs no browser. Chrome 154 was not used for these tests.
+The second command needs no browser. The 80 tests of the first command, and the 21 scale and 43 zoom
+tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromium 155.0.8059.39.
 
 ## 8. What the server never does
 
