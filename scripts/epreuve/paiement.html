@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Épreuve de paiement</title>
+</head>
+<body>
+<h1>Épreuve de paiement</h1>
+<p>Page locale d'épreuve : aucun paiement réel n'a lieu.</p>
+<form method="post" action="/payer">
+  <p>Montant : 42,00 €</p>
+  <p>
+    <label for="cc-number">Numéro de carte</label>
+    <input id="cc-number" name="cardnumber" type="text" autocomplete="cc-number" inputmode="numeric">
+  </p>
+  <p><button type="submit">Payer maintenant</button></p>
+</form>
+</body>
+</html>
