@@ -2091,3 +2091,22 @@ Before it, a `<details>` was a control that the model saw in the tree and could 
 - Other tests: none pins a count that the role changes (no test page held a `<details>`). `pytest -q -m
   "not browser"`: 1757 passed, 1 skipped, 545 deselected; `pytest -q` complete on Chrome 155.0.8059.79:
   2302 passed, 1 skipped.
+
+## A change of the origin lists leaves a trace
+
+The profile is read again on every call, so a client with a shell could add an origin to
+`allowed_origins` and nothing recorded it. `profile_watch.py` now compares the three origin lists
+(`allowed_origins`, `confirm_each_change`, `local_model_origins`) once per call, in `compare`, and
+nowhere else.
+
+- When a list differs from what the previous call saw, or, at the first call, from the fingerprint of
+  the last run, the journal gets one line `{"event": "profile_changed", "changes": {...}}` that names
+  the origins added and removed, and `status` carries the same text in `server.notices`. No other
+  field of the profile is read or written.
+- The fingerprint is `journal/profile-origins.json` in the encrypted directory (mode 600, directory
+  700), replaced whole by `Volume.replace_file`. With the volume closed nothing is read or written,
+  the reference does not move, and the change is written when the volume opens.
+- Proof: `tests/test_profile_trace.py` was written first; before the wiring 11 of its 17 tests
+  failed (`ValueError: not enough values to unpack (expected 1, got 0)` on the line that was not
+  written, `FileNotFoundError` on the fingerprint); with it, 17 passed.
+- `pytest -q -m "not browser"`: 1774 passed, 1 skipped, 545 deselected.

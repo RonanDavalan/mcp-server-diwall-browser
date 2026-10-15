@@ -39,6 +39,7 @@ from .mount import MountChecker, Volume
 from .operator_profile import Limits, Profile, load_profile
 from .output import EXIT_POINT_ATTRIBUTE, ToolError, ToolOutput, ToolResult, bounded_text, tool
 from .perception import MaskDrawer, Perception, draw_mask
+from .profile_watch import ProfileTrace
 
 SERVER_NAME = "mcp-server-diwall-browser"
 PACKAGE_NAME = "mcp-server-diwall-browser"
@@ -138,6 +139,7 @@ class ServerState:
         self._not_journaled = 0
         self._warned_not_journaled = False
         self._client_info: ClientInfo | None = None
+        self._profile_trace = ProfileTrace()
         self.pacer = Pacer(self._limits, clock=deps.clock, sleep=deps.sleep)
 
     @property
@@ -223,6 +225,20 @@ class ServerState:
                 _log.warning("audit journal unavailable (%s); operations are not journaled", exc.code)
             return
         journal.write(entry)
+
+    # --- la trace d'un changement des origines du profil ----------------------------
+
+    def trace_profile(self) -> None:
+        """Une fois par appel : comparer les listes d'origines à ce qui a été vu, laisser la trace d'un écart."""
+        try:
+            profile = self.profile()
+            self._profile_trace.check(profile, self.volume(profile), self.journal(profile))
+        except ToolError:
+            # Pas de profil lisible : rien à comparer, et ``status`` le dit.
+            return
+
+    def drain_profile_notices(self) -> list[str]:
+        return self._profile_trace.drain_notices()
 
     # --- le navigateur --------------------------------------------------------------
 
@@ -420,6 +436,7 @@ class _ServerTool(Tool):
     ) -> types.CallToolResult:
         state: ServerState = self.state
         state.remember_client(context)
+        state.trace_profile()
         values: dict[str, Any] = {}
         try:
             parsed = self.arguments_model.model_validate(arguments if isinstance(arguments, dict) else {})

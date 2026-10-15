@@ -422,6 +422,23 @@ class Volume:
             os.unlink(hidden)
         return path
 
+    def replace_file(self, *parts: str, data: bytes) -> Path:
+        """Donner à un fichier ``data`` en entier, qu'il existe ou non : un lecteur ne voit jamais un demi-fichier.
+
+        Les données vont dans un fichier caché du même répertoire (mode 600) qui prend le nom par un
+        renommage ; le répertoire doit exister (``ensure_dir``).
+        """
+        root = self.require_mounted()
+        path = self._resolve_exact(root, parts)
+        hidden = self._resolve_exact(root, (*parts[:-1], f".{parts[-1]}.{os.urandom(6).hex()}.tmp"))
+        self._write_exclusive(hidden, data)
+        try:
+            os.replace(hidden, path)
+        except BaseException:
+            os.unlink(hidden)
+            raise
+        return path
+
     def _write_exclusive(self, path: Path, data: bytes, *, remove_on_failure: bool = True) -> None:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
         fd = os.open(path, flags, 0o600)

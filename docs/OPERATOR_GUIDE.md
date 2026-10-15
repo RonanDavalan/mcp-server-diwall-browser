@@ -21,6 +21,7 @@ disk at `~/Vaults/Main.enc` and opened at `~/Vaults/Main`, and sites under
             ├── credentials/                       mode 700: credential files (mode 600), written by the operator
             ├── browser-profile/chrome/            the dedicated browser profile
             ├── journal/operations.jsonl           the audit journal, one line per tool call
+            ├── journal/profile-origins.json       mode 600: the origin lists of the profile as the server last saw them
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   captures taken around a locked action
             └── downloads/<operation_id>/          files that pages downloaded
 ```
@@ -416,6 +417,37 @@ A key that is not in this list is refused, and a key that would configure the lo
 as `payment` or `deletion`) is refused with `redlist_in_profile`: only the code decides what is
 locked.
 
+### What a change of the origin lists leaves
+
+Because the profile is read again on every call, anyone who can write the file can add a site to
+`allowed_origins`. The server cannot prevent that; it leaves a trace after the fact. When
+`allowed_origins`, `confirm_each_change` or `local_model_origins` differ from what the server saw at
+the previous call, or, at its first call, from what the last run saved, one line is added to
+`journal/operations.jsonl` and `status` carries the same change in `server.notices`:
+
+```
+{"ts":"2026-10-15T14:02:11.482+02:00","event":"profile_changed","changes":{"allowed_origins":{"added":["https://shop.example.invalid"],"removed":[]}},"client":{"name":"opencode","version":"2.0.29"},"host":"alice-laptop","user":"alice"}
+```
+
+```
+"notices": ["profile_changed : allowed_origins +https://shop.example.invalid"]
+```
+
+The line names the origins added and removed, as written in the profile (a wildcard stays a wildcard),
+and no other field of the profile: no path, no port, no ceiling, no declaration. A second `status`
+without a change adds nothing, and a change of the order of the entries is not a change. The origins
+the server last saw are kept in `journal/profile-origins.json`, next to the journal (mode 600, in a
+directory in mode 700). With the encrypted directory closed, nothing is read or written and the server
+works as before; the change is written once the directory is open.
+
+This is a detection, not a prevention: it adds no confirmation, and whoever has a shell under your
+account can also edit the journal. Read the journal after a session in which a client with a shell was
+connected (section 8):
+
+```
+grep profile_changed ~/Vaults/Main/mcp-server-diwall-browser/journal/operations.jsonl
+```
+
 ### A subdomain wildcard
 
 An entry of `allowed_origins` or `confirm_each_change` can be written `https://*.example.invalid`.
@@ -791,9 +823,10 @@ What it does not stop: a model that has a shell under your account. The list of 
 actions and the binding of credentials hold a model that has only the fourteen tools. A model with
 a shell can edit `profile.json` (an origin was added to `allowed_origins` that way by an OpenCode
 session, and `status` read it on its next call), start the server from a script of its own, and,
-with the encrypted directory open, read the credential files. This revision keeps no trace of a
-change of the profile. What bounds that model is the client's configuration (section 2.1): give the
-tools to an agent whose shell asks.
+with the encrypted directory open, read the credential files. A change of the three origin lists
+leaves a line `profile_changed` in the journal and a notice in `status` (section 5), found after the
+fact, and the same actor can edit the journal. What bounds that model is the client's configuration
+(section 2.1): give the tools to an agent whose shell asks.
 
 ## 9. The confirmation
 
@@ -1070,8 +1103,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   `Valider mon panier`, `Reset your password` and `Regenerate API key`. A label that says the same
   thing in other words is not locked: the guard is a list of words, not a reading of the page.
 - A client that gives the model a shell lifts the guard of the profile: the model can edit the
-  operator profile and read credential files of the open encrypted directory, and the server does
-  not see it (section 8). Use the dedicated agent of section 2.1.
+  operator profile and read credential files of the open encrypted directory. The server does not
+  stop it; it only writes `profile_changed` after the change of an origin list (section 5), which
+  that same shell can erase from the journal. Use the dedicated agent of section 2.1.
 - `local_model_origins` and the two declarations are shown in `status` and change nothing else.
 - `profile_encrypted` in `status` says where the declared profile lies, not where the browser
   keeps its data.

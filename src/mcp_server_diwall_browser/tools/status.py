@@ -68,7 +68,7 @@ async def run(ctx: ToolContext) -> ToolOutput:
     server["encrypted_directory"] = volume
     server["operations_not_journaled"] = state.operations_not_journaled
 
-    notices: list[str] = []
+    notices: list[str] = state.drain_profile_notices()
     try:
         session = await ctx.browser()
     except (ToolError, CdpError, OSError) as exc:

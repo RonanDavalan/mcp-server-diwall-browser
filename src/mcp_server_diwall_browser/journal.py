@@ -16,8 +16,9 @@ import os
 import pwd
 import re
 import socket
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from .credentials import Secret
 from .mount import Volume
@@ -82,6 +83,27 @@ class Journal:
         try:
             self._append(line)
         except Exception as exc:  # noqa: BLE001 - une opération ordinaire ne doit pas échouer ici
+            self._record_failure(exc)
+            return False
+        return True
+
+    def write_event(self, event: str, changes: Mapping[str, Any]) -> bool:
+        """Ajouter une ligne d'événement du serveur, qui n'est l'appel d'aucun outil ; ``changes`` n'est que du texte.
+
+        Même discipline que ``write`` : l'échec est compté, dit une fois, jamais levé.
+        """
+        name, version = self._client_info()
+        record = {
+            "ts": _text(datetime.datetime.now().astimezone().isoformat(timespec="milliseconds")),
+            "event": _text(event),
+            "changes": _plain_text(changes),
+            "client": {"name": _text(name), "version": _text(version)},
+            "host": _text(socket.gethostname()),
+            "user": _text(_user_name()),
+        }
+        try:
+            self._append((json.dumps(record, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii"))
+        except Exception as exc:  # noqa: BLE001 - une ligne d'événement ne doit jamais faire échouer un appel
             self._record_failure(exc)
             return False
         return True
@@ -154,6 +176,15 @@ def _text(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("journal text fields are strings")
     return redact_text(value)
+
+
+def _plain_text(value: Any) -> Any:
+    """Les chaînes d'une structure de dictionnaires et de listes, chacune par la neutralisation du journal."""
+    if isinstance(value, Mapping):
+        return {_text(key): _plain_text(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_plain_text(item) for item in value]
+    return _text(value)
 
 
 def _origin_text(value: str) -> str:
