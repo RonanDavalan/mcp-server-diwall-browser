@@ -1289,6 +1289,9 @@ class Perception:
         else:
             raise ValueError("kind is load, text or element")
         deadline = time.monotonic() + limit
+        first: _TreeState | None = None
+        last: _TreeState | None = None
+        changed = False
         while True:
             try:
                 reading = await self._read(tab, image=False, full=False)
@@ -1296,10 +1299,19 @@ class Perception:
                 return WaitResult(met=False, dialog_open=True)
             except _PageChanged:
                 reading = None
-            if reading is not None and met(_walk_names(reading.ax, reading.dom, reading.viewport)):
-                return WaitResult(met=True)
+            if reading is not None:
+                names, state = _wait_view(reading.ax, reading.dom, reading.viewport)
+                if last is None:
+                    first = state
+                elif state.signature != last.signature:
+                    changed = True
+                last = state
+                if met(names):
+                    return WaitResult(met=True)
             if time.monotonic() + POLL_INTERVAL_S > deadline:
-                raise ToolError("wait_timeout", _WAIT_MESSAGE)
+                raise ToolError(
+                    "wait_timeout", _WAIT_MESSAGE, extra_server={"wait": _wait_report(first, last, changed)}
+                )
             await asyncio.sleep(POLL_INTERVAL_S)
 
     # --- lecture ------------------------------------------------------------------------------
@@ -1545,8 +1557,29 @@ def _image_fits_view(png: bytes, metrics: dict[str, Any]) -> bool:
     return all(abs(got - want) <= IMAGE_SIZE_SLACK_PX for got, want in zip(size, wanted, strict=True))
 
 
-def _walk_names(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> list[tuple[str, str]]:
-    return [(item.role, item.name) for item in _walk(ax_raw, dom, viewport).shown]
+@dataclass(frozen=True)
+class _TreeState:
+    """Ce qu'une relecture légère garde de l'arbre pour dire ce que la page faisait : des comptes et une empreinte, jamais un texte."""
+
+    lines: int
+    signature: str
+    busy: int
+
+
+def _wait_view(ax_raw: dict[str, Any], dom: Dom, viewport: Box) -> tuple[list[tuple[str, str]], _TreeState]:
+    shown = _walk(ax_raw, dom, viewport).shown
+    lines = [item.line for item in shown if item.line is not None]
+    # Le navigateur rend la propriété busy comme un booléen dont la valeur est 1 ou 0 (Chrome 155), pas true ou false.
+    busy = sum(1 for item in shown if _ax_property(item.ax, "busy") in (True, 1))
+    signature = hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
+    return [(item.role, item.name) for item in shown], _TreeState(len(lines), signature, busy)
+
+
+def _wait_report(first: _TreeState | None, last: _TreeState | None, changed: bool) -> dict[str, Any]:
+    """Les quatre comptes de `server.wait`, nuls quand aucune relecture n'a abouti (la page n'a cessé de changer d'adresse)."""
+    if first is None or last is None:
+        return {"tree_lines_start": None, "tree_lines_end": None, "changed": None, "busy": None}
+    return {"tree_lines_start": first.lines, "tree_lines_end": last.lines, "changed": changed, "busy": last.busy}
 
 
 def _wait_timeout(timeout_s: object) -> float:

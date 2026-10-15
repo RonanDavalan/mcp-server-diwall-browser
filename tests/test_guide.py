@@ -87,6 +87,14 @@ def test_the_reference_says_what_the_two_filters_of_observe_do() -> None:
     assert "region_found" in reference
 
 
+def test_the_reference_says_what_a_wait_that_ran_out_tells_about_the_page() -> None:
+    reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
+    line = next(line for line in reference.splitlines() if line.startswith("- wait_timeout:"))
+    for key in ("server.wait", "tree_lines_start", "tree_lines_end", "changed", "busy"):
+        assert key in line
+    assert "text or an element" in line
+
+
 def test_two_rules_speak_of_a_human_confirmation() -> None:
     assert sum("human confirmation" in rule for rule in rules_of(guide.INSTRUCTIONS)) == 2
 

@@ -100,7 +100,7 @@ Error codes:
 - confirmation_unavailable: no confirmation window can be shown; nothing was done.
 - limit_reached: a ceiling of this process is reached; the operator decides what follows.
 - journal_unavailable: the audit journal cannot be written, so a locked action is refused.
-- wait_timeout: what was waited for did not come in time.
+- wait_timeout: what was waited for did not come in time. For a text or an element, server.wait says what the page was doing: tree_lines_start and tree_lines_end (tree lines at the first and the last reading), changed (the tree changed between two readings) and busy (nodes the page marks as busy). A tree that still changes, or a busy node, says to wait longer. An unchanged tree with no busy node may be an empty page or a loading indicator that has no name, which only an observation with the image shows.
 - invalid_arguments: a parameter is unknown or not valid; nothing was done.
 - internal_error: an unexpected failure; nothing more is said about it.
 

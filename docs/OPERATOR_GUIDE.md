@@ -948,7 +948,20 @@ Check that the encrypted directory is open and that
 `~/Vaults/Main/mcp-server-diwall-browser/journal` is yours, in mode 700.
 
 `wait_timeout`: `la condition attendue n'est pas apparue dans le délai`. What the model waited for
-did not come; nothing for you to do.
+did not come; nothing for you to do. When it waited for a text or an element, `server.wait` says what
+the page was doing meanwhile, in four values and no text of the page: `tree_lines_start` and
+`tree_lines_end` (the lines of the tree at the first and at the last reading, every 300 ms),
+`changed` (true if the tree differed between two successive readings) and `busy` (the number of
+nodes that the page marks as busy, for example with `aria-busy="true"`, among those the model can
+see). A tree that still changes, or a busy node, says the page was working: the model waits longer.
+An unchanged tree with no busy node does not tell an empty page from a loading indicator that has
+no name and no `busy` mark; only an observation with the image shows it. A wait for the load carries
+no `server.wait`: it reads no tree. The values are `null` when no reading succeeded (the page kept
+changing address). Measured on Google Chrome 155.0.8059.79 with local pages: a page that adds a
+list item at 1 s and another at 3 s gave `changed: true` for a wait of 2 s, and for a wait of 2 s
+started at 1.8 s; a page that does nothing gave `changed: false` and `busy: 0`; a section with
+`aria-busy="true"` gave `busy: 1` (`tests/test_wait_state_integration.py`). Chromium 154 was not
+available.
 
 `invalid_arguments`: `paramètres refusés, rien n'a été fait : approved (inconnu)`. The model sent a
 parameter the tool does not have, or a value of the wrong kind; nothing was done.

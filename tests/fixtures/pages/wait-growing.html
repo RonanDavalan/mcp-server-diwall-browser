@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Growing page</title></head>
+<body>
+<main>
+  <h1>Report</h1>
+  <ul id="rows"><li>Row 0</li></ul>
+</main>
+<script>
+  var count = 0;
+  function addRow() {
+    count += 1;
+    var row = document.createElement("li");
+    row.textContent = "Row " + count;
+    document.getElementById("rows").appendChild(row);
+  }
+  setTimeout(addRow, 1000);
+  setTimeout(addRow, 3000);
+</script>
+</body>
+</html>

@@ -49,7 +49,9 @@ async def run(ctx: ToolContext, *, tab_id: str, for_: str, value: Any, timeout_s
 
     Polls the page every 300 ms up to timeout_s (at most 60 s); never waits for a quiet network.
     Text and element are read only on an allowed site. Returns met, and dialog_open when a dialog
-    interrupted the wait. Errors: wait_timeout, origin_not_allowed, tab_not_owned.
+    interrupted the wait. Errors: wait_timeout (for a text or an element, server.wait gives
+    tree_lines_start, tree_lines_end, changed and busy, never a text of the page),
+    origin_not_allowed, tab_not_owned.
     """
     session = await ctx.browser()
     tab = session.registry.get(tab_id)

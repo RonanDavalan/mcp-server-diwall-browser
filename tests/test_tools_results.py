@@ -73,6 +73,8 @@ async def check_wait(rig: Rig, server: FastMCP) -> None:
         load = await client.call("wait", tab_id=tab, timeout_s=2.0, **{"for": "load"})
     assert text["ok"] and text["server"]["met"] is True and text["server"]["tab_id"] == tab
     assert missing["ok"] is False and code_of(missing) == "wait_timeout"
+    assert set(missing["server"]["wait"]) == {"tree_lines_start", "tree_lines_end", "changed", "busy"}
+    assert missing["server"]["wait"]["changed"] is False and missing["server"]["wait"]["tree_lines_start"] > 0
     assert element["ok"] and element["server"]["met"] is True
     assert no_element["ok"] is False and code_of(no_element) == "wait_timeout"
     assert load["ok"] and load["server"]["met"] is True
