@@ -38,6 +38,7 @@ CHECKSUMMED = ("username", "password", "totp_cle", SOURCE_ORIGINS)
 UNSHOWN = ("username", "password", "totp_cle", "ntfy_topic")
 # Ce que dit le volume quand il refuse une source, et le mot qu'on en imprime.
 _SOURCE_REFUSALS = {"bad_mode": "source_mode", "outside_volume": "source_not_in_volume"}
+SOURCE_SUFFIX = ".json"
 
 
 class ImportRefused(Exception):
@@ -69,10 +70,22 @@ class _Parser(argparse.ArgumentParser):
 
 def _parser() -> argparse.ArgumentParser:
     parser = _Parser(prog="credential_import", add_help=False, allow_abbrev=False)
-    parser.add_argument("--source", required=True)
-    parser.add_argument("--name", required=True)
+    parser.add_argument("--source")
+    parser.add_argument("--name")
     parser.add_argument("--origin", action="append", default=[])
+    parser.add_argument("--source-dir")
     return parser
+
+
+def _options(argv: Sequence[str]) -> argparse.Namespace:
+    """Les options, avec la règle que ni argparse ni ses défauts ne portent : un fichier, ou un répertoire seul."""
+    options = _parser().parse_args(list(argv))
+    if options.source_dir is not None:
+        if options.source is not None or options.name is not None or options.origin:
+            raise ImportRefused("invalid_arguments")
+    elif options.source is None or options.name is None:
+        raise ImportRefused("invalid_arguments")
+    return options
 
 
 def _origin(text: str) -> Origin:
@@ -152,21 +165,14 @@ def _carried(data: dict[str, Any]) -> dict[str, str]:
     return found
 
 
-def _convert(argv: Sequence[str], dependencies: Dependencies) -> dict[str, Any]:
-    options = _parser().parse_args(list(argv))
-    if not credentials.valid_name(options.name):
-        raise ImportRefused("name_invalid")
-    explicit = _once([_origin(text) for text in options.origin])
-    profile = dependencies.load_profile()
-    volume = Volume(dependencies.mount_checker, profile.secrets_dir, profile.secrets_crypt_dir)
-    volume.require_mounted()
-
-    data = _read_source(volume, options.source)
+def _import_file(volume: Volume, path: str, name: str, explicit: Sequence[Origin]) -> dict[str, Any]:
+    """Les six étapes pour un fichier : le volume est déjà monté, ``name`` déjà validé."""
+    data = _read_source(volume, path)
     _verify_checksum(data)
 
     from_source = _hosts_as_origins(data.get(SOURCE_ORIGINS))
     if explicit:
-        targets, assumed = explicit, False
+        targets, assumed = list(explicit), False
     elif from_source is not None:
         targets, assumed = _once(from_source), True
     else:
@@ -176,7 +182,7 @@ def _convert(argv: Sequence[str], dependencies: Dependencies) -> dict[str, Any]:
     carried = _carried(data)
     not_carried = sum(1 for key in data if key not in carried and key != SOURCE_ORIGINS)
 
-    basename = f"{options.name}.json"
+    basename = f"{name}.json"
     document = {"allowed_origins": [origin.canonical for origin in targets], **carried}
     raw = (json.dumps(document, indent=2) + "\n").encode("utf-8")
     credentials.validate(basename, raw)
@@ -196,6 +202,52 @@ def _convert(argv: Sequence[str], dependencies: Dependencies) -> dict[str, Any]:
     }
 
 
+def _import_directory(volume: Volume, directory: str) -> tuple[list[dict[str, Any]], bool]:
+    """Chaque ``*.json`` du répertoire, dans l'ordre alphabétique ; le refus d'un fichier n'arrête pas les suivants."""
+    if not os.path.isabs(directory):
+        raise ImportRefused("source_invalid")
+    try:
+        names = [name for name in volume.list_directory_at(directory) if name.endswith(SOURCE_SUFFIX)]
+    except VolumeFileError as exc:
+        raise ImportRefused(_SOURCE_REFUSALS.get(exc.reason, "source_invalid")) from None
+    except OSError:
+        raise ImportRefused("source_invalid") from None
+    if not names:
+        raise ImportRefused("source_dir_empty")
+    lines: list[dict[str, Any]] = []
+    refused = False
+    for filename in names:
+        try:
+            name = filename[: -len(SOURCE_SUFFIX)]
+            if not credentials.valid_name(name):
+                raise ImportRefused("name_invalid")
+            lines.append(_import_file(volume, os.path.join(directory, filename), name, ()))
+        except ImportRefused as exc:
+            lines.append({"file": filename, "error": exc.code})
+            refused = True
+        except ToolError as exc:
+            lines.append({"file": filename, "error": exc.code})
+            refused = True
+        except Exception:  # noqa: BLE001 - rien d'un échec imprévu ne doit atteindre la sortie
+            lines.append({"file": filename, "error": "internal_error"})
+            refused = True
+    return lines, refused
+
+
+def _convert(argv: Sequence[str], dependencies: Dependencies) -> tuple[list[dict[str, Any]], bool]:
+    """Les lignes à imprimer, et si l'une d'elles est un refus."""
+    options = _options(argv)
+    if options.source_dir is None and not credentials.valid_name(options.name):
+        raise ImportRefused("name_invalid")
+    explicit = _once([_origin(text) for text in options.origin])
+    profile = dependencies.load_profile()
+    volume = Volume(dependencies.mount_checker, profile.secrets_dir, profile.secrets_crypt_dir)
+    volume.require_mounted()
+    if options.source_dir is not None:
+        return _import_directory(volume, options.source_dir)
+    return [_import_file(volume, options.source, options.name, explicit)], False
+
+
 def _emit(stream: TextIO, text: str) -> None:
     # Le seul endroit où quoi que ce soit est écrit : les valeurs enregistrées en ont disparu.
     stream.write(redact_text(text) + "\n")
@@ -203,11 +255,11 @@ def _emit(stream: TextIO, text: str) -> None:
 
 
 def run(argv: Sequence[str], dependencies: Dependencies, stdout: TextIO, stderr: TextIO) -> int:
-    """Convertir un fichier ; 0 et une ligne de JSON en cas de succès, 1 et une ligne ``error: <code>`` en cas de refus."""
+    """Convertir un fichier ou un répertoire ; 0 et une ligne de JSON par fichier en cas de succès, 1 et une ligne ``error: <code>`` en cas de refus."""
     try:
         # Avant que la première valeur soit lue : un plantage ne doit laisser aucun fichier core.
         hardening.disable_core_dumps()
-        summary = _convert(argv, dependencies)
+        lines, refused_any = _convert(argv, dependencies)
     except ImportRefused as refused:
         _emit(stderr, f"error: {refused.code}" + (f" {refused.detail}" if refused.detail else ""))
         return 1
@@ -217,8 +269,9 @@ def run(argv: Sequence[str], dependencies: Dependencies, stdout: TextIO, stderr:
     except Exception:  # noqa: BLE001 - rien d'un échec imprévu ne doit atteindre la sortie
         _emit(stderr, "error: internal_error")
         return 1
-    _emit(stdout, json.dumps(summary))
-    return 0
+    for line in lines:
+        _emit(stdout, json.dumps(line))
+    return 1 if refused_any else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:

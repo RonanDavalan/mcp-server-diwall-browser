@@ -68,7 +68,7 @@ class Rig:
     def convert(self, *extra: str, name: str = "shop-admin", source: Path | None = None, deps: Dependencies | None = None) -> Outcome:
         return self.run("--source", str(source or self.old / OLD_NAME), "--name", name, *extra, deps=deps)
 
-    def old_file(self, name: str = OLD_NAME, *, mode: int = 0o600, checksum: bool | str = False, **fields: Any) -> Path:
+    def old_file(self, name: str = OLD_NAME, *, mode: int = 0o600, checksum: bool | str = False, directory: Path | None = None, **fields: Any) -> Path:
         content: dict[str, Any] = {
             "origines_autorisees": [HOST],
             "username": OLD_USER,
@@ -86,7 +86,7 @@ class Rig:
             content["checksum"] = "sha256:" + hashlib.sha256(json.dumps(subset, sort_keys=True).encode("utf-8")).hexdigest()
         elif checksum:
             content["checksum"] = checksum
-        path = self.old / name
+        path = (directory or self.old) / name
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
         with os.fdopen(fd, "w") as handle:
             json.dump(content, handle)
@@ -519,6 +519,177 @@ def test_a_command_line_that_is_not_the_three_options_is_refused_without_repeati
     outcome = rig.run(*argv)
     assert refused(rig, "invalid_arguments", outcome, before)
     assert "/x" not in outcome.err and "extra" not in outcome.err and "--other" not in outcome.err
+
+
+# --- a directory of old files ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def batch(rig: Rig) -> Path:
+    directory = rig.paths.mount_point / "batch"
+    directory.mkdir(mode=0o700)
+    return directory
+
+
+def convert_dir(rig: Rig, directory: Path, *extra: str, deps: Dependencies | None = None) -> Outcome:
+    return rig.run("--source-dir", str(directory), *extra, deps=deps)
+
+
+def lines_of(outcome: Outcome) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in outcome.out.splitlines()]
+
+
+def three_files(rig: Rig, batch: Path) -> None:
+    rig.old_file("alpha.json", directory=batch)
+    rig.old_file("bravo.json", directory=batch, mode=0o644)
+    rig.old_file("charlie.json", directory=batch, username=None, password=None)
+
+
+def test_a_directory_of_three_files_writes_one_refuses_two_prints_three_lines_and_exits_with_1(rig: Rig, batch: Path) -> None:
+    three_files(rig, batch)
+    outcome = convert_dir(rig, batch)
+    assert outcome.code == 1 and outcome.err == ""
+    lines = lines_of(outcome)
+    assert len(lines) == 3 and outcome.out.count("\n") == 3
+    assert list(lines[0]) == KEYS_OF_THE_LINE and lines[0]["written"] == "alpha.json"
+    assert lines[0]["origins"] == [f"https://{HOST}"] and lines[0]["origins_assumed_https"] is True
+    assert lines[1] == {"file": "bravo.json", "error": "source_mode"}
+    assert lines[2] == {"file": "charlie.json", "error": "nothing_to_carry"}
+    assert sorted(rig.snapshot()) == ["alpha.json"]
+    assert rig.produced("alpha") == {"allowed_origins": [f"https://{HOST}"], "username": OLD_USER, "password": OLD_PASSWORD}
+    assert stat.S_IMODE(rig.target("alpha").stat().st_mode) == 0o600
+
+
+def test_a_directory_of_good_files_exits_with_0_and_lists_them_in_alphabetical_order(rig: Rig, batch: Path) -> None:
+    for name in ("zulu.json", "alpha.json", "mike.json"):
+        rig.old_file(name, directory=batch)
+    outcome = convert_dir(rig, batch)
+    assert outcome.code == 0 and outcome.err == ""
+    assert [line["written"] for line in lines_of(outcome)] == ["alpha.json", "mike.json", "zulu.json"]
+    assert sorted(rig.snapshot()) == ["alpha.json", "mike.json", "zulu.json"]
+
+
+def test_a_refused_file_does_not_stop_the_files_after_it(rig: Rig, batch: Path) -> None:
+    rig.old_file("a-open.json", directory=batch, mode=0o644)
+    rig.old_file("b-good.json", directory=batch)
+    outcome = convert_dir(rig, batch)
+    assert outcome.code == 1
+    assert [line.get("file") or line["written"] for line in lines_of(outcome)] == ["a-open.json", "b-good.json"]
+    assert sorted(rig.snapshot()) == ["b-good.json"]
+
+
+def test_a_sub_directory_is_ignored_and_so_is_what_is_not_a_json_file(rig: Rig, batch: Path) -> None:
+    rig.old_file("alpha.json", directory=batch)
+    (batch / "nested").mkdir(mode=0o700)
+    rig.old_file("inner.json", directory=batch / "nested")
+    (batch / "folder.json").mkdir(mode=0o700)
+    rig.old_file("deep.json", directory=batch / "folder.json")
+    rig.old_file("notes.txt", directory=batch)
+    rig.old_file("alpha.json.bak", directory=batch)
+    outcome = convert_dir(rig, batch)
+    assert outcome.code == 0
+    assert [line["written"] for line in lines_of(outcome)] == ["alpha.json"]
+    assert sorted(rig.snapshot()) == ["alpha.json"]
+
+
+def test_the_name_of_the_new_file_is_the_base_name_of_the_old_one_and_must_be_a_name_the_server_reads(rig: Rig, batch: Path) -> None:
+    rig.old_file(OLD_NAME, directory=batch)
+    rig.old_file("Bad Name.json", directory=batch)
+    rig.old_file(".hidden.json", directory=batch)
+    outcome = convert_dir(rig, batch)
+    lines = {line.get("file") or line["written"]: line for line in lines_of(outcome)}
+    assert lines[OLD_NAME]["written"] == OLD_NAME
+    assert lines["Bad Name.json"]["error"] == "name_invalid" and lines[".hidden.json"]["error"] == "name_invalid"
+    assert sorted(rig.snapshot()) == [OLD_NAME]
+
+
+def test_a_name_that_is_taken_is_refused_for_that_file_only_and_the_existing_file_is_untouched(rig: Rig, batch: Path) -> None:
+    rig.old_file("alpha.json", directory=batch, password="test-other-password-2")
+    rig.old_file("bravo.json", directory=batch)
+    rig.old_file("alpha.json")
+    assert rig.convert(name="alpha", source=rig.old / "alpha.json").code == 0
+    outcome = convert_dir(rig, batch)
+    lines = lines_of(outcome)
+    assert outcome.code == 1 and lines[0] == {"file": "alpha.json", "error": "target_exists"} and lines[1]["written"] == "bravo.json"
+    assert rig.produced("alpha")["password"] == OLD_PASSWORD
+
+
+def test_each_file_goes_through_the_checks_of_the_single_file_command(rig: Rig, batch: Path) -> None:
+    rig.old_file("a-sum.json", directory=batch, checksum="sha256:" + "0" * 64)
+    rig.old_file("b-bad.json", directory=batch)
+    (batch / "b-bad.json").write_text("{")
+    os.chmod(batch / "b-bad.json", 0o600)
+    os.symlink(batch / "a-sum.json", batch / "c-link.json")
+    outcome = convert_dir(rig, batch)
+    assert [line["error"] for line in lines_of(outcome)] == ["checksum_mismatch", "source_invalid", "source_invalid"]
+    assert outcome.code == 1 and rig.snapshot() == {}
+
+
+@pytest.mark.parametrize("extra", [["--source", "/x"], ["--name", "x"], ["--origin", "https://admin.example.invalid"], ["--source", "/x", "--name", "x"]])
+def test_the_directory_option_is_exclusive_of_the_three_others(rig: Rig, batch: Path, extra: list[str]) -> None:
+    rig.old_file("alpha.json", directory=batch)
+    before = rig.snapshot()
+    assert refused(rig, "invalid_arguments", convert_dir(rig, batch, *extra), before)
+
+
+def test_a_directory_that_is_not_one_the_command_may_read_is_refused_with_one_line(rig: Rig, batch: Path) -> None:
+    before = rig.snapshot()
+    rig.old_file("alpha.json", directory=batch)
+    elsewhere = rig.tmp / "elsewhere"
+    elsewhere.mkdir(mode=0o700)
+    os.symlink(batch, rig.paths.mount_point / "shortcut")
+    os.symlink(elsewhere, rig.paths.mount_point / "out")
+    cases = [
+        (rig.run("--source-dir", "batch"), "source_invalid"),
+        (convert_dir(rig, rig.paths.mount_point / "absent"), "source_invalid"),
+        (convert_dir(rig, batch / "alpha.json"), "source_invalid"),
+        (convert_dir(rig, rig.paths.mount_point / "shortcut"), "source_invalid"),
+        (convert_dir(rig, elsewhere), "source_not_in_volume"),
+        (convert_dir(rig, rig.paths.mount_point / "out"), "source_not_in_volume"),
+    ]
+    for outcome, code in cases:
+        assert refused(rig, code, outcome, before)
+        assert str(rig.tmp) not in outcome.err
+
+
+def test_a_directory_without_a_json_file_is_refused_and_not_taken_for_a_success(rig: Rig, batch: Path) -> None:
+    before = rig.snapshot()
+    rig.old_file("notes.txt", directory=batch)
+    assert refused(rig, "source_dir_empty", convert_dir(rig, batch), before)
+
+
+def test_a_volume_that_is_closed_is_refused_for_a_directory_too(rig: Rig, batch: Path) -> None:
+    before = rig.snapshot()
+    rig.old_file("alpha.json", directory=batch)
+    closed = fake_mountinfo(rig.paths.mount_point, lines=["22 1 8:2 / / rw,relatime shared:1 - ext4 /dev/sda2 rw"])
+    assert refused(rig, "encrypted_dir_undetermined", convert_dir(rig, batch, deps=rig.deps(closed.checker)), before)
+
+
+def directory_run_with_everything(rig: Rig, batch: Path) -> Outcome:
+    """A directory with a success, a file named after a value, and a refusal of each kind that carries a value."""
+    rig.old_file("alpha.json", directory=batch, zz_unknown_key="test-unknown-key-value-4")
+    rig.old_file(f"{OLD_USER}.json", directory=batch)
+    rig.old_file("wrong.json", directory=batch, checksum="sha256:" + "0" * 64)
+    rig.old_file("open.json", directory=batch, mode=0o644)
+    (batch / "garbage.json").write_text("{" + OLD_PASSWORD)
+    os.chmod(batch / "garbage.json", 0o600)
+    return convert_dir(rig, batch)
+
+
+def test_no_value_no_unknown_key_name_and_no_full_path_is_in_what_a_directory_run_prints(rig: Rig, batch: Path) -> None:
+    outcome = directory_run_with_everything(rig, batch)
+    assert outcome.code == 1 and len(lines_of(outcome)) == 5
+    text = outcome.out + outcome.err
+    assert not leaks(text) and "zz_unknown_key" not in text and "test-unknown-key-value-4" not in text
+    assert str(rig.tmp) not in text and "/batch" not in text
+
+
+def test_directory_printing_check_catches_an_output_that_does_not_go_through_the_redaction(rig: Rig, batch: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def plain(stream: Any, text: str) -> None:
+        stream.write(text + "\n")
+
+    monkeypatch.setattr(credential_import, "_emit", plain)
+    assert leaks(directory_run_with_everything(rig, batch).out)
 
 
 # --- where the command may and may not reach --------------------------------------------------------------

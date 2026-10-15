@@ -458,6 +458,25 @@ class Volume:
         lien pourrait mener là où l'opérateur n'a jamais regardé. Le fichier est ensuite ouvert sans suivre
         de lien et doit appartenir à l'utilisateur du serveur, en mode 600.
         """
+        return self._read_private(Path(self._contained_real(path)), max_bytes)
+
+    def list_directory_at(self, path: str | os.PathLike[str]) -> list[str]:
+        """Les noms, triés, de ce qui n'est pas un répertoire dans un répertoire du volume monté.
+
+        Mêmes règles de chemin que ``read_file_at`` : absolu, dans le volume, sur son périphérique, sans
+        lien suivi. Un lien reste dans la liste : le lire est refusé, ce qui le rend visible plutôt que de
+        le taire. Ne descend jamais dans un sous-répertoire.
+        """
+        real = self._contained_real(path)
+        try:
+            with os.scandir(real) as entries:
+                return sorted(entry.name for entry in entries if not entry.is_dir(follow_symlinks=False))
+        except FileNotFoundError:
+            raise VolumeFileError("missing") from None
+        except NotADirectoryError:
+            raise VolumeFileError("not_regular_file") from None
+
+    def _contained_real(self, path: str | os.PathLike[str]) -> str:
         self.require_mounted()
         given = os.path.normpath(os.fspath(path))
         if not os.path.isabs(given):
@@ -479,7 +498,7 @@ class Volume:
             same_device = False
         if not same_device:
             raise VolumeFileError("outside_volume")
-        return self._read_private(Path(real), max_bytes)
+        return real
 
     def _read_private(self, path: Path, max_bytes: int) -> VolumeFile:
         flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK

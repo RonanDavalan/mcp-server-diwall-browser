@@ -696,9 +696,9 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
 
 ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py"}
 # La commande qu'un opérateur lance à la main, hors du processus du serveur (aucun module ne l'importe) :
-# elle a une ligne de commande de trois options et écrit une ligne de résultat.
+# elle a une ligne de commande de quatre options et écrit une ligne de résultat par fichier.
 OPERATOR_COMMAND = "credential_import.py"
-OPERATOR_COMMAND_OPTIONS = frozenset({"--source", "--name", "--origin"})
+OPERATOR_COMMAND_OPTIONS = frozenset({"--source", "--name", "--origin", "--source-dir"})
 _ENVIRONMENT_RE = re.compile(r"\bos\.environ\b|\bgetenv\b|\bputenv\b")
 _COMMAND_LINE_RE = re.compile(r"\bsys\.argv\b|\bargparse\b|\boptparse\b|\bgetopt\b|\bclick\.option\b")
 _FLAG_RE = re.compile(r"(?i)^(testing|test_mode|is_test|under_test|unsafe|insecure|skip_checks?|disable_checks?|no_checks?|bypass\w*)$")
@@ -766,7 +766,7 @@ def test_switch_check_catches_an_environment_option_or_flag(tmp_path: Path, sour
     assert {entry.split(":")[0] for entry in switches(copy)} == {"server.py"}
 
 
-def test_the_operator_command_has_the_three_options_and_no_other(tmp_path: Path) -> None:
+def test_the_operator_command_has_its_four_options_and_no_other(tmp_path: Path) -> None:
     assert [entry for entry in switches(PACKAGE_DIR) if entry.startswith(OPERATOR_COMMAND)] == []
     for planted in ("parser.add_argument('--skip-checksum')\n", "parser.add_argument('--force')\n", "FLAG = '--no-verify'\n"):
         copy = tmp_path / "pkg"

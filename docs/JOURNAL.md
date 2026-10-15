@@ -2052,3 +2052,25 @@ that is only the value of a password field returns nothing.
   asks for a confirmation (`tests/test_actions.py`), and no credential reaches a subdomain.
 - `pytest -q -m "not browser"`: 1741 passed, 1 skipped, 543 deselected. Browser tests of the wait and
   of the perception (`test_wait_state_integration.py`, `test_perception_integration.py`): 26 passed.
+
+## Import of a whole directory of credential files
+
+`credential_import --source-dir <absolute path>` converts each `*.json` of a directory of the
+encrypted volume, one after the other in alphabetical order, through the same six steps
+(`_import_file`, shared with `--source`/`--name`). Its options exclude `--source`, `--name` and
+`--origin` (`invalid_arguments`). The target name is the base name without extension, checked by
+`credentials.valid_name` (`name_invalid` for that file). One line of JSON per file on the standard
+output: the line of a single file, or `{"file": ..., "error": ...}`; the exit code is 1 when one file
+at least is refused. A sub-directory is ignored; a link is listed and refused (`source_invalid`).
+`Volume.list_directory_at` (`mount.py`) lists under the same path rules as `read_file_at`
+(`_contained_real`, extracted from it).
+
+- Proof: the 12 new tests of `tests/test_credential_import.py` were written first and failed
+  (`error: invalid_arguments`, the option did not exist); after the code, `tests/test_credential_import.py`
+  reads 108 passed. The case of the control: three files, one in mode 644 and one with neither user name
+  nor password, give one written file, two refusals, three lines and exit code 1.
+- Counter-proof: with the output function replaced by one that does not redact
+  (`test_directory_printing_check_catches_an_output_that_does_not_go_through_the_redaction`), a file
+  named after a value prints it and the test shows it.
+- Invariant of `tests/test_invariants.py`: the option set of the command is now four (`--source-dir`).
+- `pytest -q -m "not browser"`: 1757 passed, 1 skipped, 543 deselected.

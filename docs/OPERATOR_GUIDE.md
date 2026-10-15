@@ -516,14 +516,16 @@ The options, and nothing else (no argument, environment variable or standard inp
 secret):
 
 - `--source`: the absolute path of the old file, which must lie under the directory where you
-  opened the encrypted directory. Required.
+  opened the encrypted directory. Required, with `--name`, unless you give `--source-dir`.
 - `--name`: the label of the new file, which becomes `<name>.json` under the rule for names above.
-  Required.
+  Required with `--source`.
 - `--origin`: a full origin, `https://host` or `http://host`, with a port if it is not the default
   one and no path. It may be given several times. Without it, each host of the old file becomes
   `https://<host>`: the old format has no scheme, so https is an assumption, and the output says so
   (`origins_assumed_https`). `origins_differ_from_source` says whether the origins written differ
   from the old file's.
+- `--source-dir`: the absolute path of a directory of old files, under the same rule as
+  `--source`. It excludes `--source`, `--name` and `--origin` (`invalid_arguments`). See below.
 
 In this order, and a refusal at any step creates no file:
 
@@ -540,6 +542,39 @@ In this order, and a refusal at any step creates no file:
    file of the same directory and given its name by a hard link, so that a file that exists is never
    replaced and no half file stays. The `credentials/` directory must already exist in mode 700.
 
+### Carrying over a whole directory
+
+With `--source-dir`, each file whose name ends in `.json` goes through the six steps above, one
+after the other, in alphabetical order. Its name is the file's base name without the extension
+(`shop-admin.json` becomes `shop-admin.json`), and it follows the rule for names: another name is
+refused for that file only (`name_invalid`). The origins are those of the file, as `https://<host>`,
+so every line says `origins_assumed_https`. A sub-directory is ignored and nothing in it is read; a
+link is not ignored, it is refused (`source_invalid`), so that you see it.
+
+```
+cd ~/mcp-server-diwall-browser
+.venv/bin/python -m mcp_server_diwall_browser.credential_import \
+  --source-dir ~/Vaults/Main/old-credentials
+```
+
+One line of JSON per file, on the standard output. A file that is carried over prints the line of a
+single file; a file that is refused prints its name and the reason, and the files after it are
+still read. Replayed on three test files in a simulated volume, one of them in mode 644 and one with
+neither a user name nor a password (it was not run on a real gocryptfs volume):
+
+```
+{"written": "alpha.json", "origins": ["https://shop.example.invalid"], "carried": ["username", "password"], "not_carried": 2, "origins_differ_from_source": false, "origins_assumed_https": true}
+{"file": "bravo.json", "error": "source_mode"}
+{"file": "charlie.json", "error": "nothing_to_carry"}
+```
+
+The exit code is 0 when every file is carried over and 1 when at least one is refused. A
+directory that cannot be read at all (not absolute, missing, not a directory, reached through a
+link, outside the encrypted directory) prints one line on the error output as for a single file,
+and a directory with no `.json` file is refused with `source_dir_empty`: it is more likely the
+wrong directory than an import of nothing. Run it again after fixing a refused file: a file already
+carried over is refused with `target_exists`, which changes nothing.
+
 What it does not do: it keeps no second factor, it overwrites nothing, it reads nothing outside the
 encrypted directory, it follows no link, it deletes nothing (the old file stays where it is; removing
 it is yours), it runs no `gocryptfs` command, and it opens no connection.
@@ -548,7 +583,7 @@ The refusals, one line each: `source_invalid` (not absolute, missing, not a regu
 reached through a link, too large, not a JSON object, repeating a key, a user name or password that is
 not a text), `source_not_in_volume` (outside the encrypted directory or off its device, including a
 link that leads out), `source_mode` (rights for group or others: run `chmod 600` on it),
-`checksum_mismatch`, `target_exists <file>`, `name_invalid`, `origin_invalid` (an origin you gave, or
+`checksum_mismatch`, `target_exists <file>`, `name_invalid`, `source_dir_empty`, `origin_invalid` (an origin you gave, or
 host names of the old file that are not plain host names, when you gave none), `nothing_to_carry`,
 and `invalid_arguments`. The usual codes of the server also appear: `not_configured` and
 `profile_invalid` (section 5), `encrypted_dir_closed`, `encrypted_dir_undetermined` and

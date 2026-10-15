@@ -47,7 +47,7 @@ refusals that do not depend on the model's judgement.
 | `sensitive_field` | the predicate that says a field is sensitive |
 | `mount` | whether the encrypted directory is mounted as expected, and every path inside it |
 | `credentials` | reading credential files, resolving one for an exact origin, and the schema other code may ask |
-| `credential_import` | an operator command, outside the server: converts an old credential file to the schema, showing no value |
+| `credential_import` | an operator command, outside the server: converts an old credential file, or a directory of them, to the schema, showing no value |
 | `journal` | the audit journal, one JSON line per call |
 | `operator_profile` | reading the operator profile; with `confirm`, the only module that reads the environment |
 | `cdp` | the DevTools client, its list of allowed methods and its constant scripts |
