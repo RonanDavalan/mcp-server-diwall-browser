@@ -22,7 +22,7 @@ import re
 import secrets
 import socket
 import sys
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -30,6 +30,7 @@ from .cdp import DEFAULT_TIMEOUT_S, CdpConnection, CdpError
 from .operator_profile import environment_dirs
 from .origin import Origin, OriginError, is_blank, origin_of_url, split_host_port, split_url
 from .output import ToolError
+from .tab_state import TabState
 
 LOOPBACK_HOST = "127.0.0.1"
 VERSION_PATH = "/json/version"
@@ -96,6 +97,13 @@ _NOT_OWNED_MESSAGE = (
     "cet onglet n'existe pas, est fermé, ou n'a pas été ouvert par le serveur : "
     "utiliser un onglet de la liste du serveur ou en ouvrir un"
 )
+_PREVIOUS_SESSION_MESSAGE = (
+    "cet onglet a été laissé ouvert par une session précédente du serveur : il ne peut être que fermé "
+    "(close_tab) ; pour travailler, ouvrir un onglet avec open_tab"
+)
+# Lire l'adresse d'un onglet laissé par une session précédente : une page qui attend une boîte de dialogue
+# ne répond pas, et le listage ne doit pas la suivre longtemps.
+_PREVIOUS_READ_TIMEOUT_S = 3.0
 
 _log = logging.getLogger(__name__)
 
@@ -403,12 +411,33 @@ class Tab:
     closed: bool = False
 
 
+@dataclass(eq=False)
+class PreviousTab:
+    """Un onglet qu'un processus arrêté a laissé ouvert : il se liste et se ferme, il ne se pilote pas.
+
+    Il n'est pas un ``Tab`` et n'entre jamais dans ``TabRegistry._tabs`` : aucun outil autre que
+    ``list_tabs`` et ``close_tab`` ne le résout.
+    """
+
+    tab_id: str
+    target_id: str = field(repr=False)
+    session_id: str = field(repr=False)
+
+
 @dataclass(frozen=True)
 class TabInfo:
     tab_id: str
     # Origine canonique, "about:blank", ou None pour une adresse sans origine web (une page d'erreur, par exemple).
     origin: str | None
     adopted: bool
+
+
+@dataclass(frozen=True)
+class PreviousTabInfo:
+    """Un onglet d'une session précédente tel que ``list_tabs`` le dit : un identifiant neuf et son origine."""
+
+    tab_id: str
+    origin: str | None
 
 
 @dataclass(frozen=True)
@@ -478,9 +507,12 @@ class TabRegistry:
     n'en peut être rendu ni journalisé.
     """
 
-    def __init__(self, connection: CdpConnection) -> None:
+    def __init__(self, connection: CdpConnection, state: TabState | None = None) -> None:
         self._connection = connection
+        self._state = state
         self._tabs: dict[str, Tab] = {}
+        self._previous: dict[str, PreviousTab] = {}
+        self._previous_read = False
         self._adopting: set[str] = set()
         self._notices: list[str] = []
         connection.add_event_handler(self._on_event)
@@ -513,6 +545,8 @@ class TabRegistry:
     def get(self, tab_id: str) -> Tab:
         tab = self._tabs.get(tab_id) if isinstance(tab_id, str) else None
         if tab is None or tab.closed:
+            if isinstance(tab_id, str) and tab_id in self._previous:
+                raise ToolError("tab_not_owned", _PREVIOUS_SESSION_MESSAGE)
             raise ToolError("tab_not_owned", _NOT_OWNED_MESSAGE)
         return tab
 
@@ -532,7 +566,21 @@ class TabRegistry:
             infos.append(TabInfo(tab_id=tab.tab_id, origin=origin_label(frame), adopted=tab.adopted))
         return infos
 
+    async def list_previous_tabs(self) -> list[PreviousTabInfo]:
+        """Les onglets qu'un processus arrêté a laissés ouverts et qui existent encore : à fermer, jamais à piloter."""
+        await self._recover_previous()
+        infos = []
+        for previous in list(self._previous.values()):
+            info = await self._previous_info(previous)
+            if info is not None:
+                infos.append(info)
+        return infos
+
     async def close_tab(self, tab_id: str) -> None:
+        previous = self._previous.get(tab_id) if isinstance(tab_id, str) else None
+        if previous is not None:
+            await self._close_previous(previous)
+            return
         tab = self.get(tab_id)
         try:
             await self._connection.send("Target.closeTarget", {"targetId": tab.target_id})
@@ -544,6 +592,89 @@ class TabRegistry:
     def drain_notices(self) -> list[str]:
         notices, self._notices = self._notices, []
         return notices
+
+    # --- les onglets d'un processus arrêté ----------------------------------------------------
+
+    async def _recover_previous(self) -> None:
+        """Une fois que le volume se laisse lire : les cibles notées par un processus arrêté qui existent encore.
+
+        Seul un identifiant que ce serveur a lui-même noté est approché : aucune autre cible du navigateur
+        n'est listée ni rattachée. Une cible qui ne répond plus est retirée du fichier.
+        """
+        if self._previous_read or self._state is None:
+            return
+        candidates = self._state.previous()
+        if candidates is None:
+            return  # volume fermé : rien n'est lu, on réessaie au prochain listage
+        self._previous_read = True
+        gone = []
+        for target_id in candidates:
+            if self._tab_by_target(target_id) is not None or self._previous_by_target(target_id) is not None:
+                continue
+            try:
+                session_id = await self._connection.attach(target_id)
+            except (CdpError, ToolError):
+                gone.append(target_id)
+                continue
+            self._register_previous(target_id, session_id)
+        self._persist(dropped=gone)
+
+    async def _previous_info(self, previous: PreviousTab) -> PreviousTabInfo | None:
+        """Ce que ``list_tabs`` dit d'un onglet laissé par une session précédente, ou ``None`` quand il n'existe plus."""
+        try:
+            tree = await self._connection.send(
+                "Page.getFrameTree", session_id=previous.session_id, timeout=_PREVIOUS_READ_TIMEOUT_S
+            )
+        except CdpError:
+            self._forget_previous(previous)
+            return None
+        except ToolError:
+            return PreviousTabInfo(tab_id=previous.tab_id, origin=None)
+        frame_tree = tree.get("frameTree")
+        frame = frame_tree.get("frame") if isinstance(frame_tree, dict) else None
+        url = frame.get("url") if isinstance(frame, dict) and isinstance(frame.get("url"), str) else ""
+        origin = origin_label(FrameInfo(url=url, origin=_origin_or_none(url), loader_id="", frame_id=""))
+        return PreviousTabInfo(tab_id=previous.tab_id, origin=origin)
+
+    async def _close_previous(self, previous: PreviousTab) -> None:
+        try:
+            await self._connection.send("Target.closeTarget", {"targetId": previous.target_id})
+        except CdpError:
+            pass  # déjà parti : l'oublier est tout ce qui reste à faire
+        finally:
+            self._forget_previous(previous)
+
+    def _register_previous(self, target_id: str, session_id: str) -> PreviousTab:
+        tab_id = secrets.token_hex(8)
+        while tab_id in self._tabs or tab_id in self._previous:
+            tab_id = secrets.token_hex(8)
+        previous = PreviousTab(tab_id=tab_id, target_id=target_id, session_id=session_id)
+        self._previous[tab_id] = previous
+        return previous
+
+    def _forget_previous(self, previous: PreviousTab) -> None:
+        if self._previous.get(previous.tab_id) is previous:
+            del self._previous[previous.tab_id]
+            self._persist(dropped=[previous.target_id])
+
+    def _previous_by_target(self, target_id: object) -> PreviousTab | None:
+        for previous in self._previous.values():
+            if previous.target_id == target_id:
+                return previous
+        return None
+
+    def _previous_by_session(self, session_id: object) -> PreviousTab | None:
+        for previous in self._previous.values():
+            if previous.session_id == session_id:
+                return previous
+        return None
+
+    def _persist(self, dropped: Iterable[str] = ()) -> None:
+        """Noter dans le volume les cibles tenues par ce processus : les siennes et celles qu'il peut fermer."""
+        if self._state is None:
+            return
+        held = [tab.target_id for tab in self._tabs.values()] + [p.target_id for p in self._previous.values()]
+        self._state.save(held, dropped=dropped)
 
     async def navigate(
         self, tab: Tab, url: str, *, timeout_s: float = DEFAULT_NAVIGATION_TIMEOUT_S
@@ -730,10 +861,11 @@ class TabRegistry:
 
     def _register(self, target_id: str, session_id: str, *, adopted: bool) -> Tab:
         tab_id = secrets.token_hex(8)
-        while tab_id in self._tabs:
+        while tab_id in self._tabs or tab_id in self._previous:
             tab_id = secrets.token_hex(8)
         tab = Tab(tab_id=tab_id, adopted=adopted, target_id=target_id, session_id=session_id)
         self._tabs[tab_id] = tab
+        self._persist()
         return tab
 
     def _forget(self, tab: Tab) -> None:
@@ -742,6 +874,7 @@ class TabRegistry:
         tab.dialog_url = None
         if self._tabs.get(tab.tab_id) is tab:
             del self._tabs[tab.tab_id]
+            self._persist(dropped=[tab.target_id])
 
     def _require_owned(self, tab: Tab) -> None:
         if not isinstance(tab, Tab) or tab.closed or self._tabs.get(tab.tab_id) is not tab:
@@ -799,6 +932,9 @@ class TabRegistry:
                 tab = self._tab_by_session(params.get("sessionId"))
                 if tab is not None:
                     self._forget(tab)
+                previous = self._previous_by_session(params.get("sessionId"))
+                if previous is not None:
+                    self._forget_previous(previous)
             return None
         tab = self._tab_by_session(session_id)
         if tab is None:
@@ -839,8 +975,11 @@ class TabRegistry:
 
     def _on_target_gone(self, target_id: object) -> None:
         tab = self._tab_by_target(target_id)
+        previous = self._previous_by_target(target_id)
         if tab is not None:
             self._forget(tab)
+        elif previous is not None:
+            self._forget_previous(previous)
         elif isinstance(target_id, str):
             self._adopting.discard(target_id)
 

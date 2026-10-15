@@ -1,8 +1,8 @@
 """Outil close_tab : fermer un onglet que le serveur possède.
 
 Pourquoi ce module existe :
-    Un onglet que le serveur a ouvert peut être fermé par lui ; tout autre onglet du navigateur est
-    celui de l'opérateur et n'est jamais touché.
+    Un onglet que le serveur a ouvert, ou qu'une exécution précédente a laissé ouvert, peut être fermé
+    par lui ; tout autre onglet du navigateur est celui de l'opérateur et n'est jamais touché.
 """
 
 from __future__ import annotations
@@ -26,8 +26,9 @@ class Arguments(ToolArguments):
 
 @tool(NAME)
 async def run(ctx: ToolContext, *, tab_id: str) -> ToolOutput:
-    """Close a tab this server opened. Never closes another tab of the browser, nor the browser.
+    """Close a tab this server opened, or one that an earlier run of it left open (previous_session in list_tabs).
 
+    Never closes another tab of the browser, nor the browser.
     Errors: tab_not_owned.
     """
     session = await ctx.browser()

@@ -22,6 +22,7 @@ disk at `~/Vaults/Main.enc` and opened at `~/Vaults/Main`, and sites under
             ├── browser-profile/chrome/            the dedicated browser profile
             ├── journal/operations.jsonl           the audit journal, one line per tool call
             ├── journal/profile-origins.json       mode 600: the origin lists of the profile as the server last saw them
+            ├── run/tabs.json                      mode 600: the tabs the server holds, for the next run to close
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   captures taken around a locked action
             └── downloads/<operation_id>/          files that pages downloaded
 ```
@@ -51,8 +52,9 @@ write, and only while the encrypted directory is open.
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
-  machine; the 536 browser tests also passed on Google Chrome 155.0.8059.79 and on Chromium
-  155.0.8059.39 (Debian 13), each alone. Chromium 154 was not available there. Brave was not tried.
+  machine; the complete suite, 547 browser tests included, passed on Google Chrome 155.0.8059.79, and
+  the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
+  alone. Chromium 154 was not available there. Brave was not tried.
 - `fuse3` and `gocryptfs` for the encrypted directory.
 - `kdialog` or `zenity` for the confirmation window.
 - `git`, and `ss` (package `iproute2`) for the loopback check.
@@ -125,15 +127,16 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output in the project's environment, with Python 3.13.14 (the counts are those of this revision, 532
+Output in the project's environment, with Python 3.12.11 (the counts are those of this revision, 547
 of its tests needing a browser):
 
 ```
-1654 passed, 532 deselected, 1 warning in 83.65s (0:01:23)
+1808 passed, 1 skipped, 547 deselected, 1 warning in 86.45s (0:01:26)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
-uses; every test passes with it.
+uses; every test passes with it. The skipped test changes the owner of a file, which needs root
+(`tests/test_credentials.py`).
 
 ```
 browser executable: chromium (Chrome/141.0.7390.37)
@@ -159,11 +162,12 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 532 browser tests;
-each starts the browser headless on a blank temporary profile. In the same environment:
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 547 browser tests;
+each starts the browser headless on a blank temporary profile. In the same environment, with Google
+Chrome 155.0.8059.79 found on the `PATH`:
 
 ```
-2186 passed, 1 warning in 346.46s (0:05:46)
+2355 passed, 1 skipped, 1 warning in 320.37s (0:05:20)
 ```
 
 Then connect the server to your MCP client, as the next part describes.
@@ -814,8 +818,10 @@ tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromi
   the constant ones written in its code.
 - It uploads no file and opens no local file.
 - It does not read or write the clipboard.
-- It does not show or read the tabs you opened yourself; it lists only the tabs it opened.
-- It does not start or close the browser; its tabs stay open when it stops.
+- It does not show or read the tabs you opened yourself; it lists only the tabs it opened, the windows
+  its pages opened, and the tabs an earlier run of it left open.
+- It does not start or close the browser; its tabs stay open when it stops, and the next run can
+  close them, not work in them (the part below).
 - It never pays, deletes or changes a secret without a confirmation.
 - It never changes the operator profile or the allowed origins.
 
@@ -827,6 +833,41 @@ with the encrypted directory open, read the credential files. A change of the th
 leaves a line `profile_changed` in the journal and a notice in `status` (section 5), found after the
 fact, and the same actor can edit the journal. What bounds that model is the client's configuration
 (section 2.1): give the tools to an agent whose shell asks.
+
+### The tabs a stopped server left open
+
+The server's tabs stay open when it stops: you may want to look at what a task left. A model that
+starts again in a new process used to know none of them and could not close them (twenty tabs were
+left that way in one session). To let it close them, the server writes in `run/tabs.json` the
+identifier that the browser gives each tab it opened, or that a page of its own opened, and takes it
+out when the tab closes. The file holds those identifiers and the process that holds them: no
+address, no title. It is replaced whole, mode 600, in a directory in mode 700.
+
+At its first `list_tabs`, a new process reads the file with the encrypted directory open. A tab of the
+file that still exists, and that no running server holds, comes back with `previous_session` true, a
+new `tab_id` and its origin, read when you list:
+
+```
+{"tab_id": "8d3f6a0b19c2e547", "origin": "https://account.example.invalid", "previous_session": true}
+```
+
+`close_tab` closes it. Every other tool (`observe`, `click`, `navigate`, and the rest) refuses it with
+`tab_not_owned`, so a session that you opened and signed in is never worked in by a later one: closing
+is not driving. The identifier of the browser is never in a result or in the journal.
+
+- With the encrypted directory closed, the file is neither read nor written, no tab comes back as
+  `previous_session`, and the server works as before; the tabs come back at the next `list_tabs`
+  once the directory is open.
+- A tab you opened yourself, or one that the server never held, is never in the file and never
+  listed. A tab that you closed meanwhile is taken out of the file at the next listing.
+- A server that is still running keeps its tabs: the file names the process that holds each one, and
+  a process that is gone, or whose number another program took, no longer holds them.
+- Two servers that write at the same instant can lose an entry: that tab stays open and is not
+  listed. Close it yourself. This is read from the code (the file is read, changed and replaced, with
+  no lock); it was not measured.
+- Measured on Google Chrome 155.0.8059.79 (`tests/test_previous_tabs_integration.py`): a first
+  process opens three tabs and stops; a second lists three `previous_session` tabs of one origin and
+  closes one; a third lists two and closes them; the browser holds the tabs it had before.
 
 ## 9. The confirmation
 
@@ -962,7 +1003,8 @@ work there.
 server opens no `file:`, `javascript:` or other address.
 
 `tab_not_owned`: `cet onglet n'existe pas, est fermé, ou n'a pas été ouvert par le serveur : utiliser un onglet de la liste du serveur ou en ouvrir un`.
-The model should call `list_tabs` or `open_tab`. The server never works in a tab you opened.
+The model should call `list_tabs` or `open_tab`. The server never works in a tab you opened. For a tab
+that an earlier run left open, the message is `cet onglet a été laissé ouvert par une session précédente du serveur : il ne peut être que fermé (close_tab) ; pour travailler, ouvrir un onglet avec open_tab`.
 
 `navigation_failed`: `la navigation a échoué (net::ERR_CONNECTION_REFUSED)` (the browser's error, here for a port where
 nothing listens) or `adresse refusée (…)`. Check the address and your network in the dedicated

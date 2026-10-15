@@ -40,6 +40,7 @@ from .operator_profile import Limits, Profile, load_profile
 from .output import EXIT_POINT_ATTRIBUTE, ToolError, ToolOutput, ToolResult, bounded_text, tool
 from .perception import MaskDrawer, Perception, draw_mask
 from .profile_watch import ProfileTrace
+from .tab_state import TabState
 
 SERVER_NAME = "mcp-server-diwall-browser"
 PACKAGE_NAME = "mcp-server-diwall-browser"
@@ -262,7 +263,7 @@ class ServerState:
             # entre le rattachement et la première action irait là où les réglages propres du navigateur le disent,
             # hors du volume.
             await downloads.forbid()
-            registry = TabRegistry(attachment.connection)
+            registry = TabRegistry(attachment.connection, state=TabState(volume))
             perception = Perception(
                 registry,
                 allowed_origins=lambda: self.profile().allowed_origins,

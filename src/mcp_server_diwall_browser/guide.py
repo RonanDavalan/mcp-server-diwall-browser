@@ -24,6 +24,7 @@ How to work:
 - Every result has three keys: ok, server and page_content; an image may come with observe.
 - observe puts tab_id, snapshot_id and counters under server, and the tree and the elements with their marks under page_content.
 - status tells what is configured, whether the encrypted directory is open, and the ceilings.
+- list_tabs may show tabs with previous_session true: an earlier run left them open; close them with close_tab and work in a tab you open with open_tab.
 - intent says in a few words why you act; it is kept in the operator's journal.
 - intent_category on click arms the confirmation for payment, deletion or secret_change.
 
@@ -81,7 +82,7 @@ Error codes:
 - volume_path_refused: a path inside the volume leaves it or is not private.
 - origin_not_allowed: the page is not on a site the operator allows; nothing of it is read or acted on.
 - forbidden_scheme: only http and https addresses can be opened.
-- tab_not_owned: the tab was not opened by the server, or is closed.
+- tab_not_owned: the tab was not opened by this run of the server, or is closed; a previous_session tab can only be closed.
 - navigation_failed: the page could not be loaded.
 - snapshot_stale: the page moved on since the observation; observe again.
 - element_stale: the marked element is gone or changed; observe again.
@@ -115,6 +116,7 @@ Limits:
 - Text inside frames is never read; frames are masked in the image.
 - Fields the server deems sensitive are masked in the image and their values withheld.
 - Tabs the server did not open are never listed nor read.
+- A tab with previous_session true comes from an earlier run of the server: close_tab closes it, and every other tool refuses it with tab_not_owned; its address is never given, only its origin.
 - intent is kept to 500 characters.
 """
 

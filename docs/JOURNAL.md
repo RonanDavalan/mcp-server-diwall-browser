@@ -2110,3 +2110,48 @@ nowhere else.
   failed (`ValueError: not enough values to unpack (expected 1, got 0)` on the line that was not
   written, `FileNotFoundError` on the fingerprint); with it, 17 passed.
 - `pytest -q -m "not browser"`: 1774 passed, 1 skipped, 545 deselected.
+
+## The tabs a stopped process left open can be closed
+
+A server process that stops leaves its tabs open, and the next one knew none of them: twenty tabs
+stayed in one session and no `close_tab` could reach them. `tab_state.py` keeps in the encrypted
+directory the browser's identifiers of the tabs a process holds (`run/tabs.json`, mode 600, directory
+700, with the process that holds each one), and `TabRegistry` uses it.
+
+- At the first `list_tabs` with the volume open, the identifiers of processes that are gone, and that
+  still exist in the browser, come back as `previous_session` tabs: a new `tab_id`, the origin read
+  at each listing, no `adopted`. They are kept in `TabRegistry._previous`, apart from the owned tabs
+  that every other tool resolves, so those tools answer `tab_not_owned` by construction; `close_tab`
+  closes them. Closing is not driving.
+- Only an identifier that the server wrote itself is approached (`Target.attachToTarget`, then
+  `Page.getFrameTree`); `Target.getTargets` is not in the method list, so the title and the address
+  of the operator's tabs never enter the server.
+- A process that is still running keeps its tabs: each entry names the process (number, start time
+  from `/proc/<pid>/stat`, instance), and the entries of a process that is gone are the ones offered.
+- Volume closed: the file is neither read nor written and nothing is `previous_session`; the tabs come
+  back at the next `list_tabs` with the volume open. A missing, damaged or oversized (64 KiB) file
+  reads as empty.
+- Proof: `tests/test_previous_tabs.py` was written first. The collection failed (`ModuleNotFoundError:
+  No module named 'mcp_server_diwall_browser.tab_state'`); with only the start-time helper in place,
+  30 of its 33 tests failed (`assert 0 == 3` on the tabs listed, `FileNotFoundError` on
+  `run/tabs.json`); with the code, 33 passed. The search for every target identifier in the results of
+  both processes and in the journal is empty.
+- Real browser: `tests/test_previous_tabs_integration.py` (2 tests, Google Chrome 155.0.8059.79): a
+  first process opens three tabs and stops; a second lists three `previous_session` tabs of one origin
+  and closes one; a third lists two and closes them; the browser holds the tabs it had before.
+- An existing test pins the fields of `TabInfo`, so the new tabs have their own `PreviousTabInfo`
+  and `list_previous_tabs`; `list_tabs` the tool gives both.
+
+## The complete suite on Chrome 155
+
+`pytest -q` with the browser tests, Google Chrome 155.0.8059.79 on the `PATH`, Python 3.12.11,
+revision of the tabs of a stopped process:
+
+```
+2355 passed, 1 skipped, 1 warning in 320.37s (0:05:20)
+```
+
+The skipped test changes the owner of a file and needs root (`tests/test_credentials.py:161`). Without
+the browser tests: `1808 passed, 1 skipped, 547 deselected` (1774 before the session, 34 more: 33 of
+`tests/test_previous_tabs.py` and 1 of `tests/test_guide.py`; the 2 browser tests of
+`tests/test_previous_tabs_integration.py` bring the browser tests to 547).

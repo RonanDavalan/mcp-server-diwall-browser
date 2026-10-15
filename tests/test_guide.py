@@ -95,6 +95,16 @@ def test_the_reference_says_what_a_wait_that_ran_out_tells_about_the_page() -> N
     assert "text or an element" in line
 
 
+def test_the_guide_says_a_previous_tab_is_closed_never_worked_in() -> None:
+    work = core_of(guide.INSTRUCTIONS).split(guide.RULES_HEADING, 1)[0]
+    line = next(line for line in work.splitlines() if "previous_session" in line)
+    assert "close_tab" in line and "open_tab" in line
+    reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
+    limit = next(line for line in reference.splitlines() if line.startswith("- A tab with previous_session"))
+    assert "close_tab" in limit and "tab_not_owned" in limit
+    assert "targetId" not in guide.INSTRUCTIONS and "target" not in line
+
+
 def test_two_rules_speak_of_a_human_confirmation() -> None:
     assert sum("human confirmation" in rule for rule in rules_of(guide.INSTRUCTIONS)) == 2
 
