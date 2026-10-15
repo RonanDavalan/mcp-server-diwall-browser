@@ -199,6 +199,7 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **Claude Cloud (Anthropic)**: wrote part of the code on branches, from prompts, reviewed before every merge.
 - **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
 - **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
+- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application; its field report shaped the next fixes.
 - **Local vision**: Qwen3-VL (Alibaba), run through Ollama, for the optional visual location and comparison.
 
 License: not chosen yet.

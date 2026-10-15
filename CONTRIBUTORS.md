@@ -10,6 +10,7 @@ the work actually done.
 - **Claude Cloud (Anthropic)**: code written on branches from prompts, without access to the framework, reviewed before every merge.
 - **Gemini (Google)**: architectural advisor and synthesizer. Proposed the name **Diwall**.
 - **Space Bunny Free (opencode)**: cleanup and pruning of the working framework at the start of the project.
+- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude (14 October 2026), on a local instance of a web application: thirteen driver scripts, a procedure record, and the field report that shaped the next fixes.
 
 ## Heritage
 
