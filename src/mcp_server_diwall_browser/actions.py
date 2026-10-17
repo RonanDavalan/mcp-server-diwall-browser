@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import math
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -121,6 +122,19 @@ class _Run:
     origin: str | None = None
 
 
+_NAME = re.compile(r"[a-z][a-z0-9-]{0,31}")
+
+
+def _touched(node: dict[str, Any] | None) -> dict[str, str | None]:
+    """Le type du nœud qu'un clic a rencontré, pour le journal : nom de balise ou type de pseudo-élément, jamais de texte."""
+    pseudo = (node or {}).get("pseudoType")
+    tag = (node or {}).get("localName")
+    return {
+        "tag": None if pseudo else tag if isinstance(tag, str) and _NAME.fullmatch(tag) else "other",
+        "pseudo": None if not pseudo else pseudo if isinstance(pseudo, str) and _NAME.fullmatch(pseudo) else "other",
+    }
+
+
 class Actions:
     def __init__(self, context: ActionContext) -> None:
         self._context = context
@@ -197,13 +211,37 @@ class Actions:
         return sum(quads[0][0::2]) / 4, sum(quads[0][1::2]) / 4
 
     async def _require_target_at(self, tab: Tab, backend: int, x: int, y: int) -> None:
-        """Refuser sauf si la cible, ou l'un de ses descendants, est ce qui se trouve à un point du document."""
+        """Refuser sauf si la cible, l'un de ses descendants ou un de leurs pseudo-éléments est ce qui se trouve à un point du document."""
         hit = await self._read(tab, "DOM.getNodeForLocation", {"x": x, "y": y, "includeUserAgentShadowDOM": False})
         hit_id = hit.get("backendNodeId")
         if hit_id != backend:
             # Le clic tombe sur ce que l'humain voit à cet endroit, jamais sur ce qui se trouve dessous.
-            if not isinstance(hit_id, int) or not await self._contains(tab, backend, hit_id):
+            if not isinstance(hit_id, int):
                 raise ToolError("element_obscured", _OBSCURED)
+            if await self._contains(tab, backend, hit_id):
+                return
+            node = await self._describe(tab, hit_id)
+            if node is not None and await self._is_pseudo_element_within(tab, backend, hit_id):
+                return
+            raise ToolError("element_obscured", _OBSCURED, extra_server={"touched": _touched(node)})
+
+    async def _describe(self, tab: Tab, backend: int, *, depth: int = 0) -> dict[str, Any] | None:
+        try:
+            return (await self._read(tab, "DOM.describeNode", {"backendNodeId": backend, "depth": depth})).get("node")
+        except CdpError:
+            return None
+
+    async def _is_pseudo_element_within(self, tab: Tab, container: int, pseudo: int) -> bool:
+        """Un pseudo-élément n'est pas un descendant pour ``contains`` : le navigateur envoie pourtant son clic à l'élément d'origine."""
+        tree = await self._describe(tab, container, depth=-1)
+        pending = [tree] if tree else []
+        while pending:
+            node = pending.pop()
+            for child in [*(node.get("children") or []), *(node.get("pseudoElements") or [])]:
+                if child.get("backendNodeId") == pseudo and child.get("pseudoType"):
+                    return True
+                pending.append(child)
+        return False
 
     # --- remplir et choisir -------------------------------------------------------------------
 
@@ -642,6 +680,8 @@ class Actions:
             return await awaitable
         except ToolError as exc:
             exc.extra_server.setdefault("gate", dict(run.gate))
+            if run.origin is not None:
+                exc.extra_server.setdefault("origin", run.origin)
             raise
 
     # --- appels au navigateur -----------------------------------------------------------------

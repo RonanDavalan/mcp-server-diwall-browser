@@ -64,6 +64,8 @@ class JournalEntry:
     intent: str | Secret = ""
     red_list: bool = False
     confirmation: str = "none"
+    # Ce que le refus a rencontré (balise ou type de pseudo-élément) : du texte court, jamais le contenu de la page.
+    touched: Mapping[str, str | None] | None = None
 
 
 class Journal:
@@ -158,6 +160,8 @@ class Journal:
             "host": _text(socket.gethostname()),
             "user": _text(_user_name()),
         }
+        if entry.touched:
+            record["touched"] = _plain_text({key: value for key, value in entry.touched.items() if value is not None})
         return (json.dumps(record, ensure_ascii=True, separators=(",", ":")) + "\n").encode("ascii")
 
     def _client_info(self) -> tuple[str, str]:

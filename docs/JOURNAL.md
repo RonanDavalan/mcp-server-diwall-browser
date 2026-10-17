@@ -2188,3 +2188,21 @@ editable zone goes up to `LONG_VALUE_LIMIT` (4000), the other fields keep 120, t
   textbox filled on the real site was the search field (`input`, value 64 characters read back, nothing
   submitted). Not measured: why (the wrapper-without-height rule of PER-12 is one candidate, an unpainted tab or
   a change on the site are others).
+
+## A click on a target covered by its own pseudo-element is no longer refused
+
+`Actions._require_target_at` accepted the node found at the click point only if it was the target or a
+descendant (`contains`). A `::before` or `::after` of the target or of a descendant is not a descendant
+for `contains`, though the browser sends the click to its element: 4 of the 4 local pages with such a
+pseudo-element were refused (`element_obscured`, nothing clicked) while a raw click reached the button.
+
+- The node met is described (`DOM.describeNode`), and the target is described with `depth: -1`; the node is
+  accepted when it is a pseudo-element listed under the target or one of its descendants. No script of the
+  page runs. The pseudo-element of an ancestor, a sibling `div`, a full-view `div` and a full-view frame
+  that takes the pointer are still refused with no click received.
+- A refusal carries `server.origin` (it was `null` on every refusal that went through the gate) and
+  `server.touched` (`tag` or `pseudo`, matched against `[a-z][a-z0-9-]{0,31}`, else `other`); the journal
+  line adds `touched` only when the refusal has one.
+- Proof: `tests/test_click_pseudo_integration.py` (13 tests, written first: 7 failed on the old code, the 3
+  false refusals among them), `tests/test_journal.py` (1 test added). The three click files of the
+  operator's guide: 347 passed.

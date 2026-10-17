@@ -186,3 +186,24 @@ def test_resolved_value_in_the_intent_is_redacted(tmp_path: Path) -> None:
 
 def test_redaction_check_catches_a_journal_that_writes_the_raw_intent(tmp_path: Path) -> None:
     assert not intent_with_secret_is_redacted(raw_intent_write, tmp_path)
+
+
+def test_a_refusal_that_met_a_node_records_its_type_and_nothing_of_the_page(tmp_path: Path) -> None:
+    paths, _fake, volume = mounted_volume(tmp_path)
+    journal = Journal(volume, client)
+    journal.write(
+        JournalEntry(
+            operation_id="op1",
+            tool="click",
+            result="element_obscured",
+            mutating=True,
+            origin="https://example.invalid",
+            touched={"tag": None, "pseudo": "after"},
+        )
+    )
+    journal.write(JournalEntry(operation_id="op2", tool="click", result="ok", mutating=True))
+    refused, accepted = read_lines(paths.project)
+    assert tuple(refused) == (*FIELDS, "touched")
+    assert refused["touched"] == {"pseudo": "after"}
+    assert refused["origin"] == "https://example.invalid"
+    assert tuple(accepted) == FIELDS

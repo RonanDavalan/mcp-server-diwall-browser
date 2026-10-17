@@ -206,6 +206,7 @@ class ServerState:
         gate = server.get("gate") if isinstance(server.get("gate"), dict) else {}
         confirmation = gate.get("confirmation")
         origin = server.get("origin")
+        touched = server.get("touched") if isinstance(server.get("touched"), dict) else None
         entry = JournalEntry(
             operation_id=str(server.get("operation_id", "")),
             tool=name,
@@ -215,6 +216,7 @@ class ServerState:
             intent=journal_intent(intent, server.get("typed")),
             red_list=gate.get("red_list") is True,
             confirmation=confirmation if confirmation in CONFIRMATION_STATES else "none",
+            touched=touched,
         )
         try:
             journal = self.journal(self.profile())

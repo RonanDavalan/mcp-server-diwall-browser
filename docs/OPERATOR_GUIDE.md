@@ -761,6 +761,16 @@ asks the browser which node lies at that point (`DOM.getNodeForLocation`) and re
 `element_obscured` and nothing clicked, when that node is neither the target nor one of its
 descendants: a banner or a modal over the target takes the click, not the target.
 
+A pseudo-element (`::before`, `::after`) of the target, or of one of its descendants, counts as the
+target: it is not a descendant in the DOM, but the browser sends a click on it to the element it belongs
+to. The server asks the browser for the pseudo-elements of the target and of its descendants
+(`DOM.describeNode`, no script of the page) and accepts the node it met when it is one of them. A
+pseudo-element of an ancestor, a sibling `div`, a full-view `div` and a full-view frame that takes the
+pointer stay refused, with nothing clicked. A refusal says what it met in `server.touched` (`tag`: the
+name of the element, or `pseudo`: the type of the pseudo-element, never a text) and in the `touched`
+field of its line in the journal, with the origin. To replay the cases without a network:
+`.venv/bin/python -m pytest -q -m browser tests/test_click_pseudo_integration.py`.
+
 Measured on a headless Chromium 141.0.7390.37 whose blank profile holds the zoom as its default, at
 zooms of 100, 125, 150 and 200 % and screen scales of 1 and 1.5. The test page counts what each of
 its buttons receives and a separate session reads the counts; the click is the server's own, with its
