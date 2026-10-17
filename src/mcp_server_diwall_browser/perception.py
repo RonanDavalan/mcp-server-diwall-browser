@@ -62,6 +62,9 @@ MAX_MARKS = 150
 MAX_TREE_LINES = 400
 NAME_LIMIT = 200
 VALUE_LIMIT = 120
+# Un texte long (zone de texte, zone éditable) se lit en entier jusqu'à la limite de chaîne d'une page (output.PAGE_STRING_LIMIT).
+LONG_VALUE_LIMIT = 4000
+EDITABLE_VALUES = ("", "true", "plaintext-only")
 MIN_OPACITY = 0.01
 MIN_BOX_SIZE = 2.0
 MAX_IMAGE_WIDTH = 1600
@@ -180,6 +183,8 @@ class ElementRef:
     title: str = field(default="", repr=False)
     form_name: str = field(default="", repr=False)
     heading: str = field(default="", repr=False)
+    # Zone éditable : un textbox à contenteditable, qui reçoit un texte comme un champ.
+    editable: bool = False
 
     @property
     def gate_texts(self) -> tuple[str, ...]:
@@ -874,13 +879,15 @@ def _element(
     verdict = fields.get(node.index)
     sensitive = verdict is not None and verdict.sensitive
     input_type = node.attributes.get("type", "").lower() if node.tag == "input" else None
-    raw_value = _raw_value(item, node, input_type)
+    editable = item.role == "textbox" and node.attributes.get("contenteditable", "none").lower() in EDITABLE_VALUES
+    raw_value = dom.text_content(node, LONG_VALUE_LIMIT) if editable else _raw_value(item, node, input_type)
     if sensitive:
         if raw_value:
             counters["redacted_fields"] += 1
         value = ""
     else:
-        value = redact_text(bounded_text(raw_value, VALUE_LIMIT))
+        long_value = editable or node.tag == "textarea"
+        value = redact_text(bounded_text(raw_value, LONG_VALUE_LIMIT if long_value else VALUE_LIMIT))
     form = dom.enclosing(node, "form")
     form_has_card = form is not None and any(
         fields[index].card for index in fields if dom.enclosing(dom.nodes[index], "form") is form
@@ -920,6 +927,7 @@ def _element(
         is_submit_like=submit_like,
         origin=origin,
         public=public,
+        editable=editable,
     )
 
 

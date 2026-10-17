@@ -113,6 +113,8 @@ Limits:
 - Downloads land in the encrypted directory under a safe name; no tool opens them.
 - One process allows 200 actions and 50 pages, with at least 250 ms between two actions, unless the operator's profile says otherwise.
 - A confirmation window waits 90 seconds, then counts as no answer.
+- fill writes into an input, a textarea or an editable zone (a textbox the page makes editable, as the editors of social sites are); the lines of a text are separated by line breaks, never by the Enter key, so nothing is sent; an editable zone refuses credential_ref and a textbox that is not editable is refused with unsupported_element.
+- A textarea or an editable zone is read up to 4000 characters, any other field up to 120; the paragraphs of an editable zone are read joined by a space.
 - Text inside frames is never read; frames are masked in the image.
 - Fields the server deems sensitive are masked in the image and their values withheld.
 - Tabs the server did not open are never listed nor read.

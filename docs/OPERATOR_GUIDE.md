@@ -52,7 +52,7 @@ write, and only while the encrypted directory is open.
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
-  machine; the complete suite, 547 browser tests included, passed on Google Chrome 155.0.8059.79, and
+  machine; the complete suite, 558 browser tests included, passed on Google Chrome 155.0.8059.84, and
   the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
   alone. Chromium 154 was not available there. Brave was not tried.
 - `fuse3` and `gocryptfs` for the encrypted directory.
@@ -127,11 +127,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output in the project's environment, with Python 3.12.11 (the counts are those of this revision, 547
+Output in the project's environment, with Python 3.12.11 (the counts are those of this revision, 558
 of its tests needing a browser):
 
 ```
-1808 passed, 1 skipped, 547 deselected, 1 warning in 86.45s (0:01:26)
+1808 passed, 1 skipped, 558 deselected, 1 warning in 82.11s (0:01:22)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -162,12 +162,12 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 547 browser tests;
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 558 browser tests;
 each starts the browser headless on a blank temporary profile. In the same environment, with Google
-Chrome 155.0.8059.79 found on the `PATH`:
+Chrome 155.0.8059.84 found on the `PATH`:
 
 ```
-2355 passed, 1 skipped, 1 warning in 320.37s (0:05:20)
+2366 passed, 1 skipped, 1 warning in 326.90s (0:05:26)
 ```
 
 Then connect the server to your MCP client, as the next part describes.
@@ -669,6 +669,28 @@ Without either parameter the result is the same as before, and the three counter
 cannot be used to guess a password: a text that is only the value of a password field returns nothing
 (`tests/test_perception_filter.py`, `tests/test_perception_integration.py`).
 
+### Writing in an editable zone, and reading a long text
+
+`fill` writes into an `input`, a `textarea` and an editable zone: an element of role `textbox` whose
+`contenteditable` attribute is empty, `true` or `plaintext-only`, which is what the text editors of
+social networks and messaging pages are. A `div` of role `textbox` that is not editable is refused
+(`unsupported_element`), and so is `credential_ref` on an editable zone: a secret only enters an
+input field. The server selects the content of the zone with a selection range, then inserts the
+text, so `clear` replaces what the zone holds.
+
+The lines of a text are inserted with their line breaks and no key is pressed: a page that sends a
+message on the Enter key alone receives nothing. Measured on Google Chrome 155.0.8059.84, with a test
+page whose editor counts a send on Enter alone: three lines of text gave three lines in the editor and
+a count of 0; the Enter key of `press_key` on the same editor gave a count of 1.
+
+`observe` reads the value of a `textarea` and of an editable zone up to 4000 characters, and the value
+of any other field up to 120 (the lines of the tree stay cut at 200). The paragraphs of an editable
+zone are read joined by one space. Replay it with a browser on your `PATH`:
+
+```
+.venv/bin/python -m pytest -q -k editable
+```
+
 ### Marks and masks at any screen scale
 
 The boxes of the marks and of the masks, `viewport.height` and `viewport.content_height` are in CSS
@@ -1030,6 +1052,7 @@ the server does not try again by itself, the model observes again.
 `unsupported_element`: the action does not apply, for example
 `seule une liste de choix native (select) se règle ainsi`,
 `cet élément ne se remplit pas : un champ de texte ou une zone de texte est attendu`,
+`une zone éditable ne reçoit aucun identifiant : un secret n'entre que dans un champ de saisie`,
 `la touche Entrée exige un repère (snapshot_id et mark)`,
 `aucune boîte de dialogue n'est ouverte dans cet onglet`. The model chooses another way.
 

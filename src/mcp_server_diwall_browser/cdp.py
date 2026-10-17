@@ -125,7 +125,10 @@ INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType(
         ),
         "select_text": InternalScript(
             "call_function_on",
-            "function() { if (typeof this.select === 'function') { this.select(); return true; } return false; }",
+            "function() { if (typeof this.select === 'function') { this.select(); return true; } "
+            "if (this.isContentEditable) { const range = this.ownerDocument.createRange(); range.selectNodeContents(this); "
+            "const selection = this.ownerDocument.defaultView.getSelection(); selection.removeAllRanges(); "
+            "selection.addRange(range); return true; } return false; }",
         ),
         "set_select_option": InternalScript(
             "call_function_on",

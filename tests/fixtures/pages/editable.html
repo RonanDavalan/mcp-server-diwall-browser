@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Editable page</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+  .zone { display: block; width: 480px; min-height: 40px; margin: 8px 0; border: 1px solid #888; padding: 4px; }
+</style>
+</head>
+<body>
+<h1>Editors</h1>
+<div id="rich" class="zone" role="textbox" contenteditable="true" aria-label="Rich editor"><p>First paragraph</p><p>Second paragraph</p></div>
+<div id="plain" class="zone" role="textbox" contenteditable="plaintext-only" aria-label="Plain zone">old plain text</div>
+<div id="fake" class="zone" role="textbox" aria-label="Fake textbox">not editable</div>
+<div id="chat" class="zone" role="textbox" contenteditable="true" aria-label="Chat message"></div>
+<p id="sent">Sent: 0</p>
+<label>Short field <input id="short" aria-label="Short field" value="alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel"></label>
+<label>Long note <textarea id="long" aria-label="Long note" rows="6" cols="60">alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whis.</textarea></label>
+<script>
+  var sent = 0;
+  document.getElementById('chat').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      sent += 1;
+      document.getElementById('sent').textContent = 'Sent: ' + sent;
+    }
+  });
+</script>
+</body>
+</html>

@@ -67,6 +67,7 @@ _SENSITIVE = (
     "ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), "
     "jamais par un texte"
 )
+_EDITABLE_NO_SECRET = "une zone éditable ne reçoit aucun identifiant : un secret n'entre que dans un champ de saisie"
 
 
 @dataclass(frozen=True)
@@ -226,7 +227,10 @@ class Actions:
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
         run.origin = self._require_allowed(profile, verified.frame)
-        if ref.tag not in ("input", "textarea") or (ref.tag == "input" and (ref.input_type or "") not in FILL_INPUT_TYPES):
+        if ref.editable:
+            if credential_ref is not None:
+                raise ToolError("unsupported_element", _EDITABLE_NO_SECRET)
+        elif ref.tag not in ("input", "textarea") or (ref.tag == "input" and (ref.input_type or "") not in FILL_INPUT_TYPES):
             raise ToolError("unsupported_element", "cet élément ne se remplit pas : un champ de texte ou une zone de texte est attendu")
         if ref.sensitive and text is not None:
             raise ToolError("sensitive_value_refused", _SENSITIVE)

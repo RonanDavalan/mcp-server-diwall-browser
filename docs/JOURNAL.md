@@ -2155,3 +2155,36 @@ The skipped test changes the owner of a file and needs root (`tests/test_credent
 the browser tests: `1808 passed, 1 skipped, 547 deselected` (1774 before the session, 34 more: 33 of
 `tests/test_previous_tabs.py` and 1 of `tests/test_guide.py`; the 2 browser tests of
 `tests/test_previous_tabs_integration.py` bring the browser tests to 547).
+
+## Editable zones: `fill` writes in them, long values are read in full
+
+`fill` refused every element but `input` and `textarea`, and `observe` cut a value to 120 characters,
+so the editors of social sites (a textbox with `contenteditable`) could neither be written nor read.
+`ElementRef` has a field `editable` (default false): true for an element of role `textbox` whose
+`contenteditable` is empty, `true` or `plaintext-only`. `fill` accepts a text on it, refuses
+`credential_ref` on it (`unsupported_element`, before any resolution) and still refuses a `div` of role
+`textbox` that is not editable. The scripts of `cdp.py` keep their list: `select_text` takes a second
+branch (a selection range over the content of an editable zone). The value of a `textarea` or of an
+editable zone goes up to `LONG_VALUE_LIMIT` (4000), the other fields keep 120, the tree lines keep 200.
+
+- Lines: the text goes whole to `Input.insertText`, with its line breaks. Measured first, on
+  `tests/fixtures/pages/editable.html` (Chrome 155.0.8059.84): three lines in an editor that counts a send on
+  Enter alone give three lines and a count of 0; the Enter key of `press_key` on the same editor gives 1.
+  `plaintext-only` keeps three lines too. Shift+Enter was not needed, so no key with a modifier was added.
+- Proof: `tests/test_editable_integration.py` (11 tests) was written first; all 11 failed (`ElementRef` had no
+  `editable`, `unsupported_element` on every fill, 120 instead of 800); three of them (the Enter control, the
+  non-editable `div`, the secret) failed only on the missing attribute, their refusal or count being the same
+  before. Then 11 passed. A first draft of the detection took an absent attribute for an empty one and made every
+  `input` editable: the test of the 120-character field caught it.
+- Complete suite, Google Chrome 155.0.8059.84: `2366 passed, 1 skipped, 1 warning in 326.90s (0:05:26)`, against
+  2355 passed and 1 skipped before: the 11 new tests, no new failure. Without the browser tests:
+  `1808 passed, 1 skipped, 558 deselected`.
+- Real professional social network (dedicated Opera, session open, nothing saved or sent, every tab closed): not completed. The form
+  `/in/ronan-davalan/edit/forms/summary/new/` read as a tree of one line (`RootWebArea`), `frames_masked: 1`,
+  `omitted_not_visible: 47`, with or without `?profileFormEntryPoint=PROFILE_SECTION`, after waits of 30 and 25 s;
+  the profile page rendered only its top (no About section, no experience section, 97 lines); `scroll` (wheel, `dy` or `to`)
+  answered `browser_unreachable` on every tab while `press_key` Enter answered `ok`; on a content search result,
+  `press_key` Enter on the Comment button gave `ok` and no comment editor appeared in the tree after 4 s. The only
+  textbox filled on the real site was the search field (`input`, value 64 characters read back, nothing
+  submitted). Not measured: why (the wrapper-without-height rule of PER-12 is one candidate, an unpainted tab or
+  a change on the site are others).
