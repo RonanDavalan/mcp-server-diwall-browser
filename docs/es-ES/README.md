@@ -10,8 +10,8 @@ bucle local, y un directorio cifrado (gocryptfs) para las credenciales, las capt
 
 ## Instalar
 
-En Linux, el servidor se entrega en paquetes nativos. Descarga el de tu sistema desde la página
-[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) del repositorio o desde la página de descargas del sitio web, y luego instálalo desde la
+En Linux, el servidor se entrega en paquetes nativos. Descargue el de su sistema desde la página
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) del repositorio o desde la [guía de instalación del sitio web](https://mcp.diwall.davalan.fr/es/guias/instalar/), y luego instálelo desde la
 carpeta que lo contiene:
 
 | Sistema | Comando |
@@ -26,7 +26,7 @@ contenedores en estos sistemas. Un contenedor no muestra ni la ventana de confir
 directorio cifrado, ni un navegador. Debian 12 y Ubuntu 22.04 no son compatibles: su Python es anterior a
 3.12. La instalación necesita una conexión de red: el paquete crea un entorno virtual de Python e instala en
 él las dependencias, en las versiones que el proyecto probó. La página de manual es
-`man mcp-server-diwall-browser`. Para instalar desde un clon del repositorio, sigue
+`man mcp-server-diwall-browser`. Para instalar desde un clon del repositorio, siga
 [docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
 ## Conectarlo a un cliente MCP
@@ -47,7 +47,7 @@ claude mcp add --scope user diwall-browser \
 ```
 
 Para otro cliente MCP, el bloque genérico `mcpServers`. El cliente no expande `~`: este comando
-imprime el bloque con tu directorio personal en las rutas, listo para pegar en su configuración:
+imprime el bloque con su directorio personal en las rutas, listo para pegar en su configuración:
 
 ```
 cat <<EOF
@@ -65,8 +65,8 @@ cat <<EOF
 EOF
 ```
 
-Adapta `~/mcp-server-diwall-browser` al lugar donde clonaste el repositorio, y la ruta del perfil al
-lugar donde escribiste tu perfil de operador. La variable puede omitirse cuando el perfil de operador está en su
+Adapte `~/mcp-server-diwall-browser` al lugar donde clonó el repositorio, y la ruta del perfil al
+lugar donde escribió su perfil de operador. La variable puede omitirse cuando el perfil de operador está en su
 sitio habitual, `~/.config/mcp-server-diwall-browser/profile.json`. La forma del comando `claude mcp add` se
 comprobó con `claude mcp add --help` y después la ejecutó el operador en Debian: `claude mcp list` mostró el
 servidor conectado. Las pruebas inician el servidor exactamente como estos dos bloques:
@@ -110,25 +110,25 @@ Probado:
   archivos de zoom y escala, 125 pasaron; las 188 pruebas de navegador pasaron todas; las dos pruebas de descarga
   y las dos que sustituyen a la inestable, cada una por separado, 0 fallos en 40 ejecuciones. Las pruebas de clic
   no se repitieron en él.
-- `scripts/smoke_test.py` devuelve 0 frente a Chromium 141 y 3 cuando no se encuentra ningún navegador.
+- `scripts/smoke_test.py` devuelve 0 frente a Google Chrome 155.0.8059.84 y 3 cuando no se encuentra ningún navegador.
 - Las marcas y las máscaras a una escala de pantalla de 1, 1,5 y 2, en un Chromium 141 sin interfaz: el cuadro de
   cada marca visible está a menos de dos píxeles del cuadro que da el propio navegador, cada píxel del campo de
   contraseña de la página de demostración está bajo su máscara, y la máscara no se extiende más de dos píxeles más
   allá (`tests/test_scale_integration.py`). Antes de la corrección, una máscara no cubría su campo a una escala
   superior a 1. No se midió una pantalla real a 1,5.
-- El zoom de página, al 100, 125, 150 y 200 % y a escalas de pantalla de 1 y 1,5, en un Chromium 141 sin interfaz
+- El zoom de página, al 100, 125, 150 y 200 % y a escalas de pantalla de 1 y 1,5, en un Chromium 141 sin interfaz
   cuyo perfil vacío guarda el zoom como valor por defecto: la imagen que recibe el modelo es la vista completa, el
   campo de contraseña de la página de demostración está bajo su máscara, y también el de una página desplazada
   para que quede cerca del borde inferior o en medio de la vista; la máscara no se extiende más de dos píxeles más
   allá del campo, y en los 16 emplazamientos medidos ningún borde de máscara quedó dentro de su campo
   (`tests/test_zoom_integration.py`, `tests/test_zoom_scrolled_integration.py`). Antes de la corrección, al 125,
-  150 y 200 %, el 0 % del campo quedaba cubierto y `capture` leía `ok`. No se publica ninguna imagen (`capture`
+  150 y 200 %, el 0 % del campo quedaba cubierto y `capture` leía `ok`. No se publica ninguna imagen (`capture`
   lee `unavailable`, el árbol se sigue sirviendo) cuando el navegador no da un zoom utilizable, cuando el zoom
   cambia durante la captura o cuando la imagen difiere en más de dos píxeles del tamaño de la vista en cualquiera
   de los dos ejes (`tests/test_perception_zoom.py`, que no necesita navegador). En Chrome 154 el operador midió el
   tamaño de la imagen recortada tal como la lee el navegador (la vista a cada zoom, un píxel menos de alto al
-  125 %); las pruebas de zoom se repitieron en él más tarde (abajo).
-- Un clic del servidor da en su objetivo con zooms de página del 100, 125, 150 y 200 % y escalas de pantalla de 1
+  125 %); las pruebas de zoom se repitieron en él más tarde (abajo).
+- Un clic del servidor da en su objetivo con zooms de página del 100, 125, 150 y 200 % y escalas de pantalla de 1
   y 1,5, en un Chromium 141 sin interfaz cuyo perfil vacío guarda el zoom como valor por defecto. El clic es el
   del propio servidor (`Actions.click`, con su compuerta y sus límites); la página de prueba cuenta lo que recibe
   cada uno de sus botones y una sesión aparte lee los recuentos. En cada una de las ocho combinaciones, un botón de
@@ -169,6 +169,12 @@ Probado:
   Se conectó Opera 136 (Chromium 152), iniciado con su perfil en ese volumen y un puerto de depuración en la
   interfaz de bucle local; el servidor abrió una página de un sitio público de compras, rellenó su campo de
   búsqueda, pulsó Intro y observó los resultados. El texto escrito no aparece en el diario.
+- La ventana de confirmación, mostrada en el equipo del operador y respondida por una persona el 15 de octubre
+  de 2026 (revisión `873f1ac`), con el volumen gocryptfs propio del operador montado y una página de pago
+  local, en Opera (que el servidor leyó como Chrome 153.0.8010.55): un rechazo devolvió
+  `confirmation_denied` y la página no recibió nada; una aceptación hizo el clic y la página recibió una
+  petición; sin respuesta, la petición caducó a los 91 segundos (`confirmation_expired`) y la página no
+  recibió nada.
 - Claude Code, iniciado desde un terminal de escritorio: `status` a través de Claude Code leyó
   `confirmation_channel: native`, de modo que la pantalla llegó al servidor.
 - El proceso del servidor por la entrada y la salida estándar: no escribe nada más que el protocolo en su salida
@@ -176,9 +182,6 @@ Probado:
 
 No probado:
 
-- Una ventana real de `kdialog` o `zenity`: las pruebas usan programas simulados en su lugar.
-- El volumen gocryptfs propio del operador: las pruebas simulan la tabla de montajes y el directorio, y la
-  comprobación anterior usó un volumen desechable.
 - Brave, y las compilaciones de Google Chrome distintas de la que ejecutó el operador.
 - La confirmación pedida a través de un cliente MCP de escritorio (elicitation): probada solo con el cliente del
   SDK de MCP.
@@ -194,13 +197,12 @@ No probado:
 - Una página que se mueve después de la segunda búsqueda de un clic y antes de la pulsación. En una página que se
   desplaza 1000 píxeles CSS por segundo, 6 de 144 clics no dieron ningún error y no cayeron en ninguna parte;
   ninguno cayó en otro botón (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
-- Un rechazo en la ventana de confirmación, dado por una persona.
 
 Límites conocidos:
 
 - Mientras el servidor está conectado al navegador, las descargas se rechazan en todas las pestañas, incluidas las
   del propio operador, salvo en la breve ventana en torno a un clic o una tecla Intro del servidor. Para descargar
-  un archivo tú mismo, detén el servidor o el cliente MCP; las descargas vuelven a funcionar en cuanto termina la
+  un archivo usted mismo, detenga el servidor o el cliente MCP; las descargas vuelven a funcionar en cuanto termina la
   conexión del servidor.
 - Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga.
 - Aceptar un cuadro de diálogo cuyo mensaje pide un pago, un borrado o un cambio de secreto se rechaza siempre: no
@@ -226,6 +228,9 @@ tal como se desempeñaron realmente; la lista completa está en [CONTRIBUTORS.md
 - **Claude Cloud (Anthropic)**: escribió parte del código en ramas, a partir de instrucciones, revisado antes de cada fusión.
 - **Gemini (Google)**: asesor de arquitectura y sintetizador; dio al proyecto su nombre, **Diwall**, «dique» en bretón.
 - **Space Bunny Free (opencode)**: limpieza y poda del marco de trabajo del proyecto al comienzo del proyecto.
-- **Visión local**: Qwen3-VL (Alibaba), ejecutado mediante Ollama, para la localización y la comparación visuales opcionales.
+- **Muse Spark 1.3 Contributor (Meta, mediante OpenCode)**: primer uso del servidor por un modelo distinto de Claude, en una instancia local de una aplicación web; su informe de campo orientó las correcciones posteriores.
+- **gemini-3.5-flash (Google, mediante OpenCode)**: probó la conexión mediante un agente dedicado: las herramientas solo llegan a ese agente, y su shell pregunta antes de ejecutar.
+- **Muse Spark 1.3 Contributor (Meta, mediante OpenCode)**, de nuevo el 16 de octubre de 2026: la hoja de estilo y la maquetación del sitio del proyecto, elegidas entre varios ensayos; el texto y el comportamiento de las páginas quedaron intactos.
+- **Muse Spark 1.3 Contributor (Meta, mediante OpenCode)**, una vez más el 18 de octubre de 2026: una revisión de las dieciséis páginas francesas del sitio del proyecto y propuestas de redacción en cuatro idiomas, dejadas como borradores.
 
 Licencia: MIT, véase [LICENSE](../../LICENSE).

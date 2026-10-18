@@ -48,10 +48,9 @@ write, and only while the encrypted directory is open.
 
 ## 1. What you need
 
-- Linux. This guide is written for Debian; the project's tests ran on Ubuntu 24.04 (see below).
+- Linux. This guide is written for Debian 13, where the project's tests ran.
 - Python 3.12 or later.
-- A browser of the Chromium family: Google Chrome, Chromium or Brave. The specification of the
-  project asks for version 154 or later. Chrome 136 and later ignore the debugging port on the
+- A browser of the Chromium family: Google Chrome, Chromium or Brave. The server does not check the version of the browser. Chrome 136 and later ignore the debugging port on the
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
@@ -62,30 +61,29 @@ write, and only while the encrypted directory is open.
 - `kdialog` or `zenity` for the confirmation window.
 - `git`, and `ss` (package `iproute2`) for the loopback check.
 
-The package names were checked with `apt-cache policy` on Ubuntu 24.04, the only system available
-to this project; they were not checked on Debian:
+The package names were checked with `apt-cache policy` on Debian 13 on 18 October 2026:
 
 ```
-$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git | grep -E "^[a-z]|Candidate"
+$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
 python3-venv:
-  Candidate: 3.12.3-0ubuntu2.1
+  Candidate: 3.13.5-1
 fuse3:
-  Candidate: 3.14.0-5build1
+  Candidate: 3.17.2-3
 gocryptfs:
-  Candidate: 2.4.0-1ubuntu0.24.04.3
+  Candidate: 2.5.1-2+b1
 kdialog:
-  Candidate: 4:23.08.5-0ubuntu4
+  Candidate: 4:25.04.0-1
 zenity:
-  Candidate: 4.0.1-1build3
+  Candidate: 4.1.90-1
 iproute2:
-  Candidate: 6.1.0-1ubuntu6.4
+  Candidate: 6.15.0-1
 git:
-  Candidate: 1:2.43.0-1ubuntu7.3
+  Candidate: 1:2.47.3-0+deb13u1
+chromium:
+  Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-`apt-cache policy chromium` showed no candidate there, so the browser's package name is not
-given here. The installation command, not run by this project (its environment cannot install
-system packages):
+`chromium` is the browser's package on Debian 13. The installation command, not replayed (it needs root):
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -142,11 +140,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output in the project's environment, with Python 3.12.11 (the counts are those of this revision, 571
-of its tests needing a browser):
+Output on 18 October 2026, on the code of version 0.0.1, with Python 3.12.11 (571 of its tests
+need a browser):
 
 ```
-1812 passed, 1 skipped, 571 deselected, 1 warning in 95.19s (0:01:35)
+1812 passed, 1 skipped, 571 deselected, 1 warning in 89.94s (0:01:29)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -154,14 +152,14 @@ uses; every test passes with it. The skipped test changes the owner of a file, w
 (`tests/test_credentials.py`).
 
 ```
-browser executable: chromium (Chrome/141.0.7390.37)
+browser executable: google-chrome (Chrome/155.0.8059.84)
 server                        0.0.1, configured: True
-browser                       Chrome/141.0.7390.37, attached: True
+browser                       Chrome/155.0.8059.84, attached: True
 encrypted directory           closed_or_absent (encrypted_dir_undetermined), action expected: operator_opens_directory
-tab origin                    http://127.0.0.1:41687
+tab origin                    http://127.0.0.1:38565
 marks                         4
 image                         yes
-tree lines                    9
+tree lines                    10
 redacted_fields               1
 password value in the result  absent
 elements                      1 textbox "User name", 2 textbox "Password", 3 button "Sign in", 4 link "Help"
@@ -178,11 +176,11 @@ server a directory that is not mounted. `--save-image ~/observe.png` writes the 
 the model received.
 
 With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 571 browser tests;
-each starts the browser headless on a blank temporary profile. In the same environment, with Google
+each starts the browser headless on a blank temporary profile. On the same day, with Google
 Chrome 155.0.8059.84 found on the `PATH`:
 
 ```
-2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43)
+2383 passed, 1 skipped, 1 warning in 345.00s (0:05:45)
 ```
 
 Then connect the server to your MCP client, as the next part describes.
@@ -299,9 +297,14 @@ ss -ltn "sport = :9222"
 
 The local address column must show `127.0.0.1:9222` or `[::1]:9222` only. `0.0.0.0:9222`, `*:9222`
 or any other address means anyone who reaches the port controls the browser: close the browser and
-start it again with the command above. `ss` was not available in the project's environment, so no
-real output is shown here; there, Chromium 141 started with `--remote-debugging-port=9222`
-listened on `127.0.0.1:9222` only, as read in `/proc/net/tcp`. The server makes the same check, on
+start it again with the command above. Output on 18 October 2026, with the operator's dedicated browser, started as above with `--remote-debugging-port=9222`:
+
+```
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      10         127.0.0.1:9222      0.0.0.0:*
+```
+
+The server makes the same check, on
 `/proc/net/tcp` and `/proc/net/tcp6`, every time it attaches.
 
 Sign in once to each of your sites in this browser, as you would in your usual browser. The server
@@ -319,10 +322,10 @@ layout at the top of this guide). It never mounts or unmounts the encrypted dire
 `gocryptfs` or `fusermount3`, and never knows its password. When the encrypted directory is closed,
 the server refuses to write; it has no fallback to an unencrypted place.
 
-The project's own environment cannot mount a FUSE volume. On Debian with gocryptfs 2.5.1, a
-throw-away volume was created and mounted with a password file in place of the prompt, and the
-server accepted it (`status` read `mounted`); the commands below, with the prompt, were not run as
-written.
+On Debian with gocryptfs 2.5.1, a throw-away volume was created and mounted with a password file in
+place of the prompt, and the server accepted it (`status` read `mounted`); the commands below, with
+the prompt, were not run as written. The operator's own volume, opened by the operator, served the
+test of the confirmation window on 15 October 2026 (`README.md`).
 
 Create the encrypted directory once. `gocryptfs` prints a master key at this step: write it down
 on paper or keep it in a password manager, never in a file of this disk.
@@ -421,8 +424,7 @@ chmod 700 ~/.config/mcp-server-diwall-browser
 - `browser.family`: `chrome`, `chromium` or `brave`; it tells the server where that browser keeps
   its default profile, which it refuses.
 - `browser.profile_dir`: the `--user-data-dir` of the dedicated profile (absolute path). `status`
-  says in `profile_encrypted` whether this path lies in the open encrypted directory; that is what
-  the profile says, not a proof of where the browser keeps its data.
+  says in `profile_encrypted` whether this path lies in the open encrypted directory; that is what the profile declares; it does not show where the browser keeps its data.
 - `browser.debug_port`: the `--remote-debugging-port`, from 1024 to 65535 (default `9222`).
 - `limits.min_action_delay_ms`: the least time between two actions, from 0 to 60000 (default 250).
 - `limits.max_actions_per_session`: actions allowed to one server process, from 1 to 100000
@@ -949,8 +951,8 @@ What to read before answering:
 - `Montants détectés`: amounts found on the page by a heuristic; it can miss or misread one.
 - `Catégories` and `Signaux`: why the server asks.
 
-A real `kdialog` or `zenity` window was not shown in this project's environment (no display); the
-tests use fake programs in their place.
+A real `kdialog` or `zenity` window was shown and answered by a person on 15 October 2026 (a refusal,
+an acceptance and an expiry: `README.md`); the automated tests use fake programs in their place.
 
 The window belongs to the server, not to the MCP client: the client acts for the model and could
 answer by itself, while the server's window is answered by a person, outside the conversation. The
@@ -1213,7 +1215,7 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   volume (if the file system cannot link, it takes the name first and fills it).
 - A click that the page moves between the second reading of its box and the press, or whose target
   the page covers without moving it or the view, is not caught (see the part on pages that move
-  when the pointer arrives): on a page that scrolled by 1000 CSS pixels a second, 7 of 144 clicks
+  when the pointer arrives): on a page that scrolled by 1000 CSS pixels a second, 6 of 144 clicks
   landed nowhere with no error. Observe again before a second try after a refusal.
 - A node that has no box of its own is taken for hidden, and what lies under it is not shown to the
   model. Measured on Chromium 141: a page whose body had no height because its children were placed
@@ -1224,7 +1226,6 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   of the operator's. The page zoom was measured at 100 to 200 % in the same browser, with the zoom
   written in a blank profile; the zoom of the Ctrl and + keys in a browser that is not headless was
   not.
-- Not tested: a real `kdialog` or `zenity` window answered by a person, the operator's own
-  gocryptfs volume, Brave, Chrome 154 with its profile kept in the encrypted directory, and the
+- Not tested: Brave, Chrome 154 with its profile kept in the encrypted directory, and the
   confirmation asked through a desktop MCP client. Opera 136 with its profile in a throw-away
   gocryptfs volume was attached and observed a page; it is not part of the tested set above.

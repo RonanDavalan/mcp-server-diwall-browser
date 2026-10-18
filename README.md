@@ -12,7 +12,7 @@ and downloads.
 ## Install
 
 On Linux the server ships as native packages. Download the one of your system from the
-[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) page of the repository or from the downloads page of the website, then install it from the
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) page of the repository or from the [install guide of the website](https://mcp.diwall.davalan.fr/guides/install/), then install it from the
 folder that holds it:
 
 | System | Command |
@@ -111,7 +111,7 @@ Tested:
   skipped and 188 were deselected; the three zoom and scale files, 125 passed; all 188 browser tests
   passed; the two download tests and the two tests that replace the unstable one, each alone, 0
   failures in 40 runs. The click tests were not replayed on it.
-- `scripts/smoke_test.py` returns 0 against Chromium 141 and 3 when no browser is found.
+- `scripts/smoke_test.py` returns 0 against Google Chrome 155.0.8059.84 and 3 when no browser is found.
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
   password field of the demo page is under its mask, and the mask goes no further than two pixels
@@ -172,6 +172,11 @@ Tested:
   in that volume and a debugging port on the loopback interface, was attached; the server opened
   a page of a public shopping site, filled its search field, pressed Enter and observed the
   results. The typed text does not appear in the journal.
+- The confirmation window, shown on the operator's workstation and answered by a person on 15 October
+  2026 (revision `873f1ac`), with the operator's own gocryptfs volume mounted and a local payment page,
+  in Opera (which the server read as Chrome 153.0.8010.55): a refusal returned `confirmation_denied` and
+  the page received nothing; an acceptance made the click and the page received one request; with no
+  answer, the request expired after 91 seconds (`confirmation_expired`) and the page received nothing.
 - Claude Code, started from a desktop terminal: `status` through Claude Code read
   `confirmation_channel: native`, so the display reached the server.
 - The server process over standard input and output: it writes nothing but the protocol on its
@@ -179,9 +184,6 @@ Tested:
 
 Not tested:
 
-- A real `kdialog` or `zenity` window: the tests use fake programs in their place.
-- The operator's own gocryptfs volume: the tests simulate the mount table and the directory, and
-  the check above used a throw-away volume.
 - Brave, and Google Chrome builds other than the one the operator ran.
 - The confirmation asked through a desktop MCP client (elicitation): tested with the client of
   the MCP SDK only.
@@ -197,7 +199,6 @@ Not tested:
 - A page that moves after the second lookup of a click and before the press. On a page that scrolls by
   1000 CSS pixels a second, 6 of 144 clicks gave no error and landed nowhere; none landed on another
   button (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
-- A refusal in the confirmation window, answered by a person.
 
 Known limits:
 
@@ -233,6 +234,5 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, again on 16 October 2026: the stylesheet and layout of the project's website, chosen among several trials; the text and the behaviour of the pages were left untouched.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, once more on 18 October 2026: a reading of the sixteen French pages of the project's website and wording proposals in four languages, kept as drafts.
-- **Local vision**: Qwen3-VL (Alibaba), run through Ollama, for the optional visual location and comparison.
 
 License: MIT, see [LICENSE](LICENSE).

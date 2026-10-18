@@ -3,17 +3,17 @@
 Cómo instalar el servidor, preparar el navegador y el directorio cifrado, escribir el perfil del
 operador y responder a cada rechazo. Todos los comandos usan los mismos valores de ejemplo: el
 repositorio clonado en `~/mcp-server-diwall-browser`, el directorio cifrado guardado en el disco en
-`~/Vaults/Main.enc` y abierto en `~/Vaults/Main`, y sitios bajo `example.invalid`. `~` es tu
+`~/Vaults/Main.enc` y abierto en `~/Vaults/Main`, y sitios bajo `example.invalid`. `~` es su
 directorio personal: el shell lo escribe completo en un comando. El servidor y los clientes MCP no
 lo expanden, de modo que los dos archivos de configuración que necesitan una ruta absoluta (el perfil
 del operador, sección 5, y el bloque de un cliente MCP, sección 2.1) los escribe un comando que
-pone en ellos tu directorio personal. Reemplaza los demás valores por los tuyos; cada sección dice
-cuáles te corresponde elegir.
+pone en ellos su directorio personal. Reemplace los demás valores por los suyos; cada sección dice
+cuáles le corresponde elegir.
 
 ## La disposición final
 
 ```
-~/                                                 tu directorio personal
+~/                                                 su directorio personal
 ├── mcp-server-diwall-browser/                     el repositorio; el servidor se ejecuta desde aquí
 │   └── .venv/                                     su entorno virtual; el cliente MCP inicia .venv/bin/python
 ├── .config/mcp-server-diwall-browser/             modo 700
@@ -47,13 +47,11 @@ El papel de cada componente:
 El servidor crea él mismo `journal/`, `evidence/` y `downloads/`, en modo 700, en su primera
 escritura, y solo mientras el directorio cifrado está abierto.
 
-## 1. Lo que necesitas
+## 1. Lo que necesita
 
-- Linux. Esta guía está escrita para Debian; las pruebas del proyecto se ejecutaron en Ubuntu 24.04
-  (véase más abajo).
+- Linux. Esta guía está escrita para Debian 13, donde se ejecutaron las pruebas del proyecto.
 - Python 3.12 o posterior.
-- Un navegador de la familia Chromium: Google Chrome, Chromium o Brave. La especificación del
-  proyecto pide la versión 154 o posterior. Chrome 136 y posteriores ignoran el puerto de depuración
+- Un navegador de la familia Chromium: Google Chrome, Chromium o Brave. El servidor no comprueba la versión del navegador. Chrome 136 y posteriores ignoran el puerto de depuración
   en el perfil predeterminado del navegador, que es una de las razones por las que el servidor
   necesita un perfil dedicado (el proyecto no midió este comportamiento; el servidor rechaza un perfil
   predeterminado en cualquier caso). Las pruebas se ejecutaron en Chromium 141 en el entorno del
@@ -65,36 +63,35 @@ escritura, y solo mientras el directorio cifrado está abierto.
 - `kdialog` o `zenity` para la ventana de confirmación.
 - `git`, y `ss` (paquete `iproute2`) para la comprobación del bucle local.
 
-Los nombres de los paquetes se comprobaron con `apt-cache policy` en Ubuntu 24.04, el único sistema
-del que disponía este proyecto; no se comprobaron en Debian:
+Los nombres de los paquetes se comprobaron con `apt-cache policy` en Debian 13 el 18 de octubre de 2026:
 
 ```
-$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git | grep -E "^[a-z]|Candidate"
+$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
 python3-venv:
-  Candidate: 3.12.3-0ubuntu2.1
+  Candidate: 3.13.5-1
 fuse3:
-  Candidate: 3.14.0-5build1
+  Candidate: 3.17.2-3
 gocryptfs:
-  Candidate: 2.4.0-1ubuntu0.24.04.3
+  Candidate: 2.5.1-2+b1
 kdialog:
-  Candidate: 4:23.08.5-0ubuntu4
+  Candidate: 4:25.04.0-1
 zenity:
-  Candidate: 4.0.1-1build3
+  Candidate: 4.1.90-1
 iproute2:
-  Candidate: 6.1.0-1ubuntu6.4
+  Candidate: 6.15.0-1
 git:
-  Candidate: 1:2.43.0-1ubuntu7.3
+  Candidate: 1:2.47.3-0+deb13u1
+chromium:
+  Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-`apt-cache policy chromium` no mostró allí ningún candidato, así que el nombre del paquete del
-navegador no se da aquí. El comando de instalación, que este proyecto no ejecutó (su entorno no
-puede instalar paquetes del sistema):
+`chromium` es el paquete del navegador en Debian 13. El comando de instalación, que no se repitió (exige root):
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
 ```
 
-Usa `zenity` en lugar de `kdialog` fuera de KDE si lo prefieres.
+Use `zenity` en lugar de `kdialog` fuera de KDE si lo prefiere.
 
 ## 2. Instalación
 
@@ -110,24 +107,24 @@ al clon: el paquete no las entrega. Todo lo que sigue desde la sección 3 es igu
 
 El resto de esta sección es la instalación desde un clon.
 
-Clona el repositorio. Usa la dirección de tu propia copia si trabajas desde una:
+Clone el repositorio. Use la dirección de su propia copia si trabaja desde una:
 
 ```
 git clone https://github.com/RonanDavalan/mcp-server-diwall-browser.git ~/mcp-server-diwall-browser
 cd ~/mcp-server-diwall-browser
 ```
 
-Comprueba la versión de Python:
+Compruebe la versión de Python:
 
 ```
 python3 --version
 ```
 
-Debe imprimir `Python 3.12` o posterior. Si imprime una versión anterior, usa un intérprete por su
+Debe imprimir `Python 3.12` o posterior. Si imprime una versión anterior, use un intérprete por su
 nombre con versión en el comando siguiente, por ejemplo `python3.12` o `python3.13` en lugar de
 `python3`.
 
-Crea el entorno virtual e instala el servidor con sus herramientas de prueba:
+Cree el entorno virtual e instale el servidor con sus herramientas de prueba:
 
 ```
 python3 -m venv .venv
@@ -136,20 +133,20 @@ python3 -m venv .venv
 
 Las versiones que probó este proyecto están en `requirements.lock`.
 
-Comprueba la instalación. El primer comando ejecuta todas las pruebas que no necesitan navegador; el
+Compruebe la instalación. El primer comando ejecuta todas las pruebas que no necesitan navegador; el
 segundo inicia el servidor frente a un navegador propio, con un perfil temporal vacío, y observa una
-página de demostración local. Ninguno toca tu navegador, tu directorio cifrado ni tu perfil de operador.
+página de demostración local. Ninguno toca su navegador, su directorio cifrado ni su perfil de operador.
 
 ```
 .venv/bin/python -m pytest -q -m "not browser"
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Salida en el entorno del proyecto, con Python 3.12.11 (los recuentos son los de esta revisión, 571
-de sus pruebas necesitan un navegador):
+Salida del 18 de octubre de 2026, sobre el código de la versión 0.0.1, con Python 3.12.11 (571 pruebas
+necesitan un navegador):
 
 ```
-1812 passed, 1 skipped, 571 deselected, 1 warning in 95.19s (0:01:35)
+1812 passed, 1 skipped, 571 deselected, 1 warning in 89.94s (0:01:29)
 ```
 
 La advertencia es una `IncompleteFieldDefinitionWarning` de `pydantic_settings`, una biblioteca que
@@ -157,14 +154,14 @@ usa el SDK de MCP; todas las pruebas pasan con ella. La prueba omitida cambia el
 lo que exige ser root (`tests/test_credentials.py`).
 
 ```
-browser executable: chromium (Chrome/141.0.7390.37)
+browser executable: google-chrome (Chrome/155.0.8059.84)
 server                        0.0.1, configured: True
-browser                       Chrome/141.0.7390.37, attached: True
+browser                       Chrome/155.0.8059.84, attached: True
 encrypted directory           closed_or_absent (encrypted_dir_undetermined), action expected: operator_opens_directory
-tab origin                    http://127.0.0.1:41687
+tab origin                    http://127.0.0.1:38565
 marks                         4
 image                         yes
-tree lines                    9
+tree lines                    10
 redacted_fields               1
 password value in the result  absent
 elements                      1 textbox "User name", 2 textbox "Password", 3 button "Sign in", 4 link "Help"
@@ -173,22 +170,22 @@ result: conforming
 
 El puerto de `tab origin` cambia en cada ejecución: la página de demostración se sirve en un puerto libre de
 `127.0.0.1`. La prueba de humo busca `google-chrome`, `google-chrome-stable`, `chromium`,
-`chromium-browser` y `brave-browser` en tu `PATH`, en ese orden. Si no encuentra ninguno, imprime
+`chromium-browser` y `brave-browser` en su `PATH`, en ese orden. Si no encuentra ninguno, imprime
 `smoke test: no Chromium-family browser found (looked for: google-chrome, google-chrome-stable, chromium, chromium-browser, brave-browser)`
 y devuelve 3. Devuelve 0 cuando el resultado es el esperado, y 1 cuando difiere (la línea que
 difiere termina con `<- not as expected`). La línea del directorio cifrado dice `closed_or_absent` a propósito: la prueba de humo da al
 servidor un directorio que no está montado. `--save-image ~/observe.png` escribe la imagen
 que recibió el modelo.
 
-Con un navegador en tu `PATH`, `.venv/bin/python -m pytest -q` ejecuta también las 571 pruebas de navegador;
-cada una inicia el navegador sin interfaz con un perfil temporal vacío. En el mismo entorno, con Google
+Con un navegador en su `PATH`, `.venv/bin/python -m pytest -q` ejecuta también las 571 pruebas de navegador;
+cada una inicia el navegador sin interfaz con un perfil temporal vacío. El mismo día, con Google
 Chrome 155.0.8059.84 en el `PATH`:
 
 ```
-2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43)
+2383 passed, 1 skipped, 1 warning in 345.00s (0:05:45)
 ```
 
-Después conecta el servidor a tu cliente MCP, como describe la parte siguiente.
+Después conecte el servidor a su cliente MCP, como describe la parte siguiente.
 
 ### 2.1 Conectar un cliente MCP
 
@@ -196,13 +193,13 @@ El servidor da al modelo que recibe sus catorce herramientas las manos del opera
 donde el operador tiene la sesión abierta. La configuración del cliente decide qué modelo las recibe,
 y con qué más (un shell, el derecho de escribir archivos). Las tres configuraciones de abajo son para
 OpenCode (se midió la versión 2.0.29); el comando que inicia el servidor y su variable de entorno
-son los del `README.md`, sea cual sea el cliente. Adapta la ruta del clon del
-repositorio, y la ruta del perfil, a las tuyas.
+son los del `README.md`, sea cual sea el cliente. Adapte la ruta del clon del
+repositorio, y la ruta del perfil, a las suyas.
 
 Cada bloque es un trozo de `~/.config/opencode/opencode.jsonc` (el archivo global) o de un
 `opencode.jsonc` en la raíz de un proyecto. La declaración propia del servidor es la misma en las tres.
 El archivo de configuración quiere rutas absolutas y no expande `~`: este comando imprime la
-declaración con tu directorio personal en ella, lista para pegar:
+declaración con su directorio personal en ella, lista para pegar:
 
 ```
 cat <<EOF
@@ -225,7 +222,7 @@ EOF
 
 **Un agente dedicado (recomendado).** El servidor se declara globalmente, sus herramientas se desactivan
 para todos los agentes y se devuelven a un solo agente primario, `navigateur`, cuyo shell y cuyas escrituras de archivos
-piden tu respuesta. Cambias a ese agente cuando quieres navegar, desde cualquier directorio.
+piden su respuesta. Cambia a ese agente cuando quiere navegar, desde cualquier directorio.
 
 ```json
 "tools": {
@@ -248,18 +245,18 @@ piden tu respuesta. Cambias a ese agente cuando quieres navegar, desde cualquier
 ```
 
 Lo que da al modelo: las catorce herramientas solo en el agente `navigateur`, y en ese agente ningún
-shell ni escritura de archivos sin tu respuesta. Todos los demás agentes, en todos los proyectos, no ven ninguna herramienta
+shell ni escritura de archivos sin su respuesta. Todos los demás agentes, en todos los proyectos, no ven ninguna herramienta
 del servidor.
 
 **Un solo proyecto.** La declaración de arriba, sin los bloques `tools` y `agent`, en el
-`opencode.jsonc` del único proyecto donde navegas. Lo que da al modelo: las catorce herramientas
+`opencode.jsonc` del único proyecto donde navega. Lo que da al modelo: las catorce herramientas
 a todos los agentes que se ejecutan en ese directorio, con los permisos que ese agente ya tiene (un shell
 incluido, si el archivo global lo permite); nada en ningún otro lugar.
 
 **Global, siempre activo.** La declaración sola, en el archivo global. Lo que da al modelo: las
 catorce herramientas a todas las sesiones de todos los proyectos y de todos los modelos, incluido un modelo que lee el
-contenido de un repositorio que no es tuyo, con el shell y los derechos de escritura que el archivo global
-conceda. Es la menos segura de las tres; elígela sabiéndolo.
+contenido de un repositorio que no es suyo, con el shell y los derechos de escritura que el archivo global
+conceda. Es la menos segura de las tres; elíjala sabiéndolo.
 
 Lo que se midió (OpenCode 2.0.29, un modelo que no es Claude), con la primera configuración:
 
@@ -269,19 +266,19 @@ Lo que se midió (OpenCode 2.0.29, un modelo que no es Claude), con la primera c
   línea;
 - en un agente primario con los mismos `bash` y `edit` en `ask`, un comando de shell no se ejecutó:
   el modo no interactivo de OpenCode rechaza lo que tendría que preguntar (`permission requested: shell
-  (…); auto-rejecting`). En la interfaz interactiva, la pregunta se te hace a ti.
+  (…); auto-rejecting`). En la interfaz interactiva, la pregunta se le hace a usted.
 
 El proceso hijo del servidor de OpenCode heredó `DISPLAY` y `WAYLAND_DISPLAY` del servicio de OpenCode,
-y `status` leyó `confirmation_channel: native`. Si el tuyo lee `none`, añade la variable
-que da tu escritorio (`echo $DISPLAY`) al bloque `environment` de arriba (sección 9).
+y `status` leyó `confirmation_channel: native`. Si el suyo lee `none`, añada la variable
+que da su escritorio (`echo $DISPLAY`) al bloque `environment` de arriba (sección 9).
 
 ## 3. El perfil dedicado del navegador
 
-El servidor solo se conecta a un navegador iniciado con un perfil propio, nunca con tu perfil
+El servidor solo se conecta a un navegador iniciado con un perfil propio, nunca con su perfil
 habitual. Ese perfil vive en el directorio cifrado, así que el navegador solo puede iniciarse cuando el
 directorio cifrado está abierto (sección 4).
 
-Inicia el navegador con uno de estos comandos, el de tu navegador:
+Inicie el navegador con uno de estos comandos, el de su navegador:
 
 ```
 google-chrome --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome" --remote-debugging-port=9222
@@ -289,31 +286,35 @@ chromium --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-pr
 brave-browser --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/brave" --remote-debugging-port=9222
 ```
 
-Adapta `~/Vaults/Main` al lugar donde abres el directorio cifrado. Los dos valores deben ser
-los de tu perfil de operador: `browser.profile_dir` es el directorio de `--user-data-dir` y
-`browser.debug_port` es el puerto. No añadas nunca `--remote-debugging-address`: el puerto sería
+Adapte `~/Vaults/Main` al lugar donde abre el directorio cifrado. Los dos valores deben ser
+los de su perfil de operador: `browser.profile_dir` es el directorio de `--user-data-dir` y
+`browser.debug_port` es el puerto. No añada nunca `--remote-debugging-address`: el puerto sería
 accesible desde la red, y el servidor se niega a conectarse (`debug_endpoint_not_loopback`).
 
-Comprueba que el puerto escucha solo en la interfaz de bucle local:
+Compruebe que el puerto escucha solo en la interfaz de bucle local:
 
 ```
 ss -ltn "sport = :9222"
 ```
 
 La columna de la dirección local debe mostrar solo `127.0.0.1:9222` o `[::1]:9222`. `0.0.0.0:9222`, `*:9222`
-o cualquier otra dirección significa que quien alcance el puerto controla el navegador: cierra el navegador y
-vuelve a iniciarlo con el comando de arriba. `ss` no estaba disponible en el entorno del proyecto, así que aquí no se muestra
-ninguna salida real; allí, Chromium 141 iniciado con `--remote-debugging-port=9222`
-escuchaba solo en `127.0.0.1:9222`, como se leyó en `/proc/net/tcp`. El servidor hace la misma comprobación, en
+o cualquier otra dirección significa que quien alcance el puerto controla el navegador: cierre el navegador y
+vuelva a iniciarlo con el comando de arriba. Salida del 18 de octubre de 2026, con el navegador dedicado del operador, iniciado como arriba con `--remote-debugging-port=9222`:
+
+```
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      10         127.0.0.1:9222      0.0.0.0:*
+```
+
+El servidor hace la misma comprobación, en
 `/proc/net/tcp` y `/proc/net/tcp6`, cada vez que se conecta.
 
-Inicia sesión una vez en cada uno de tus sitios en este navegador, como lo harías en tu navegador
+Inicie sesión una vez en cada uno de sus sitios en este navegador, como lo haría en su navegador
 habitual. El servidor trabaja en estas sesiones autenticadas; escribe una contraseña solo desde un archivo de credenciales (sección
 6).
 
-Mientras el servidor está conectado, este navegador rechaza todas las descargas, también en tus propias pestañas, salvo
-en la breve ventana en torno a uno de los clics o de las teclas Intro del servidor. Para descargar un archivo tú mismo, detén
-el servidor o el cliente MCP: las descargas vuelven a funcionar en cuanto termina la conexión del servidor.
+Mientras el servidor está conectado, este navegador rechaza todas las descargas, también en sus propias pestañas, salvo
+en la breve ventana en torno a uno de los clics o de las teclas Intro del servidor. Para descargar un archivo usted mismo, detenga el servidor o el cliente MCP: las descargas vuelven a funcionar en cuanto termina la conexión del servidor.
 
 ## 4. El directorio cifrado
 
@@ -322,26 +323,26 @@ disposición al principio de esta guía). Nunca monta ni desmonta el directorio 
 `gocryptfs` ni `fusermount3`, y nunca conoce su contraseña. Cuando el directorio cifrado está cerrado,
 el servidor se niega a escribir; no tiene ningún recurso alternativo en un lugar sin cifrar.
 
-El entorno propio del proyecto no puede montar un volumen FUSE. En Debian con gocryptfs 2.5.1, se creó y
-se montó un volumen desechable con un archivo de contraseña en lugar de la petición interactiva, y el
-servidor lo aceptó (`status` leyó `mounted`); los comandos de abajo, con la petición interactiva, no se ejecutaron tal como
-están escritos.
+En Debian con gocryptfs 2.5.1, se creó y se montó un volumen desechable con un archivo de contraseña en lugar de
+la petición interactiva, y el servidor lo aceptó (`status` leyó `mounted`); los comandos de abajo, con la
+petición interactiva, no se ejecutaron tal como están escritos. El volumen propio del operador, abierto por el
+operador, sirvió para la prueba de la ventana de confirmación del 15 de octubre de 2026 (`README.md`).
 
-Crea el directorio cifrado una sola vez. `gocryptfs` imprime una clave maestra en este paso: anótala
-en papel o guárdala en un gestor de contraseñas, nunca en un archivo de este disco.
+Cree el directorio cifrado una sola vez. `gocryptfs` imprime una clave maestra en este paso: anótela
+en papel o guárdela en un gestor de contraseñas, nunca en un archivo de este disco.
 
 ```
 mkdir -m 700 ~/Vaults ~/Vaults/Main.enc ~/Vaults/Main
 gocryptfs -init ~/Vaults/Main.enc
 ```
 
-Ábrelo:
+Ábralo:
 
 ```
 gocryptfs ~/Vaults/Main.enc ~/Vaults/Main
 ```
 
-La primera vez que esté abierto, crea el directorio del servidor, el directorio de las credenciales y el
+La primera vez que esté abierto, cree el directorio del servidor, el directorio de las credenciales y el
 directorio del perfil del navegador:
 
 ```
@@ -350,18 +351,18 @@ mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser/credentials
 mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser/browser-profile
 ```
 
-Ciérralo en este orden: primero cierra el navegador dedicado, que mantiene archivos abiertos en su perfil,
+Ciérrelo en este orden: primero cierre el navegador dedicado, que mantiene archivos abiertos en su perfil,
 y después desmonta:
 
 ```
 fusermount3 -u ~/Vaults/Main
 ```
 
-No uses nunca `fusermount3 -u -z`: un desmontaje diferido separa el directorio al instante mientras un proceso puede
+No use nunca `fusermount3 -u -z`: un desmontaje diferido separa el directorio al instante mientras un proceso puede
 seguir escribiendo por la ruta antigua, lo que acaba en el directorio sin cifrar que hay debajo.
 
 Se puede usar en lugar de estos comandos una herramienta de escritorio que abra volúmenes gocryptfs; este proyecto
-no ha probado ninguna. Fija `secrets_dir` en el lugar donde abre el volumen y `secrets_crypt_dir` en el lugar donde
+no ha probado ninguna. Fije `secrets_dir` en el lugar donde abre el volumen y `secrets_crypt_dir` en el lugar donde
 guarda los archivos cifrados. El servidor acepta el montaje solo si es un montaje `fuse.gocryptfs`
 del propio usuario del servidor, sin la opción `allow_other`.
 
@@ -373,10 +374,10 @@ la ruta absoluta dada en la variable de entorno `MCP_DIWALL_BROWSER_PROFILE`, qu
 bloque de conexión del `README.md`. El servidor lo lee de nuevo en cada llamada: un cambio
 surte efecto sin reiniciar.
 
-Crea su directorio y escribe el archivo. El servidor quiere rutas absolutas y no expande `~`
-ni `$HOME`: el comando de abajo hace que el shell escriba tu directorio personal en el archivo. Es un ejemplo
-completo, con todas las claves, y el servidor acepta el archivo que escribe. Adapta los orígenes y el navegador
-a los tuyos, y después edita el archivo con tu editor cuando cambien tus valores:
+Cree su directorio y escriba el archivo. El servidor quiere rutas absolutas y no expande `~`
+ni `$HOME`: el comando de abajo hace que el shell escriba su directorio personal en el archivo. Es un ejemplo
+completo, con todas las claves, y el servidor acepta el archivo que escribe. Adapte los orígenes y el navegador
+a los suyos, y después edite el archivo con su editor cuando cambien sus valores:
 
 ```
 mkdir -p -m 700 ~/.config/mcp-server-diwall-browser
@@ -411,15 +412,15 @@ chmod 700 ~/.config/mcp-server-diwall-browser
 - `confirm_each_change`: orígenes de `allowed_origins`, o comodines, donde cada `click`, `fill`,
   `select_option`, tecla Intro y diálogo aceptado pide una confirmación, y no solo los pagos,
   las eliminaciones y los cambios de secreto.
-- `local_model_origins`: orígenes exactos, nunca un comodín, que quieres que trate un modelo que se ejecuta
+- `local_model_origins`: orígenes exactos, nunca un comodín, que usted quiere que trate un modelo que se ejecuta
   en esta máquina. El servidor los muestra en `status` (`local_model_only`) y no hace nada más con
   ellos: no puede saber dónde se ejecuta el modelo.
-- `declarations.local_model_client`: tu declaración de que el cliente MCP ejecuta su modelo en esta
+- `declarations.local_model_client`: su declaración de que el cliente MCP ejecuta su modelo en esta
   máquina.
-- `declarations.client_does_not_auto_confirm`: tu declaración de que el cliente MCP nunca responde a una
+- `declarations.client_does_not_auto_confirm`: su declaración de que el cliente MCP nunca responde a una
   confirmación por sí mismo. Solo con ella puede el servidor pedir una confirmación a través del cliente cuando no se
   puede mostrar ninguna ventana nativa.
-- Las dos declaraciones son afirmaciones tuyas: el servidor no puede comprobarlas, y las muestra en
+- Las dos declaraciones son afirmaciones suyas: el servidor no puede comprobarlas, y las muestra en
   `status` tal como están escritas.
 - `browser.family`: `chrome`, `chromium` o `brave`; le dice al servidor dónde guarda ese navegador
   su perfil predeterminado, que el servidor rechaza.
@@ -465,7 +466,7 @@ directorio en modo 700). Con el directorio cifrado cerrado, no se lee ni se escr
 trabaja como antes; el cambio se escribe una vez que el directorio está abierto.
 
 Es una detección, no una prevención: no añade ninguna confirmación, y quien tenga un shell bajo
-tu cuenta puede editar también el diario. Lee el diario después de una sesión en la que haya estado conectado un cliente con shell
+su cuenta puede editar también el diario. Lea el diario después de una sesión en la que haya estado conectado un cliente con shell
 (sección 8):
 
 ```
@@ -496,10 +497,10 @@ una confirmación incluso cuando una entrada exacta de `allowed_origins` lo nomb
 una confirmación. `status` da las entradas tal como están escritas en el perfil (`https://*.example.invalid`),
 sin expandirlas.
 
-Elige un comodín solo en un dominio cuyos subdominios controles: un subdominio que aloja el contenido de
+Elija un comodín solo en un dominio cuyos subdominios controle: un subdominio que aloja el contenido de
 un tercero transmite ese contenido al modelo. El servidor no tiene ninguna lista de sufijos públicos, así que un
 comodín delante de un sufijo público de dos niveles (uno que termine en `co.uk`, por ejemplo) se acepta y
-te corresponde a ti evitarlo.
+le corresponde a usted evitarlo.
 
 ## 6. Un archivo de credenciales
 
@@ -517,7 +518,7 @@ seguido de `.json`: aquí `account.json`. Sus claves son `allowed_origins` (obli
 }
 ```
 
-Escríbelo con tu editor, nunca con `echo` ni con una redirección del shell, que dejarían la
+Escríbalo con su editor, nunca con `echo` ni con una redirección del shell, que dejarían la
 contraseña en el historial del shell:
 
 ```
@@ -534,17 +535,17 @@ valor lo escribe el servidor y nunca aparece en un resultado.
 
 ### Traspasar un archivo de credenciales de otro formato
 
-Si tus credenciales ya están en un archivo de un formato más antiguo, no las vuelvas a teclear: eso haría pasar
-cada valor por tu editor, por tus ojos y por la sesión del modelo que te dice qué
+Si sus credenciales ya están en un archivo de un formato más antiguo, no las vuelva a teclear: eso haría pasar
+cada valor por su editor, por sus ojos y por la sesión del modelo que le dice qué
 teclear. El formato es un archivo JSON por sitio con las claves `origines_autorisees` (nombres de host en
 minúsculas, sin esquema, sin puerto), `username`, `password`, `totp_cle`, `ntfy_topic` y, opcionalmente,
 `checksum`. El servidor no lo lee: el esquema de arriba sigue siendo estricto, y un archivo así puesto en el
-directorio `credentials/` se rechaza (`credential_invalid`). Un comando que ejecutas tú mismo, en
-tu shell, convierte un archivo dentro de su propio proceso y no muestra ningún valor.
+directorio `credentials/` se rechaza (`credential_invalid`). Un comando que ejecuta usted mismo, en
+su shell, convierte un archivo dentro de su propio proceso y no muestra ningún valor.
 
 El directorio cifrado debe estar abierto. El comando encuentra el perfil del operador como lo hace el servidor:
-la variable `MCP_DIWALL_BROWSER_PROFILE` si está definida en tu shell, y si no el lugar estándar de
-la sección 5. Adapta las rutas y los nombres a los tuyos:
+la variable `MCP_DIWALL_BROWSER_PROFILE` si está definida en su shell, y si no el lugar estándar de
+la sección 5. Adapte las rutas y los nombres a los suyos:
 
 ```
 cd ~/mcp-server-diwall-browser
@@ -572,7 +573,7 @@ Las opciones, y nada más (ningún argumento, variable de entorno ni entrada est
 secreto):
 
 - `--source`: la ruta absoluta del archivo antiguo, que debe estar bajo el directorio donde
-  abriste el directorio cifrado. Obligatoria, con `--name`, salvo que indiques `--source-dir`.
+  abrió el directorio cifrado. Obligatoria, con `--name`, salvo que indique `--source-dir`.
 - `--name`: la etiqueta del archivo nuevo, que pasa a ser `<name>.json` según la regla de nombres de arriba.
   Obligatoria con `--source`.
 - `--origin`: un origen completo, `https://host` o `http://host`, con un puerto si no es el
@@ -586,7 +587,7 @@ secreto):
 En este orden, y un rechazo en cualquier paso no crea ningún archivo:
 
 1. El directorio cifrado está montado, tal como lo comprueba el servidor.
-2. El archivo fuente es un archivo regular tuyo bajo el directorio cifrado, en su dispositivo, sin ningún
+2. El archivo fuente es un archivo regular suyo bajo el directorio cifrado, en su dispositivo, sin ningún
    derecho para el grupo ni para otros (`chmod 600`), al que no se llega por ningún enlace, y de 64 KiB como máximo.
 3. Si tiene un `checksum`, la suma se recalcula y debe ser la misma.
 4. Los orígenes se fijan y se normalizan como lo hace el servidor.
@@ -605,7 +606,7 @@ tras otro, en orden alfabético. Su nombre es el nombre base del archivo sin la 
 (`shop-admin.json` pasa a ser `shop-admin.json`), y sigue la regla de nombres: otro nombre se
 rechaza solo para ese archivo (`name_invalid`). Los orígenes son los del archivo, como `https://<host>`,
 así que cada línea dice `origins_assumed_https`. Un subdirectorio se ignora y no se lee nada de lo que contiene; un
-enlace no se ignora, se rechaza (`source_invalid`), para que lo veas.
+enlace no se ignora, se rechaza (`source_invalid`), para que lo vea.
 
 ```
 cd ~/mcp-server-diwall-browser
@@ -628,25 +629,25 @@ El código de salida es 0 cuando se traspasan todos los archivos y 1 cuando se r
 directorio que no se puede leer en absoluto (no absoluto, inexistente, que no es un directorio, al que se llega por un
 enlace, fuera del directorio cifrado) imprime una línea en la salida de error como para un archivo único,
 y un directorio sin ningún archivo `.json` se rechaza con `source_dir_empty`: es más probable que sea el
-directorio equivocado que una importación de nada. Ejecútalo de nuevo después de corregir un archivo rechazado: un archivo ya
+directorio equivocado que una importación de nada. Ejecútelo de nuevo después de corregir un archivo rechazado: un archivo ya
 traspasado se rechaza con `target_exists`, lo que no cambia nada.
 
 Lo que no hace: no conserva ningún segundo factor, no sobrescribe nada, no lee nada fuera del
 directorio cifrado, no sigue ningún enlace, no elimina nada (el archivo antiguo se queda donde está; quitarlo
-te corresponde a ti), no ejecuta ningún comando `gocryptfs` y no abre ninguna conexión.
+le corresponde a usted), no ejecuta ningún comando `gocryptfs` y no abre ninguna conexión.
 
-Los rechazos, una línea cada uno: `source_invalid` (no absoluto, inexistente, que no es un archivo regular tuyo,
+Los rechazos, una línea cada uno: `source_invalid` (no absoluto, inexistente, que no es un archivo regular suyo,
 al que se llega por un enlace, demasiado grande, que no es un objeto JSON, que repite una clave, un nombre de usuario o una contraseña que
 no es un texto), `source_not_in_volume` (fuera del directorio cifrado o fuera de su dispositivo, incluido un
-enlace que lleva fuera), `source_mode` (derechos para el grupo o para otros: ejecuta `chmod 600` sobre él),
-`checksum_mismatch`, `target_exists <file>`, `name_invalid`, `source_dir_empty`, `origin_invalid` (un origen que diste, o
-nombres de host del archivo antiguo que no son nombres de host simples, cuando no diste ninguno), `nothing_to_carry`,
+enlace que lleva fuera), `source_mode` (derechos para el grupo o para otros: ejecute `chmod 600` sobre él),
+`checksum_mismatch`, `target_exists <file>`, `name_invalid`, `source_dir_empty`, `origin_invalid` (un origen que dio, o
+nombres de host del archivo antiguo que no son nombres de host simples, cuando no dio ninguno), `nothing_to_carry`,
 e `invalid_arguments`. Aparecen también los códigos habituales del servidor: `not_configured` y
 `profile_invalid` (sección 5), `encrypted_dir_closed`, `encrypted_dir_undetermined` y
 `mount_not_gocryptfs` (sección 4), `credential_invalid` (el directorio `credentials/` falta o
 no es privado) y `volume_path_refused` (un enlace en el camino del archivo nuevo).
 
-Para no dejar ningún secreto en el historial del shell, no leas nunca el archivo fuente con `cat`, `jq` ni `grep`.
+Para no dejar ningún secreto en el historial del shell, no lea nunca el archivo fuente con `cat`, `jq` ni `grep`.
 
 ## 7. Lo que ve el modelo y lo que conserva el servidor
 
@@ -705,7 +706,7 @@ un recuento de 0; la tecla Intro de `press_key` en el mismo editor dio un recuen
 
 `observe` lee el valor de un `textarea` y de una zona editable hasta 4000 caracteres, y el valor
 de cualquier otro campo hasta 120 (las líneas del árbol siguen cortadas a 200). Los párrafos de una zona editable
-se leen unidos por un espacio. Repítelo con un navegador en tu `PATH`:
+se leen unidos por un espacio. Repítalo con un navegador en su `PATH`:
 
 ```
 .venv/bin/python -m pytest -q -k editable
@@ -728,13 +729,13 @@ antes y después de la corrección de la escala (Chromium 141, ventana de 1280 �
 Antes de la corrección, a una escala superior a 1, una máscara no cubría su campo. Ahora, a cada una de las tres
 escalas, cada píxel del campo de contraseña está bajo su máscara en la imagen publicada y la máscara no va
 más allá de dos píxeles de él, y cada marca a la vista se dibuja a menos de dos píxeles de su
-elemento. Para repetirlo con un navegador en tu `PATH`:
+elemento. Para repetirlo con un navegador en su `PATH`:
 
 ```
 .venv/bin/python -m pytest -q tests/test_scale_integration.py
 ```
 
-Tu propia pantalla no se midió.
+Su propia pantalla no se midió.
 
 ### Marcas y máscaras a cualquier zoom de página
 
@@ -758,8 +759,7 @@ desplazada de modo que su campo de contraseña quede cerca del borde inferior o 
 de las combinaciones la imagen es la vista entera (un bloque de un color que no se encuentra en ningún otro lugar de la página
 está donde lo pinta el navegador), cada píxel del campo de contraseña está bajo su máscara, y la máscara
 no va más allá de dos píxeles de él. Antes de esto, al 125, 150 y 200 %, la imagen era la parte superior
-izquierda de la vista, el 0 % del campo de contraseña quedaba cubierto y `capture` seguía leyendo `ok`. Para
-repetirlo con un navegador en tu `PATH`:
+izquierda de la vista, el 0 % del campo de contraseña quedaba cubierto y `capture` seguía leyendo `ok`. Para repetirlo con un navegador en su `PATH`:
 
 ```
 .venv/bin/python -m pytest -q tests/test_zoom_integration.py tests/test_zoom_scrolled_integration.py
@@ -811,7 +811,7 @@ en cada dirección, se aceptaba y el clic caía en el banner, en las ocho combin
 búsqueda se pide en el mismo lugar más el desplazamiento de la vista. Un navegador que no declara
 ese desplazamiento da un clic rechazado (`element_obscured`, no se pudo leer la posición de la página)
 y no un clic en el lugar antiguo. Las mediciones están en `docs/JOURNAL.md`. Para repetirlas con un
-navegador en tu `PATH`:
+navegador en su `PATH`:
 
 ```
 .venv/bin/python -m pytest -q -m browser tests/test_click_integration.py
@@ -842,7 +842,7 @@ deja ambos como estaban. En la página que desplaza, los 24 clics se rechazan to
 puesto en su lugar, recibe nada; en una página que muestra un botón sobre el objetivo en el primer
 movimiento, el clic se rechaza y ninguno de los dos botones recibe nada; un segundo clic sobre una nueva observación
 (la página se ha movido y ya no se mueve) cae. Un clic cuesta una lectura del cuadro, una del desplazamiento
-y una búsqueda más que antes; su duración no se midió aparte. Una observación que pides tras
+y una búsqueda más que antes; su duración no se midió aparte. Una observación que pide tras
 un rechazo muestra la página tal como está ahora.
 
 Lo que queda, medido: en la misma página de prueba con un script que desplaza el documento 4 píxeles CSS
@@ -869,25 +869,25 @@ de las partes anteriores, pasaron en Google Chrome 155.0.8059.79 y en Chromium 1
   los constantes escritos en su código.
 - No sube ningún archivo y no abre ningún archivo local.
 - No lee ni escribe el portapapeles.
-- No muestra ni lee las pestañas que abriste tú mismo; solo enumera las pestañas que abrió él, las ventanas
+- No muestra ni lee las pestañas que abrió usted mismo; solo enumera las pestañas que abrió él, las ventanas
   que abrieron sus páginas y las pestañas que una ejecución anterior dejó abiertas.
 - No inicia ni cierra el navegador; sus pestañas quedan abiertas cuando se detiene, y la siguiente ejecución puede
   cerrarlas, no trabajar en ellas (la parte siguiente).
 - Nunca paga, elimina ni cambia un secreto sin una confirmación.
 - Nunca cambia el perfil del operador ni los orígenes permitidos.
 
-Lo que no impide: un modelo que tenga un shell bajo tu cuenta. La lista de sitios, las acciones bloqueadas
+Lo que no impide: un modelo que tenga un shell bajo su cuenta. La lista de sitios, las acciones bloqueadas
 y la vinculación de las credenciales contienen a un modelo que solo tiene las catorce herramientas. Un modelo con
 un shell puede editar `profile.json` (una sesión de OpenCode añadió así un origen a `allowed_origins`,
 y `status` lo leyó en su llamada siguiente), iniciar el servidor desde un script propio y,
 con el directorio cifrado abierto, leer los archivos de credenciales. Un cambio de las tres listas de orígenes
 deja una línea `profile_changed` en el diario y un aviso en `status` (sección 5), que se encuentran a posteriori, y el mismo actor
 puede editar el diario. Lo que limita a ese modelo es la configuración del cliente
-(sección 2.1): da las herramientas a un agente cuyo shell pregunta.
+(sección 2.1): dé las herramientas a un agente cuyo shell pregunta.
 
 ### Las pestañas que dejó abiertas un servidor detenido
 
-Las pestañas del servidor quedan abiertas cuando se detiene: puede que quieras ver lo que dejó una tarea. Un modelo que
+Las pestañas del servidor quedan abiertas cuando se detiene: puede que quiera ver lo que dejó una tarea. Un modelo que
 empieza de nuevo en un proceso nuevo no conocía ninguna de ellas y no podía cerrarlas (en una sola sesión quedaron
 así veinte pestañas). Para que pueda cerrarlas, el servidor escribe en `run/tabs.json` el
 identificador que da el navegador a cada pestaña que abrió, o que abrió una página suya, y lo quita
@@ -896,25 +896,25 @@ dirección, ningún título. Se reemplaza entero, en modo 600, en un directorio 
 
 En su primer `list_tabs`, un proceso nuevo lee el archivo con el directorio cifrado abierto. Una pestaña del
 archivo que todavía existe, y que ningún servidor en ejecución tiene, vuelve con `previous_session` verdadero, un
-`tab_id` nuevo y su origen, leído cuando enumeras:
+`tab_id` nuevo y su origen, leído cuando enumera:
 
 ```
 {"tab_id": "8d3f6a0b19c2e547", "origin": "https://account.example.invalid", "previous_session": true}
 ```
 
 `close_tab` la cierra. Todas las demás herramientas (`observe`, `click`, `navigate` y las restantes) la rechazan con
-`tab_not_owned`, de modo que una sesión que abriste e iniciaste tú nunca la trabaja una posterior: cerrar
+`tab_not_owned`, de modo que una sesión que abrió e inició usted nunca la trabaja una posterior: cerrar
 no es conducir. El identificador del navegador nunca está en un resultado ni en el diario.
 
 - Con el directorio cifrado cerrado, el archivo no se lee ni se escribe, ninguna pestaña vuelve
   como `previous_session`, y el servidor trabaja como antes; las pestañas vuelven en el siguiente `list_tabs`
   una vez que el directorio está abierto.
-- Una pestaña que abriste tú mismo, o que el servidor nunca tuvo, no está nunca en el archivo y no se
-  enumera nunca. Una pestaña que cerraste entretanto se quita del archivo en el listado siguiente.
+- Una pestaña que abrió usted mismo, o que el servidor nunca tuvo, no está nunca en el archivo y no se
+  enumera nunca. Una pestaña que cerró entretanto se quita del archivo en el listado siguiente.
 - Un servidor que sigue en ejecución conserva sus pestañas: el archivo nombra el proceso que tiene cada una, y
   un proceso que ya no existe, o cuyo número tomó otro programa, ya no las tiene.
 - Dos servidores que escriben en el mismo instante pueden perder una entrada: esa pestaña queda abierta y no se
-  enumera. Ciérrala tú mismo. Esto se lee del código (el archivo se lee, se cambia y se reemplaza, sin
+  enumera. Ciérrela usted mismo. Esto se lee del código (el archivo se lee, se cambia y se reemplaza, sin
   ningún bloqueo); no se midió.
 - Medido en Google Chrome 155.0.8059.79 (`tests/test_previous_tabs_integration.py`): un primer
   proceso abre tres pestañas y se detiene; un segundo enumera tres pestañas `previous_session` de un solo origen y
@@ -923,7 +923,7 @@ no es conducir. El identificador del navegador nunca está en un resultado ni en
 ## 9. La confirmación
 
 Antes de un pago, una eliminación irreversible o un cambio de secreto (y antes de cada cambio en un
-origen de `confirm_each_change`), el servidor abre una ventana en tu pantalla, titulada
+origen de `confirm_each_change`), el servidor abre una ventana en su pantalla, titulada
 `Confirmation du serveur MCP`, con dos botones, `Autoriser` y `Refuser`. El rechazo es el botón
 predeterminado cuando la herramienta de ventanas ofrece esa elección. La ventana espera 90 segundos y después cuenta
 como falta de respuesta (`confirmation_expired`). Una respuesta cubre una sola acción.
@@ -943,20 +943,20 @@ Signaux : vocabulary_payment, card_field_on_page, card_field_in_form
 
 Lo que hay que leer antes de responder:
 
-- `Origine`: ¿es el sitio que esperas?
+- `Origine`: ¿es el sitio que espera?
 - `Outil` y `geste`: lo que el modelo está a punto de hacer.
 - `Texte tiré de la page`: la etiqueta del elemento, escrita por la página; una página hostil puede mentir.
-- `Cible du formulaire`: adónde envía sus datos el formulario; un origen que no esperas es un motivo
+- `Cible du formulaire`: adónde envía sus datos el formulario; un origen que no espera es un motivo
   para rechazar.
 - `Montants détectés`: importes que una heurística encontró en la página; puede dejar escapar uno o leerlo mal.
 - `Catégories` y `Signaux`: por qué pregunta el servidor.
 
-En el entorno de este proyecto no se mostró una ventana real de `kdialog` ni de `zenity` (no hay pantalla);
-las pruebas usan programas simulados en su lugar.
+Una ventana real de `kdialog` o `zenity` se mostró y una persona la respondió el 15 de octubre de 2026 (un
+rechazo, una aceptación y una caducidad: `README.md`); las pruebas automáticas usan programas simulados en su lugar.
 
 La ventana pertenece al servidor, no al cliente MCP: el cliente actúa por el modelo y podría
 responder por sí mismo, mientras que la ventana del servidor la responde una persona, fuera de la conversación. El
-servidor pregunta a través del cliente solo si declaraste `client_does_not_auto_confirm` y no se puede
+servidor pregunta a través del cliente solo si declaró `client_does_not_auto_confirm` y no se puede
 mostrar ninguna ventana.
 
 La ventana necesita una pantalla: `DISPLAY` o `WAYLAND_DISPLAY` en el entorno del proceso del servidor.
@@ -966,105 +966,105 @@ confirmación). El cliente propio del SDK de MCP inicia un servidor solo con `HO
 `SHELL`, `TERM` y `USER` (se leyó en su código fuente, versión 1.25.0). Claude Code, iniciado desde un terminal de
 escritorio, pasó la pantalla: `status` leyó `native`; lo que pasan otros clientes no está
 confirmado. Si `status` dice `none` mientras `kdialog` o `zenity` está instalado, añade la variable al
-bloque `env` de la conexión, por ejemplo `"DISPLAY": ":0"`; `echo $DISPLAY` en tu sesión de
-escritorio da tu valor.
+bloque `env` de la conexión, por ejemplo `"DISPLAY": ":0"`; `echo $DISPLAY` en su sesión de
+escritorio da su valor.
 
 ## 10. Copias de seguridad
 
 El directorio cifrado abierto no debe entrar en ninguna copia de seguridad: una copia de `~/Vaults/Main` contendría
-tus credenciales, tu diario y tus capturas sin cifrar. Exclúyelo por el límite del sistema de archivos, por ejemplo
-`rsync --one-file-system`, o excluyendo el directorio en tu herramienta de copia. El directorio cifrado
-en el disco, `~/Vaults/Main.enc`, puede copiarse en otro lugar. Guarda la clave maestra
+sus credenciales, su diario y sus capturas sin cifrar. Exclúyalo por el límite del sistema de archivos, por ejemplo
+`rsync --one-file-system`, o excluyendo el directorio en su herramienta de copia. El directorio cifrado
+en el disco, `~/Vaults/Main.enc`, puede copiarse en otro lugar. Guarde la clave maestra
 que imprimió `gocryptfs -init` fuera de este disco.
 
-Este proyecto no conoce tu herramienta de copia: comprueba la exclusión en su configuración.
+Este proyecto no conoce su herramienta de copia: compruebe la exclusión en su configuración.
 
 ## 11. Solución de problemas
 
-Para conocer la versión del servidor, llama a `status` y lee `server_version`. La versión que el servidor
+Para conocer la versión del servidor, llame a `status` y lea `server_version`. La versión que el servidor
 anuncia cuando se abre una sesión es la del SDK de MCP (`1.25.0`), no la del servidor: medido en
 la sesión de este proyecto, el anuncio leía `mcp-server-diwall-browser 1.25.0` mientras `status` decía
 `0.0.1`.
 
 Cada rechazo tiene un código y un mensaje para el operador, en francés, en `server.error`. Cuando
-`action_expected` está definido, el paso siguiente es tuyo o de esa herramienta. Los mensajes de abajo son los del
-código, con los valores de ejemplo en lugar de las partes variables; `~` representa tu directorio
+`action_expected` está definido, el paso siguiente es suyo o de esa herramienta. Los mensajes de abajo son los del
+código, con los valores de ejemplo en lugar de las partes variables; `~` representa su directorio
 personal, que el servidor escribe completo.
 
 `not_configured`: no se encuentra ningún perfil de operador, o falta una clave obligatoria.
 `profil de l'opérateur introuvable : le fournir dans le fichier ~/.config/mcp-server-diwall-browser/profile.json (mode 600, répertoire 700) ou désigner un fichier par la variable d'environnement MCP_DIWALL_BROWSER_PROFILE (chemin absolu)`
-o `valeur obligatoire absente du profil : browser ; …`. Escribe el perfil del operador (sección 5); `status` muestra `configured: false` y dónde ponerlo.
+o `valeur obligatoire absente du profil : browser ; …`. Escriba el perfil del operador (sección 5); `status` muestra `configured: false` y dónde ponerlo.
 
 `profile_invalid`: el perfil del operador no se puede usar tal como está escrito; el mensaje dice dónde. Por
 ejemplo `le profil ~/.config/mcp-server-diwall-browser/profile.json est lisible par d'autres : corriger avec : chmod 600 ~/.config/mcp-server-diwall-browser/profile.json`,
 `le répertoire du profil ~/.config/mcp-server-diwall-browser n'est pas privé : corriger avec : chmod 700 ~/.config/mcp-server-diwall-browser`,
 `le profil n'est pas un document JSON valide (clés en double comprises)`,
 `profil refusé : browser.debug_port (…)`, `profil refusé : allowed_origins[0] (…)`,
-`la variable MCP_DIWALL_BROWSER_PROFILE doit désigner un chemin absolu`. Ejecuta el comando que da el
-mensaje, o corrige la clave que nombra.
+`la variable MCP_DIWALL_BROWSER_PROFILE doit désigner un chemin absolu`. Ejecute el comando que da el
+mensaje, o corrija la clave que nombra.
 
 `redlist_in_profile`: `le profil contient la clé « payment » : la liste rouge n'est pas configurable, retirer cette clé`.
-Quita esa clave del perfil del operador.
+Quite esa clave del perfil del operador.
 
 `profile_dir_is_default`: `le profil déclaré (browser.profile_dir) est le répertoire de données par défaut du navigateur ou se trouve dedans : le serveur ne s'attache jamais au profil par défaut de l'opérateur ; créer un répertoire dédié et lancer le navigateur avec --user-data-dir=<ce répertoire>`.
-Usa el perfil dedicado de la sección 3, en `browser.profile_dir` y en la línea de comandos del navegador.
+Use el perfil dedicado de la sección 3, en `browser.profile_dir` y en la línea de comandos del navegador.
 
 `debug_endpoint_not_loopback`: `le port de débogage du navigateur est joignable hors de la boucle locale : quiconque l'atteint prend le contrôle du navigateur ; l'opérateur doit relancer le navigateur sans --remote-debugging-address`.
-Cierra el navegador, vuelve a iniciarlo con el comando de la sección 3 y comprueba con
+Cierre el navegador, vuelva a iniciarlo con el comando de la sección 3 y compruebe con
 `ss -ltn "sport = :9222"`.
 
 `debug_endpoint_undetermined`: `le serveur ne peut pas vérifier que le port de débogage n'écoute qu'en boucle locale : refus par précaution`.
-El servidor no pudo leer `/proc/net/tcp`, ni `/proc/net/tcp6` en un sistema con IPv6; comprueba que
-`cat /proc/net/tcp /proc/net/tcp6` funciona para tu usuario.
+El servidor no pudo leer `/proc/net/tcp`, ni `/proc/net/tcp6` en un sistema con IPv6; compruebe que
+`cat /proc/net/tcp /proc/net/tcp6` funciona para su usuario.
 
 `browser_unreachable`: `le navigateur ne répond pas sur le port de débogage du profil : l'opérateur doit le lancer avec --remote-debugging-port=<port> et --user-data-dir=<profil dédié>`,
 o `le navigateur ne répond pas : vérifier qu'il est lancé avec le port de débogage du profil`.
-Inicia el navegador (sección 3) con el puerto de `browser.debug_port`.
+Inicie el navegador (sección 3) con el puerto de `browser.debug_port`.
 
 `encrypted_dir_closed` y `encrypted_dir_undetermined`: `le répertoire chiffré est fermé ou non confirmé : l'opérateur doit l'ouvrir, puis relancer`
-(`action_expected`: `operator_opens_directory`). Abre el directorio cifrado (sección 4) y pide después
+(`action_expected`: `operator_opens_directory`). Abra el directorio cifrado (sección 4) y pida después
 al modelo que lo intente de nuevo. Si `secrets_crypt_dir` no contiene ningún volumen, el mensaje es
 `le répertoire chiffré n'est pas confirmé : le répertoire chiffré déclaré dans le profil (secrets_crypt_dir) ne porte pas de volume initialisé ; l'opérateur doit vérifier le profil`:
-corrige `secrets_crypt_dir`.
+corrija `secrets_crypt_dir`.
 
 `mount_not_gocryptfs`: `le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur seul : refus par précaution`.
 Hay otra cosa montada en `secrets_dir`, o el volumen lo monta otro usuario o con
-`allow_other`. Comprueba con `findmnt ~/Vaults/Main`; desmóntalo y ábrelo de nuevo como en la
+`allow_other`. Compruebe con `findmnt ~/Vaults/Main`; desmóntelo y ábralo de nuevo como en la
 sección 4.
 
 `mount_unreadable`: `l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution`.
-El servidor no pudo leer `/proc/self/mountinfo` ni el estado del directorio; comprueba que
-`cat /proc/self/mountinfo` funciona para tu usuario.
+El servidor no pudo leer `/proc/self/mountinfo` ni el estado del directorio; compruebe que
+`cat /proc/self/mountinfo` funciona para su usuario.
 
 `project_root_missing`: `le répertoire chiffré est ouvert mais le sous-répertoire du projet n'existe pas : l'opérateur doit le créer (mkdir -m 700 "<secrets_dir>/mcp-server-diwall-browser"), puis relancer`.
-Ejecuta `mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser`.
+Ejecute `mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser`.
 
 `volume_path_refused`: `un répertoire du volume chiffré n'est pas privé (mode 700, propriétaire du serveur) : refus par précaution`,
 `un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution` o
-`un chemin du répertoire chiffré mène hors du volume : refus par précaution`. Da a los
+`un chemin du répertoire chiffré mène hors du volume : refus par précaution`. Dé a los
 directorios del servidor el modo 700 (`chmod 700 ~/Vaults/Main/mcp-server-diwall-browser`, y lo mismo
 para el subdirectorio nombrado en `mount_reason`), y reemplaza todo enlace simbólico por un directorio
 real.
 
 `origin_not_allowed`: `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
 o, para una acción, `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Añade el origen, o un comodín de subdominio (sección 5), a `allowed_origins` si quieres que el servidor
+Añada el origen, o un comodín de subdominio (sección 5), a `allowed_origins` si quiere que el servidor
 trabaje allí.
 
 `forbidden_scheme`: `seules les adresses http et https peuvent être ouvertes`. Nada que hacer: el
 servidor no abre ninguna dirección `file:`, `javascript:` ni de otro tipo.
 
 `tab_not_owned`: `cet onglet n'existe pas, est fermé, ou n'a pas été ouvert par le serveur : utiliser un onglet de la liste du serveur ou en ouvrir un`.
-El modelo debe llamar a `list_tabs` o `open_tab`. El servidor nunca trabaja en una pestaña que abriste tú. Para una pestaña
+El modelo debe llamar a `list_tabs` o `open_tab`. El servidor nunca trabaja en una pestaña que abrió usted. Para una pestaña
 que una ejecución anterior dejó abierta, el mensaje es `cet onglet a été laissé ouvert par une session précédente du serveur : il ne peut être que fermé (close_tab) ; pour travailler, ouvrir un onglet avec open_tab`.
 
 `navigation_failed`: `la navigation a échoué (net::ERR_CONNECTION_REFUSED)` (el error del navegador, aquí para un puerto en el que
-no escucha nada) o `adresse refusée (…)`. Comprueba la dirección y tu red en el navegador
+no escucha nada) o `adresse refusée (…)`. Compruebe la dirección y su red en el navegador
 dedicado.
 
 `snapshot_stale`: `la page a changé depuis l'observation : observer à nouveau avant d'agir`, o
 `cet instantané n'existe plus ou n'est pas le dernier : observer à nouveau la page`. El modelo
-observa de nuevo; nada que hacer por tu parte.
+observa de nuevo; nada que hacer por su parte.
 
 `element_stale`: `cet élément n'est plus celui de l'observation : observer à nouveau avant d'agir`,
 `ce repère n'existe pas dans l'instantané : observer à nouveau avant d'agir`, o
@@ -1074,7 +1074,7 @@ de nuevo.
 `element_obscured`: `un autre élément recouvre la cible à cet endroit : rien n'a été cliqué`,
 `le curseur n'est pas dans l'élément visé : rien n'a été saisi`, o
 `une boîte de dialogue est ouverte dans cet onglet : la traiter (handle_dialog) avant toute autre action`
-(`action_expected`: `handle_dialog`). Cierra lo que cubre el elemento (un banner, una ventana emergente) o deja que el
+(`action_expected`: `handle_dialog`). Cierre lo que cubre el elemento (un banner, una ventana emergente) o deje que el
 modelo responda al diálogo. Un clic se rechaza también así cuando el navegador
 no da ningún cuadro para el elemento (un error de protocolo al leerlo, antes o después de que el puntero se mueva);
 el servidor no lo intenta de nuevo por sí mismo, el modelo observa de nuevo.
@@ -1094,21 +1094,21 @@ El modelo observa de nuevo.
 
 `capture_unavailable`: `l'image n'est pas publiée : un masque n'a pas pu être posé`. No se pudo hacer ninguna imagen con
 todas las máscaras en su sitio, así que no se publica ni se conserva ninguna como captura. Aceptar un diálogo
-que pide un pago, una eliminación o un cambio de secreto acaba también aquí: responde tú mismo a ese diálogo en el navegador. Una imagen en la que no se puede confiar para mostrar la vista sobre la que están puestas las máscaras (ningún
+que pide un pago, una eliminación o un cambio de secreto acaba también aquí: responda usted mismo a ese diálogo en el navegador. Una imagen en la que no se puede confiar para mostrar la vista sobre la que están puestas las máscaras (ningún
 zoom de página utilizable, un zoom que cambió, una imagen de un tamaño distinto del de la vista) acaba igual:
 `observe` lee `capture: unavailable` y sirve su árbol, y `save_evidence` se rechaza con este
 código.
 
 `sensitive_value_refused`: `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
-Escribe un archivo de credenciales para este origen (sección 6).
+Escriba un archivo de credenciales para este origen (sección 6).
 
 `credential_not_bound`: `aucun identifiant lié à l'origine https://account.example.invalid : un fichier d'identifiants doit lister cette origine dans allowed_origins`
 (la redacción de la segunda parte depende de la petición), o
-`la page n'a pas d'origine web : aucun identifiant n'y est saisi`. Añade el origen exacto a
+`la page n'a pas d'origine web : aucun identifiant n'y est saisi`. Añada el origen exacto a
 `allowed_origins` del archivo de credenciales correcto.
 
 `credential_ambiguous`: `plusieurs fichiers d'identifiants sont liés à l'origine https://account.example.invalid : account.json, account-admin.json`.
-El modelo nombra un archivo en `credential_ref`; o conserva un solo archivo por origen.
+El modelo nombra un archivo en `credential_ref`; o conserve un solo archivo por origen.
 
 `credential_invalid`: `fichier d'identifiants « account.json » refusé (bad_mode) : corriger avec : chmod 600 account.json`
 (también `bad_origin` cuando una entrada es un comodín: una credencial está ligada a orígenes exactos);
@@ -1116,32 +1116,32 @@ el motivo entre paréntesis es uno de `bad_mode`, `bad_owner`, `not_regular_file
 `not_json`, `unknown_keys`, `missing_allowed_origins`, `bad_origin`, `no_username_or_password`,
 `key_missing`. Para el directorio:
 `répertoire d'identifiants « credentials » refusé (bad_mode) : corriger avec : chmod 700 credentials`.
-Ejecuta el comando dado, en `~/Vaults/Main/mcp-server-diwall-browser/credentials/`, o
+Ejecute el comando dado, en `~/Vaults/Main/mcp-server-diwall-browser/credentials/`, o
 corrige el archivo como dice la sección 6.
 
 `redlist_refused`: declarado entre los códigos; ninguna parte del servidor lo devuelve en esta revisión.
 
-`confirmation_denied`: `l'opérateur a refusé l'action : rien n'a été exécuté`. Lo rechazaste tú; el
+`confirmation_denied`: `l'opérateur a refusé l'action : rien n'a été exécuté`. Lo rechazó usted; el
 modelo no debe volver a pedirlo.
 
 `confirmation_expired`: `la confirmation n'a pas été donnée dans le délai : rien n'a été exécuté`.
 Nadie respondió en 90 segundos.
 
 `confirmation_unavailable`: `aucune fenêtre de confirmation ne peut être ouverte (kdialog ou zenity et un affichage sont requis) : rien n'a été exécuté`
-(`action_expected`: `operator_installs_kdialog_or_zenity`). Instala `kdialog` o `zenity`
-(`sudo apt install kdialog`), y da al servidor una pantalla (sección 9).
+(`action_expected`: `operator_installs_kdialog_or_zenity`). Instale `kdialog` o `zenity`
+(`sudo apt install kdialog`), y dé al servidor una pantalla (sección 9).
 
 `limit_reached`: `le plafond de la session est atteint (actions) : le serveur n'agit plus ; l'opérateur relance le serveur pour repartir, ou relève le plafond dans son profil`
-(o `(pages)`; `action_expected`: `operator_restarts_or_raises_limit`). Reinicia el cliente MCP, o
-sube `limits.max_actions_per_session` o `limits.max_pages_per_session`. Una llamada rechazada antes de
+(o `(pages)`; `action_expected`: `operator_restarts_or_raises_limit`). Reinicie el cliente MCP, o
+suba `limits.max_actions_per_session` o `limits.max_pages_per_session`. Una llamada rechazada antes de
 llegar al navegador no cuenta contra los topes.
 
 `journal_unavailable`: `le journal d'audit ne peut pas être écrit : action refusée par précaution`.
-Comprueba que el directorio cifrado está abierto y que
-`~/Vaults/Main/mcp-server-diwall-browser/journal` es tuyo, en modo 700.
+Compruebe que el directorio cifrado está abierto y que
+`~/Vaults/Main/mcp-server-diwall-browser/journal` es suyo, en modo 700.
 
 `wait_timeout`: `la condition attendue n'est pas apparue dans le délai`. Lo que el modelo esperaba
-no llegó; nada que hacer por tu parte. Cuando esperó un texto o un elemento, `server.wait` dice lo que hacía
+no llegó; nada que hacer por su parte. Cuando esperó un texto o un elemento, `server.wait` dice lo que hacía
 la página mientras tanto, en cuatro valores y ningún texto de la página: `tree_lines_start` y
 `tree_lines_end` (las líneas del árbol en la primera y en la última lectura, cada 300 ms),
 `changed` (verdadero si el árbol difirió entre dos lecturas sucesivas) y `busy` (el número de
@@ -1164,17 +1164,17 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 
 ## 12. Límites conocidos
 
-- Mientras el servidor está conectado, el navegador rechaza todas las descargas, también en tus propias pestañas, salvo
-  en torno a uno de los clics o de las teclas Intro del servidor; detén el servidor o el cliente MCP para descargar
-  tú mismo.
-- Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga; descárgala
-  tú mismo.
+- Mientras el servidor está conectado, el navegador rechaza todas las descargas, también en sus propias pestañas, salvo
+  en torno a uno de los clics o de las teclas Intro del servidor; detenga el servidor o el cliente MCP para descargar
+  usted mismo.
+- Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga; descárguela
+  usted mismo.
 - Aceptar un diálogo cuyo mensaje pide un pago, una eliminación o un cambio de secreto se rechaza siempre
-  (`capture_unavailable`): no se puede tomar ninguna captura mientras hay un diálogo abierto. Responde a él
-  tú mismo.
+  (`capture_unavailable`): no se puede tomar ninguna captura mientras hay un diálogo abierto. Responda a él
+  usted mismo.
 - Mientras hay un diálogo abierto, toda otra acción en esa pestaña se rechaza de inmediato (`element_obscured`).
 - La visibilidad es aproximada: el servidor no calcula el contraste ni el recorte por `overflow`, así que un texto
-  que no puedes leer puede llegar igualmente al modelo.
+  que usted no puede leer puede llegar igualmente al modelo.
 - Una observación contiene como máximo 150 marcas y 400 líneas del árbol (`marks_truncated`,
   `tree_truncated`). Cuando una página tiene más, el servidor conserva primero lo que pertenece a una capa por encima de la
   página, con todo lo que contiene: un diálogo, un nodo modal, o un nodo fijo o pegajoso que pinta sobre
@@ -1199,7 +1199,7 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 - Un cliente que da un shell al modelo levanta la protección del perfil: el modelo puede editar el
   perfil del operador y leer los archivos de credenciales del directorio cifrado abierto. El servidor no
   lo impide; solo escribe `profile_changed` tras el cambio de una lista de orígenes (sección 5), que
-  ese mismo shell puede borrar del diario. Usa el agente dedicado de la sección 2.1.
+  ese mismo shell puede borrar del diario. Use el agente dedicado de la sección 2.1.
 - `local_model_origins` y las dos declaraciones se muestran en `status` y no cambian nada más.
 - `profile_encrypted` en `status` dice dónde está el perfil declarado, no dónde
   guarda el navegador sus datos.
@@ -1214,8 +1214,8 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
   real (si el sistema de archivos no puede enlazar, toma primero el nombre y lo rellena).
 - Un clic que la página mueve entre la segunda lectura de su cuadro y la pulsación, o cuyo objetivo
   la página cubre sin moverlo ni mover la vista, no se detecta (véase la parte sobre las páginas que se mueven
-  cuando llega el puntero): en una página que se desplazaba 1000 píxeles CSS por segundo, 7 de 144 clics
-  no cayeron en ninguna parte y sin ningún error. Observa de nuevo antes de un segundo intento tras un rechazo.
+  cuando llega el puntero): en una página que se desplazaba 1000 píxeles CSS por segundo, 6 de 144 clics
+  no cayeron en ninguna parte y sin ningún error. Observe de nuevo antes de un segundo intento tras un rechazo.
 - Un nodo que no tiene cuadro propio se toma por oculto, y lo que hay bajo él no se muestra al
   modelo. Medido en Chromium 141: una página cuyo cuerpo no tenía altura porque sus hijos estaban colocados
   fuera del flujo no dio ninguna marca, y un envoltorio sin altura que contenía un diálogo fijo a la vista dio
@@ -1225,7 +1225,6 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
   del operador. El zoom de página se midió del 100 al 200 % en el mismo navegador, con el zoom
   escrito en un perfil vacío; el zoom de las teclas Ctrl y + en un navegador que no es sin interfaz no se
   midió.
-- No probado: una ventana real de `kdialog` o `zenity` respondida por una persona, el volumen
-  gocryptfs propio del operador, Brave, Chrome 154 con su perfil guardado en el directorio cifrado, y la
+- No probado: Brave, Chrome 154 con su perfil guardado en el directorio cifrado, y la
   confirmación pedida a través de un cliente MCP de escritorio. Opera 136 con su perfil en un volumen
   gocryptfs desechable se conectó y observó una página; no forma parte del conjunto probado de arriba.

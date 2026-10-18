@@ -12,7 +12,7 @@ und Downloads.
 ## Installieren
 
 Unter Linux wird der Server als natives Paket geliefert. Laden Sie das Paket Ihres Systems von der Seite
-[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) des Repositorys oder von der Download-Seite der Website herunter und installieren Sie es
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) des Repositorys oder aus der [Installationsanleitung der Website](https://mcp.diwall.davalan.fr/de/anleitungen/installieren/) herunter und installieren Sie es
 aus dem Ordner, der es enthält:
 
 | System | Befehl |
@@ -111,25 +111,25 @@ Getestet:
   Skalierungsdateien, 125 bestanden; alle 188 Browser-Tests bestanden; die beiden Download-Tests und die beiden
   Tests, die den instabilen ersetzen, einzeln, 0 Fehlschläge in je 40 Läufen. Die Klick-Tests wurden damit nicht
   wiederholt.
-- `scripts/smoke_test.py` liefert 0 gegen Chromium 141 und 3, wenn kein Browser gefunden wird.
+- `scripts/smoke_test.py` liefert 0 gegen Google Chrome 155.0.8059.84 und 3, wenn kein Browser gefunden wird.
 - Die Markierungen und die Masken bei einer Bildschirmskalierung von 1, 1,5 und 2, auf einem Chromium 141 ohne
   Oberfläche: Der Rahmen jeder sichtbaren Markierung liegt innerhalb von zwei Pixeln des Rahmens, den der Browser
   selbst angibt, jedes Pixel des Passwortfelds der Demoseite liegt unter seiner Maske, und die Maske reicht nicht
   mehr als zwei Pixel darüber hinaus (`tests/test_scale_integration.py`). Vor der Korrektur deckte eine Maske ihr
   Feld bei einer Skalierung über 1 nicht ab. Ein echter Bildschirm bei 1,5 wurde nicht gemessen.
-- Der Seitenzoom, bei 100, 125, 150 und 200 % und bei Bildschirmskalierungen von 1 und 1,5, auf einem Chromium
+- Der Seitenzoom, bei 100, 125, 150 und 200 % und bei Bildschirmskalierungen von 1 und 1,5, auf einem Chromium
   141 ohne Oberfläche, dessen leeres Profil den Zoom als Standard hält: Das Bild, das das Modell erhält, ist die
   ganze Ansicht, das Passwortfeld der Demoseite liegt unter seiner Maske, ebenso das Feld einer Seite, die so
   gescrollt ist, dass es nahe am unteren Rand oder in der Mitte der Ansicht liegt; die Maske reicht nicht mehr als
   zwei Pixel über das Feld hinaus, und in den 16 gemessenen Platzierungen lag keine Kante einer Maske innerhalb
   ihres Felds (`tests/test_zoom_integration.py`, `tests/test_zoom_scrolled_integration.py`). Vor der Korrektur
-  waren bei 125, 150 und 200 % 0 % des Felds bedeckt, und `capture` meldete `ok`. Kein Bild wird veröffentlicht
+  waren bei 125, 150 und 200 % 0 % des Felds bedeckt, und `capture` meldete `ok`. Kein Bild wird veröffentlicht
   (`capture` meldet `unavailable`, der Baum wird weiterhin geliefert), wenn der Browser keinen brauchbaren Zoom
   liefert, wenn sich der Zoom während der Aufnahme ändert oder wenn das Bild auf einer der Achsen mehr als zwei
   Pixel von der Größe der Ansicht abweicht (`tests/test_perception_zoom.py`, das keinen Browser braucht). Unter
   Chrome 154 maß der Bediener die Größe des zugeschnittenen Bilds, wie der Browser sie liest (die Ansicht bei
-  jedem Zoom, bei 125 % ein Pixel zu wenig in der Höhe); die Zoom-Tests wurden später damit wiederholt (unten).
-- Ein Klick des Servers trifft sein Ziel bei Seitenzooms von 100, 125, 150 und 200 % und Bildschirmskalierungen
+  jedem Zoom, bei 125 % ein Pixel zu wenig in der Höhe); die Zoom-Tests wurden später damit wiederholt (unten).
+- Ein Klick des Servers trifft sein Ziel bei Seitenzooms von 100, 125, 150 und 200 % und Bildschirmskalierungen
   von 1 und 1,5, auf einem Chromium 141 ohne Oberfläche, dessen leeres Profil den Zoom als Standard hält. Der
   Klick ist der des Servers (`Actions.click`, mit seiner Sperre und seinen Grenzen); die Testseite zählt, was
   jeder ihrer Buttons empfängt, und eine getrennte Sitzung liest die Zähler. Bei jeder der acht Kombinationen
@@ -174,6 +174,12 @@ Getestet:
   Volume und einem Debugging-Port auf der Loopback-Schnittstelle, wurde angebunden; der Server öffnete eine Seite
   eines öffentlichen Einkaufsportals, füllte dessen Suchfeld, drückte die Eingabetaste und beobachtete die
   Ergebnisse. Der getippte Text erscheint nicht im Journal.
+- Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und am 15. Oktober 2026 von einer Person
+  beantwortet (Revision `873f1ac`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen
+  Zahlungsseite, in Opera (das der Server als Chrome 153.0.8010.55 las): Eine Ablehnung lieferte
+  `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick aus, und die Seite
+  erhielt eine Anfrage; ohne Antwort verfiel die Anfrage nach 91 Sekunden (`confirmation_expired`), und die
+  Seite erhielt nichts.
 - Claude Code, aus einem Desktop-Terminal gestartet: `status` über Claude Code meldete
   `confirmation_channel: native`, die Anzeige erreichte also den Server.
 - Der Serverprozess über Standardeingabe und Standardausgabe: Er schreibt nichts außer dem Protokoll auf seine
@@ -181,9 +187,6 @@ Getestet:
 
 Nicht getestet:
 
-- Ein echtes Fenster von `kdialog` oder `zenity`: Die Tests verwenden an dessen Stelle Attrappenprogramme.
-- Das eigene gocryptfs-Volume des Bedieners: Die Tests simulieren die Mount-Tabelle und das Verzeichnis, und die
-  obige Prüfung verwendete ein Wegwerf-Volume.
 - Brave und Google-Chrome-Versionen außer der, die der Bediener verwendet hat.
 - Die über einen Desktop-MCP-Client erfragte Bestätigung (Elicitation): nur mit dem Client des MCP-SDK getestet.
 - Chrome 154 mit seinem Profil im eigenen verschlüsselten Verzeichnis des Bedieners.
@@ -198,7 +201,6 @@ Nicht getestet:
 - Eine Seite, die sich nach der zweiten Suche eines Klicks und vor dem Drücken bewegt. Auf einer Seite, die um 1000
   CSS-Pixel pro Sekunde scrollt, lieferten 6 von 144 Klicks keinen Fehler und landeten nirgends; keiner landete auf
   einem anderen Button (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
-- Eine Ablehnung im Bestätigungsfenster, von einer Person gegeben.
 
 Bekannte Grenzen:
 
@@ -233,6 +235,9 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 - **Claude Cloud (Anthropic)**: schrieb einen Teil des Codes auf Branches, nach Vorgaben, vor jeder Zusammenführung geprüft.
 - **Gemini (Google)**: Architekturberater und Synthetisierer; gab dem Projekt seinen Namen, **Diwall**, „Deich“ auf Bretonisch.
 - **Space Bunny Free (opencode)**: Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
-- **Lokale Bildverarbeitung**: Qwen3-VL (Alibaba), über Ollama ausgeführt, für die optionale visuelle Ortung und den optionalen Vergleich.
+- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**: erste Nutzung des Servers durch ein anderes Modell als Claude, auf einer lokalen Instanz einer Webanwendung; sein Feldbericht hat die folgenden Korrekturen geprägt.
+- **gemini-3.5-flash (Google, über OpenCode)**: hat die Anbindung über einen eigenen Agenten getestet: Die Werkzeuge erreichen nur diesen Agenten, und seine Shell fragt, bevor sie etwas ausführt.
+- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**, noch einmal am 16. Oktober 2026: das Stylesheet und das Layout der Website des Projekts, unter mehreren Versuchen ausgewählt; Text und Verhalten der Seiten blieben unberührt.
+- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**, ein weiteres Mal am 18. Oktober 2026: eine Durchsicht der sechzehn französischen Seiten der Website des Projekts und Formulierungsvorschläge in vier Sprachen, als Entwürfe belassen.
 
 Lizenz: MIT, siehe [LICENSE](../../LICENSE).

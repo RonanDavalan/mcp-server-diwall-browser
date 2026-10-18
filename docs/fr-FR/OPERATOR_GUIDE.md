@@ -46,10 +46,9 @@ que le répertoire chiffré est ouvert.
 
 ## 1. Ce qu'il vous faut
 
-- Linux. Ce guide est écrit pour Debian ; les tests du projet ont tourné sous Ubuntu 24.04 (voir plus bas).
+- Linux. Ce guide est écrit pour Debian 13, où les tests du projet ont tourné.
 - Python 3.12 ou plus récent.
-- Un navigateur de la famille Chromium : Google Chrome, Chromium ou Brave. La spécification du projet demande la version
-  154 ou plus récente. Chrome 136 et les versions suivantes ignorent le port de débogage sur le profil par défaut du
+- Un navigateur de la famille Chromium : Google Chrome, Chromium ou Brave. Le serveur ne vérifie pas la version du navigateur. Chrome 136 et les versions suivantes ignorent le port de débogage sur le profil par défaut du
   navigateur, ce qui est une des raisons pour lesquelles le serveur exige un profil dédié (le projet n'a pas mesuré ce
   comportement ; le serveur refuse de toute façon un profil par défaut). Les tests ont tourné sous Chromium 141 dans
   l'environnement du projet et sous Chrome 154 sur la machine de l'opérateur ; la suite complète, dont 571 tests de
@@ -60,29 +59,29 @@ que le répertoire chiffré est ouvert.
 - `kdialog` ou `zenity` pour la fenêtre de confirmation.
 - `git`, et `ss` (paquet `iproute2`) pour la vérification de la boucle locale.
 
-Les noms de paquets ont été vérifiés avec `apt-cache policy` sous Ubuntu 24.04, le seul système dont ce projet disposait ;
-ils n'ont pas été vérifiés sous Debian :
+Les noms de paquets ont été vérifiés avec `apt-cache policy` sous Debian 13 le 18 octobre 2026 :
 
 ```
-$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git | grep -E "^[a-z]|Candidate"
+$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
 python3-venv:
-  Candidate: 3.12.3-0ubuntu2.1
+  Candidate: 3.13.5-1
 fuse3:
-  Candidate: 3.14.0-5build1
+  Candidate: 3.17.2-3
 gocryptfs:
-  Candidate: 2.4.0-1ubuntu0.24.04.3
+  Candidate: 2.5.1-2+b1
 kdialog:
-  Candidate: 4:23.08.5-0ubuntu4
+  Candidate: 4:25.04.0-1
 zenity:
-  Candidate: 4.0.1-1build3
+  Candidate: 4.1.90-1
 iproute2:
-  Candidate: 6.1.0-1ubuntu6.4
+  Candidate: 6.15.0-1
 git:
-  Candidate: 1:2.43.0-1ubuntu7.3
+  Candidate: 1:2.47.3-0+deb13u1
+chromium:
+  Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-`apt-cache policy chromium` n'y montrait aucun candidat ; le nom du paquet du navigateur n'est donc pas donné ici. La
-commande d'installation, que ce projet n'a pas lancée (son environnement ne peut pas installer de paquets système) :
+`chromium` est le paquet du navigateur sous Debian 13. La commande d'installation, qui n'a pas été rejouée (elle exige root) :
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -138,11 +137,11 @@ des deux ne touche à votre navigateur, à votre répertoire chiffré ni à votr
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Sortie dans l'environnement du projet, avec Python 3.12.11 (les nombres sont ceux de cette révision, dont 571 tests
-exigent un navigateur) :
+Sortie du 18 octobre 2026, sur le code de la version 0.0.1, avec Python 3.12.11 (571 tests exigent un
+navigateur) :
 
 ```
-1812 passed, 1 skipped, 571 deselected, 1 warning in 95.19s (0:01:35)
+1812 passed, 1 skipped, 571 deselected, 1 warning in 89.94s (0:01:29)
 ```
 
 L'avertissement est un `IncompleteFieldDefinitionWarning` de `pydantic_settings`, une bibliothèque que le SDK MCP
@@ -150,14 +149,14 @@ emploie ; tous les tests passent malgré lui. Le test ignoré change le propri
 (`tests/test_credentials.py`).
 
 ```
-browser executable: chromium (Chrome/141.0.7390.37)
+browser executable: google-chrome (Chrome/155.0.8059.84)
 server                        0.0.1, configured: True
-browser                       Chrome/141.0.7390.37, attached: True
+browser                       Chrome/155.0.8059.84, attached: True
 encrypted directory           closed_or_absent (encrypted_dir_undetermined), action expected: operator_opens_directory
-tab origin                    http://127.0.0.1:41687
+tab origin                    http://127.0.0.1:38565
 marks                         4
 image                         yes
-tree lines                    9
+tree lines                    10
 redacted_fields               1
 password value in the result  absent
 elements                      1 textbox "User name", 2 textbox "Password", 3 button "Sign in", 4 link "Help"
@@ -173,11 +172,11 @@ et rend 3. Il rend 0 quand le résultat est celui attendu, et 1 quand il diffèr
 répertoire qui n'est pas monté. `--save-image ~/observe.png` écrit l'image que le modèle a reçue.
 
 Avec un navigateur dans votre `PATH`, `.venv/bin/python -m pytest -q` lance aussi les 571 tests de navigateur ; chacun
-démarre le navigateur sans interface sur un profil temporaire vierge. Dans le même environnement, avec Google Chrome
+démarre le navigateur sans interface sur un profil temporaire vierge. Le même jour, avec Google Chrome
 155.0.8059.84 trouvé dans le `PATH` :
 
 ```
-2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43)
+2383 passed, 1 skipped, 1 warning in 345.00s (0:05:45)
 ```
 
 Branchez ensuite le serveur à votre client MCP, comme le décrit la partie suivante.
@@ -289,9 +288,14 @@ ss -ltn "sport = :9222"
 
 La colonne de l'adresse locale ne doit montrer que `127.0.0.1:9222` ou `[::1]:9222`. `0.0.0.0:9222`, `*:9222` ou toute
 autre adresse signifie que quiconque atteint le port contrôle le navigateur : fermez le navigateur et relancez-le avec la
-commande ci-dessus. `ss` n'était pas disponible dans l'environnement du projet, aucune sortie réelle n'est donc montrée
-ici ; là-bas, Chromium 141 lancé avec `--remote-debugging-port=9222` n'écoutait que sur `127.0.0.1:9222`, comme on le lit
-dans `/proc/net/tcp`. Le serveur fait la même vérification, sur `/proc/net/tcp` et `/proc/net/tcp6`, chaque fois qu'il
+commande ci-dessus. Sortie du 18 octobre 2026, avec le navigateur dédié de l'opérateur, lancé comme ci-dessus avec `--remote-debugging-port=9222` :
+
+```
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      10         127.0.0.1:9222      0.0.0.0:*
+```
+
+Le serveur fait la même vérification, sur `/proc/net/tcp` et `/proc/net/tcp6`, chaque fois qu'il
 s'attache.
 
 Connectez-vous une fois à chacun de vos sites dans ce navigateur, comme vous le feriez dans votre navigateur habituel. Le
@@ -309,9 +313,10 @@ ne monte ni ne démonte jamais le répertoire chiffré, ne lance jamais `gocrypt
 son mot de passe. Quand le répertoire chiffré est fermé, le serveur refuse d'écrire ; il n'a aucun repli vers un endroit
 non chiffré.
 
-L'environnement propre du projet ne peut pas monter un volume FUSE. Sous Debian avec gocryptfs 2.5.1, un volume jetable a
-été créé et monté avec un fichier de mot de passe à la place de l'invite, et le serveur l'a accepté (`status` lisait
-`mounted`) ; les commandes ci-dessous, avec l'invite, n'ont pas été lancées telles qu'elles sont écrites.
+Sous Debian avec gocryptfs 2.5.1, un volume jetable a été créé et monté avec un fichier de mot de passe à la place de
+l'invite, et le serveur l'a accepté (`status` lisait `mounted`) ; les commandes ci-dessous, avec l'invite, n'ont pas été
+lancées telles qu'elles sont écrites. Le volume propre de l'opérateur, ouvert par l'opérateur, a servi à l'épreuve de la
+fenêtre de confirmation du 15 octobre 2026 (`README.md`).
 
 Créez le répertoire chiffré une seule fois. `gocryptfs` affiche une clé maîtresse à cette étape : notez-la sur papier ou
 gardez-la dans un gestionnaire de mots de passe, jamais dans un fichier de ce disque.
@@ -907,8 +912,8 @@ Ce qu'il faut lire avant de répondre :
 - `Montants détectés` : les montants trouvés sur la page par une heuristique ; elle peut en manquer un ou le mal lire.
 - `Catégories` et `Signaux` : pourquoi le serveur demande.
 
-Une vraie fenêtre `kdialog` ou `zenity` n'a pas été affichée dans l'environnement de ce projet (aucun affichage) ; les tests
-emploient de faux programmes à sa place.
+Une vraie fenêtre `kdialog` ou `zenity` a été affichée et une personne y a répondu le 15 octobre 2026 (un refus, un accord
+et une expiration : `README.md`) ; les tests automatiques emploient de faux programmes à sa place.
 
 La fenêtre appartient au serveur, pas au client MCP : le client agit pour le modèle et pourrait répondre seul, alors que la
 fenêtre du serveur reçoit la réponse d'une personne, hors de la conversation. Le serveur ne demande par le client que si
@@ -1155,7 +1160,7 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
   système de fichiers ne peut pas lier, elle prend d'abord le nom puis le remplit).
 - Un clic que la page déplace entre la seconde lecture de sa boîte et l'appui, ou dont la page couvre la cible sans la
   déplacer ni déplacer la vue, n'est pas rattrapé (voir la partie sur les pages qui bougent quand le pointeur arrive) : sur
-  une page qui défilait de 1 000 pixels CSS par seconde, 7 clics sur 144 ne sont tombés nulle part sans erreur. Observez de
+  une page qui défilait de 1 000 pixels CSS par seconde, 6 clics sur 144 ne sont tombés nulle part sans erreur. Observez de
   nouveau avant un second essai après un refus.
 - Un nœud qui n'a pas de boîte à lui est pris pour caché, et ce qui se trouve dessous n'est pas montré au modèle. Mesuré sur
   Chromium 141 : une page dont le corps n'avait aucune hauteur parce que ses enfants étaient placés hors du flux n'a donné
@@ -1165,7 +1170,6 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 - L'échelle de l'écran a été mesurée sur un Chromium 141 sans interface à 1, 1,5 et 2, et non sur un écran de l'opérateur. Le
   zoom de page a été mesuré de 100 à 200 % dans le même navigateur, avec le zoom écrit dans un profil vierge ; le zoom des
   touches Ctrl et + dans un navigateur qui n'est pas sans interface ne l'a pas été.
-- Non testé : une vraie fenêtre `kdialog` ou `zenity` à laquelle une personne répond, le volume gocryptfs de l'opérateur,
-  Brave, Chrome 154 avec son profil gardé dans le répertoire chiffré, et la confirmation demandée par un client MCP de
-  bureau. Opera 136, avec son profil dans un volume gocryptfs jetable, a été attaché et a observé une page ; il ne fait pas
+- Non testé : Brave, Chrome 154 avec son profil gardé dans le répertoire chiffré, et la confirmation demandée par un
+  client MCP de bureau. Opera 136, avec son profil dans un volume gocryptfs jetable, a été attaché et a observé une page ; il ne fait pas
   partie de l'ensemble testé ci-dessus.

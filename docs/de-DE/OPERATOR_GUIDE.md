@@ -50,11 +50,9 @@ Schreibzugriff und nur, solange das verschlüsselte Verzeichnis geöffnet ist.
 
 ## 1. Was Sie brauchen
 
-- Linux. Dieses Handbuch ist für Debian geschrieben; die Tests des Projekts liefen unter Ubuntu 24.04
-  (siehe unten).
+- Linux. Dieses Handbuch ist für Debian 13 geschrieben, wo die Tests des Projekts liefen.
 - Python 3.12 oder neuer.
-- Ein Browser der Chromium-Familie: Google Chrome, Chromium oder Brave. Die Spezifikation des Projekts
-  verlangt Version 154 oder neuer. Chrome 136 und neuer ignorieren den Debugging-Port beim
+- Ein Browser der Chromium-Familie: Google Chrome, Chromium oder Brave. Der Server prüft die Version des Browsers nicht. Chrome 136 und neuer ignorieren den Debugging-Port beim
   Standardprofil des Browsers, was ein Grund dafür ist, dass der Server ein eigenes Profil braucht
   (dieses Verhalten hat das Projekt nicht gemessen; der Server lehnt ein Standardprofil in jedem Fall
   ab). Die Tests liefen unter Chromium 141 in der Umgebung des Projekts und unter Chrome 154 auf dem
@@ -66,30 +64,29 @@ Schreibzugriff und nur, solange das verschlüsselte Verzeichnis geöffnet ist.
 - `kdialog` oder `zenity` für das Bestätigungsfenster.
 - `git` und `ss` (Paket `iproute2`) für die Loopback-Prüfung.
 
-Die Paketnamen wurden mit `apt-cache policy` unter Ubuntu 24.04 geprüft, dem einzigen System, das
-diesem Projekt zur Verfügung stand; unter Debian wurden sie nicht geprüft:
+Die Paketnamen wurden am 18. Oktober 2026 unter Debian 13 mit `apt-cache policy` geprüft:
 
 ```
-$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git | grep -E "^[a-z]|Candidate"
+$ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
 python3-venv:
-  Candidate: 3.12.3-0ubuntu2.1
+  Candidate: 3.13.5-1
 fuse3:
-  Candidate: 3.14.0-5build1
+  Candidate: 3.17.2-3
 gocryptfs:
-  Candidate: 2.4.0-1ubuntu0.24.04.3
+  Candidate: 2.5.1-2+b1
 kdialog:
-  Candidate: 4:23.08.5-0ubuntu4
+  Candidate: 4:25.04.0-1
 zenity:
-  Candidate: 4.0.1-1build3
+  Candidate: 4.1.90-1
 iproute2:
-  Candidate: 6.1.0-1ubuntu6.4
+  Candidate: 6.15.0-1
 git:
-  Candidate: 1:2.43.0-1ubuntu7.3
+  Candidate: 1:2.47.3-0+deb13u1
+chromium:
+  Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-`apt-cache policy chromium` zeigte dort keinen Kandidaten, daher wird der Paketname des Browsers hier
-nicht genannt. Der Installationsbefehl, vom Projekt nicht ausgeführt (seine Umgebung kann keine
-Systempakete installieren):
+`chromium` ist das Paket des Browsers unter Debian 13. Der Installationsbefehl, nicht wiederholt (er braucht root):
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -149,11 +146,11 @@ Verzeichnis oder Ihr Bedienerprofil.
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Ausgabe in der Umgebung des Projekts, mit Python 3.12.11 (die Zahlen sind die dieser Revision, von
-der 571 Tests einen Browser brauchen):
+Ausgabe vom 18. Oktober 2026, auf dem Code der Version 0.0.1, mit Python 3.12.11 (571 Tests brauchen
+einen Browser):
 
 ```
-1812 passed, 1 skipped, 571 deselected, 1 warning in 95.19s (0:01:35)
+1812 passed, 1 skipped, 571 deselected, 1 warning in 89.94s (0:01:29)
 ```
 
 Die Warnung ist eine `IncompleteFieldDefinitionWarning` von `pydantic_settings`, einer Bibliothek,
@@ -161,14 +158,14 @@ die das MCP-SDK verwendet; jeder Test besteht damit. Der übersprungene Test än
 einer Datei, wofür root nötig ist (`tests/test_credentials.py`).
 
 ```
-browser executable: chromium (Chrome/141.0.7390.37)
+browser executable: google-chrome (Chrome/155.0.8059.84)
 server                        0.0.1, configured: True
-browser                       Chrome/141.0.7390.37, attached: True
+browser                       Chrome/155.0.8059.84, attached: True
 encrypted directory           closed_or_absent (encrypted_dir_undetermined), action expected: operator_opens_directory
-tab origin                    http://127.0.0.1:41687
+tab origin                    http://127.0.0.1:38565
 marks                         4
 image                         yes
-tree lines                    9
+tree lines                    10
 redacted_fields               1
 password value in the result  absent
 elements                      1 textbox "User name", 2 textbox "Password", 3 button "Sign in", 4 link "Help"
@@ -186,11 +183,11 @@ absichtlich `closed_or_absent`: Der Smoke-Test gibt dem Server ein Verzeichnis, 
 ist. `--save-image ~/observe.png` schreibt das Bild, das das Modell erhalten hat.
 
 Mit einem Browser auf Ihrem `PATH` führt `.venv/bin/python -m pytest -q` auch die 571 Browser-Tests
-aus; jeder startet den Browser ohne Oberfläche auf einem leeren temporären Profil. In derselben
-Umgebung, mit Google Chrome 155.0.8059.84 auf dem `PATH`:
+aus; jeder startet den Browser ohne Oberfläche auf einem leeren temporären Profil. Am selben Tag, mit Google
+Chrome 155.0.8059.84 auf dem `PATH`:
 
 ```
-2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43)
+2383 passed, 1 skipped, 1 warning in 345.00s (0:05:45)
 ```
 
 Verbinden Sie den Server dann mit Ihrem MCP-Client, wie der nächste Teil beschreibt.
@@ -311,10 +308,14 @@ ss -ltn "sport = :9222"
 
 Die Spalte der lokalen Adresse darf nur `127.0.0.1:9222` oder `[::1]:9222` zeigen. `0.0.0.0:9222`,
 `*:9222` oder jede andere Adresse bedeutet, dass jeder, der den Port erreicht, den Browser steuert:
-Schließen Sie den Browser und starten Sie ihn mit dem obigen Befehl neu. `ss` war in der Umgebung des
-Projekts nicht verfügbar, daher wird hier keine echte Ausgabe gezeigt; dort lauschte Chromium 141, mit
-`--remote-debugging-port=9222` gestartet, nur auf `127.0.0.1:9222`, gelesen in `/proc/net/tcp`. Der
-Server macht dieselbe Prüfung, an `/proc/net/tcp` und `/proc/net/tcp6`, bei jeder Verbindung.
+Schließen Sie den Browser und starten Sie ihn mit dem obigen Befehl neu. Ausgabe vom 18. Oktober 2026, mit dem eigenen Browser des Bedieners, wie oben mit `--remote-debugging-port=9222` gestartet:
+
+```
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      10         127.0.0.1:9222      0.0.0.0:*
+```
+
+Der Server macht dieselbe Prüfung, an `/proc/net/tcp` und `/proc/net/tcp6`, bei jeder Verbindung.
 
 Melden Sie sich in diesem Browser einmal bei jeder Ihrer Websites an, wie in Ihrem gewohnten Browser.
 Der Server arbeitet in diesen angemeldeten Sitzungen; ein Passwort tippt er nur aus einer
@@ -332,10 +333,10 @@ dieses Handbuchs). Er hängt das verschlüsselte Verzeichnis nie ein oder aus, f
 `fusermount3` aus und kennt sein Passwort nie. Ist das verschlüsselte Verzeichnis geschlossen, weigert
 sich der Server zu schreiben; es gibt keinen Rückfall auf einen unverschlüsselten Ort.
 
-Die eigene Umgebung des Projekts kann kein FUSE-Volume einhängen. Unter Debian mit gocryptfs 2.5.1
-wurde ein Wegwerf-Volume angelegt und mit einer Passwortdatei anstelle der Eingabeaufforderung
-eingehängt, und der Server nahm es an (`status` meldete `mounted`); die folgenden Befehle, mit der
-Eingabeaufforderung, wurden nicht wie geschrieben ausgeführt.
+Unter Debian mit gocryptfs 2.5.1 wurde ein Wegwerf-Volume angelegt und mit einer Passwortdatei anstelle der
+Eingabeaufforderung eingehängt, und der Server nahm es an (`status` meldete `mounted`); die folgenden Befehle,
+mit der Eingabeaufforderung, wurden nicht wie geschrieben ausgeführt. Das eigene Volume des Bedieners, vom
+Bediener geöffnet, diente am 15. Oktober 2026 der Erprobung des Bestätigungsfensters (`README.md`).
 
 Legen Sie das verschlüsselte Verzeichnis einmal an. `gocryptfs` gibt bei diesem Schritt einen
 Hauptschlüssel aus: Schreiben Sie ihn auf Papier oder bewahren Sie ihn in einem Passwortmanager auf,
@@ -440,7 +441,7 @@ chmod 700 ~/.config/mcp-server-diwall-browser
   Standardprofil ablegt, das er ablehnt.
 - `browser.profile_dir`: das `--user-data-dir` des eigenen Profils (absoluter Pfad). `status` sagt in
   `profile_encrypted`, ob dieser Pfad im geöffneten verschlüsselten Verzeichnis liegt; das ist, was das
-  Profil angibt, kein Beleg dafür, wo der Browser seine Daten ablegt.
+  Profil angibt; es zeigt nicht, wo der Browser seine Daten ablegt.
 - `browser.debug_port`: der `--remote-debugging-port`, von 1024 bis 65 535 (Standard `9222`).
 - `limits.min_action_delay_ms`: die kürzeste Zeit zwischen zwei Aktionen, von 0 bis 60 000 (Standard
   250).
@@ -1013,8 +1014,9 @@ Was Sie vor der Antwort lesen sollten:
   oder falsch lesen.
 - `Catégories` und `Signaux`: warum der Server fragt.
 
-Ein echtes Fenster von `kdialog` oder `zenity` wurde in der Umgebung dieses Projekts nicht gezeigt
-(keine Anzeige); die Tests verwenden an dessen Stelle Attrappenprogramme.
+Ein echtes Fenster von `kdialog` oder `zenity` wurde am 15. Oktober 2026 gezeigt und von einer Person
+beantwortet (eine Ablehnung, eine Zustimmung und ein Ablauf: `README.md`); die automatischen Tests
+verwenden an dessen Stelle Attrappenprogramme.
 
 Das Fenster gehört dem Server, nicht dem MCP-Client: Der Client handelt für das Modell und könnte von
 selbst antworten, während das Fenster des Servers von einer Person beantwortet wird, außerhalb der
@@ -1292,7 +1294,7 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
 - Ein Klick, den die Seite zwischen dem zweiten Lesen seines Rahmens und dem Drücken bewegt, oder dessen
   Ziel die Seite verdeckt, ohne es oder die Ansicht zu bewegen, wird nicht abgefangen (siehe den Teil
   über Seiten, die sich bewegen, wenn der Zeiger ankommt): Auf einer Seite, die um 1000 CSS-Pixel pro
-  Sekunde scrollte, landeten 7 von 144 Klicks ohne Fehler nirgends. Beobachten Sie nach einer
+  Sekunde scrollte, landeten 6 von 144 Klicks ohne Fehler nirgends. Beobachten Sie nach einer
   Ablehnung erneut, bevor Sie es ein zweites Mal versuchen.
 - Ein Knoten, der keinen eigenen Rahmen hat, wird für verborgen gehalten, und was darunter liegt, wird
   dem Modell nicht gezeigt. Gemessen an Chromium 141: Eine Seite, deren Body keine Höhe hatte, weil
@@ -1304,8 +1306,7 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
   gemessen, nicht an einem Bildschirm des Bedieners. Der Seitenzoom wurde im selben Browser bei 100 bis
   200 % gemessen, mit dem Zoom in ein leeres Profil geschrieben; der Zoom mit den Tasten Strg und + in
   einem Browser, der nicht ohne Oberfläche läuft, nicht.
-- Nicht getestet: ein echtes Fenster von `kdialog` oder `zenity`, von einer Person beantwortet, das
-  eigene gocryptfs-Volume des Bedieners, Brave, Chrome 154 mit seinem im verschlüsselten Verzeichnis
-  liegenden Profil und die über einen Desktop-MCP-Client erfragte Bestätigung. Opera 136 mit seinem
+- Nicht getestet: Brave, Chrome 154 mit seinem im verschlüsselten Verzeichnis liegenden Profil und die
+  über einen Desktop-MCP-Client erfragte Bestätigung. Opera 136 mit seinem
   Profil in einem gocryptfs-Wegwerf-Volume wurde angebunden und beobachtete eine Seite; es gehört nicht
   zur oben genannten getesteten Menge.

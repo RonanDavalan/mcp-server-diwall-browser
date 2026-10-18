@@ -24,7 +24,6 @@ cleanup), and Gemini.
 
 ## Components
 
-- **Qwen3-VL** (Alibaba) through **Ollama**: optional local vision.
 - The MCP protocol and its Python SDK.
 
 ## Code and Documentation Contributors
