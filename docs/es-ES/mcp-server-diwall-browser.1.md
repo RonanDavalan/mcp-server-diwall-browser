@@ -173,8 +173,11 @@ La instalación, el arranque del servidor por una cuenta ordinaria y la desinsta
 `/usr/lib/mcp-server-diwall-browser`
 :   El programa y su entorno virtual de Python, que el paquete crea en la instalación y para lo cual necesita una conexión de red.
 
+`/usr/share/doc/mcp-server-diwall-browser/es/OPERATOR_GUIDE.md`
+:   La guía del operador: instalación, navegador, directorio cifrado, perfil, credenciales y códigos de rechazo.
+
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`
-:   La guía del operador (en inglés): instalación, navegador, directorio cifrado, perfil, credenciales y códigos de rechazo.
+:   La misma guía en inglés, el idioma de la fuente.
 
 `~/.config/mcp-server-diwall-browser/profile.json`
 :   El perfil del operador.

@@ -2300,3 +2300,24 @@ delivered files for the four families), and the German README and manual page po
   quotation mark, long dash, decimal point, abbreviation or unit without a non-breaking space, English word).
 - Found while translating. The German README and manual page said *Marke* in some places and
   *Markierung* in others; the README now says *Markierung*, as the manual page and the site do.
+
+## Operator guide and architecture in Spanish
+
+`docs/es-ES/OPERATOR_GUIDE.md` and `docs/es-ES/ARCHITECTURE.md` translate the two English sources, as the
+French and German ones do. The packages ship them under `usr/share/doc/mcp-server-diwall-browser/es/` (the same
+list of delivered files for the four families), and the Spanish README and manual page point to them.
+
+- How. The same method as the French and German guides: the code blocks of the source are masked, the text
+  around them is translated from the English source (never from the French or the German), and the blocks are
+  put back from the source. The messages of the server stay in French, as the server writes them. The
+  typography is the Spanish one: `«…»` for quotation marks, `¿…?` and `¡…!` opened and closed, a non-breaking
+  space before an abbreviated unit and before `%`, the decimal comma, and a non-breaking space between
+  thousands from five digits on (none for four).
+- Control. The comparison of each translation with its source, the same as for French and German, gives 0
+  differences for both guides; it also reads the Spanish typography and refuses the verbs *demostrar* and
+  *demuestra*, *evidencia*, *prueba de que* and *probar que* (*prueba* also means a test, which the guides use
+  everywhere, so only its sense of proof is refused), and `IA`. Each defect planted in a copy of the source is
+  caught, and so is each defect planted in a Spanish text (straight or English quotation marks, a space inside
+  the guillemets, a full stop before the closing guillemet, a question or exclamation mark without its opening
+  sign, a unit or `%` without a non-breaking space, a decimal point, a point between thousands, an English or
+  French word, a capital letter inside a title).

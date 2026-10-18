@@ -27,7 +27,7 @@ directorio cifrado, ni un navegador. Debian 12 y Ubuntu 22.04 no son compatibles
 3.12. La instalación necesita una conexión de red: el paquete crea un entorno virtual de Python e instala en
 él las dependencias, en las versiones que el proyecto probó. La página de manual es
 `man mcp-server-diwall-browser`. Para instalar desde un clon del repositorio, sigue
-[docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md).
+[docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
 ## Conectarlo a un cliente MCP
 
@@ -73,8 +73,8 @@ servidor conectado. Las pruebas inician el servidor exactamente como estos dos b
 `python -m mcp_server_diwall_browser` con `MCP_DIWALL_BROWSER_PROFILE` definida.
 
 Todo lo anterior (instalar, iniciar el navegador, abrir el directorio cifrado, escribir el perfil de operador)
-está en [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md). Cómo funciona y por qué está en
-[docs/ARCHITECTURE.md](../ARCHITECTURE.md).
+está en [docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md). Cómo funciona y por qué está en
+[docs/es-ES/ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Lo que ve el modelo
 
