@@ -204,4 +204,4 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 - **Space Bunny Free (opencode)**: Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
 - **Lokale Bildverarbeitung**: Qwen3-VL (Alibaba), über Ollama ausgeführt, für die optionale visuelle Ortung und den optionalen Vergleich.
 
-Lizenz: noch nicht gewählt.
+Lizenz: MIT, siehe [LICENSE](../../LICENSE).

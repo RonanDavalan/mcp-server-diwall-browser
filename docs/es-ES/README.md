@@ -198,4 +198,4 @@ tal como se desempeñaron realmente; la lista completa está en [CONTRIBUTORS.md
 - **Space Bunny Free (opencode)**: limpieza y poda del marco de trabajo del proyecto al comienzo del proyecto.
 - **Visión local**: Qwen3-VL (Alibaba), ejecutado mediante Ollama, para la localización y la comparación visuales opcionales.
 
-Licencia: aún sin elegir.
+Licencia: MIT, véase [LICENSE](../../LICENSE).

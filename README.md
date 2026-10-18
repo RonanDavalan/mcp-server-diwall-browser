@@ -205,4 +205,4 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, once more on 18 October 2026: a reading of the sixteen French pages of the project's website and wording proposals in four languages, kept as drafts.
 - **Local vision**: Qwen3-VL (Alibaba), run through Ollama, for the optional visual location and comparison.
 
-License: not chosen yet.
+License: MIT, see [LICENSE](LICENSE).
