@@ -2180,7 +2180,7 @@ editable zone goes up to `LONG_VALUE_LIMIT` (4000), the other fields keep 120, t
   2355 passed and 1 skipped before: the 11 new tests, no new failure. Without the browser tests:
   `1808 passed, 1 skipped, 558 deselected`.
 - Real professional social network (dedicated Opera, session open, nothing saved or sent, every tab closed): not completed. The form
-  `/in/ronan-davalan/edit/forms/summary/new/` read as a tree of one line (`RootWebArea`), `frames_masked: 1`,
+  `/in/<profile>/edit/forms/summary/new/` read as a tree of one line (`RootWebArea`), `frames_masked: 1`,
   `omitted_not_visible: 47`, with or without `?profileFormEntryPoint=PROFILE_SECTION`, after waits of 30 and 25 s;
   the profile page rendered only its top (no About section, no experience section, 97 lines); `scroll` (wheel, `dy` or `to`)
   answered `browser_unreachable` on every tab while `press_key` Enter answered `ok`; on a content search result,
