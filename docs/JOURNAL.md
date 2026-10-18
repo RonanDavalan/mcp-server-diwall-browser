@@ -2321,3 +2321,15 @@ list of delivered files for the four families), and the Spanish README and manua
   the guillemets, a full stop before the closing guillemet, a question or exclamation mark without its opening
   sign, a unit or `%` without a non-breaking space, a decimal point, a point between thousands, an English or
   French word, a capital letter inside a title).
+
+## Cold installation of the guide
+
+- What. The installation commands of the operator guide were played from a fresh clone, as an ordinary user
+  with `sudo`, in a clean Debian 13 container and a clean Ubuntu 24.04 container. The guide's `apt` command
+  installed no browser, so the smoke test stopped with "no Chromium-family browser found" (code 3) on both.
+  The four guides now give the browser: `sudo apt install chromium` on Debian 13, and the `.deb` file of Google
+  Chrome on Ubuntu 24.04, where the `chromium` package does not exist (`chromium-browser` only installs a Snap
+  launcher).
+- Control. After the change, the commands copied from the guide give, on both systems, 1812 tests passed
+  without a browser and a smoke test whose result is conforming (Chromium 155.0.8059.79 on Debian 13, Google
+  Chrome 155.0.8059.84 on Ubuntu 24.04).

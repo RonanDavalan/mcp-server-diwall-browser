@@ -86,10 +86,23 @@ chromium:
   Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-`chromium` ist das Paket des Browsers unter Debian 13. Der Installationsbefehl, nicht wiederholt (er braucht root):
+Der Installationsbefehl, am 18. Oktober 2026 in einem sauberen Debian-13-Container und in einem sauberen Ubuntu-24.04-Container wiederholt:
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
+```
+
+Der Browser wird getrennt installiert. Unter Debian 13 ist `chromium` das Paket der Distribution:
+
+```
+sudo apt install chromium
+```
+
+Unter Ubuntu 24.04 gibt es kein Paket `chromium` (`chromium-browser` installiert nur einen Snap-Starter): Installieren Sie Google Chrome aus seiner `.deb`-Datei:
+
+```
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo apt install ./google-chrome-stable_current_amd64.deb
 ```
 
 Verwenden Sie außerhalb von KDE `zenity` anstelle von `kdialog`, wenn Sie das vorziehen.
