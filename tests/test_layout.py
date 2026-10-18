@@ -117,6 +117,8 @@ def test_optional_import_check_catches_a_fallback() -> None:
 ALLOWED_HOSTS = {"example.invalid", "example.test", "localhost", "127.0.0.1", "[::1]"}
 # The addresses of the project itself, which the documentation gives to the reader: any other path on the same hosts is judged as a host.
 OWN_ADDRESSES = ("https://github.com/RonanDavalan/mcp-server-diwall-browser", "https://mcp.diwall.davalan.fr")
+# The one address of a third party the guide gives in full: the browser's package on Ubuntu, which the distribution does not ship. Only this exact file is let through, never its host.
+PUBLIC_DOWNLOADS = ("https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",)
 RESERVED_SUFFIXES = (".test", ".invalid")
 DOCUMENTATION_NETWORKS = [ipaddress.ip_network(net) for net in ("192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24", "127.0.0.0/8", "0.0.0.0/32")]
 # Any home directory, of anyone: the pattern is split so that this file does not hold it.
@@ -140,7 +142,7 @@ def host_is_allowed(host: str) -> bool:
 
 
 def real_data(text: str) -> list[str]:
-    for own in OWN_ADDRESSES:
+    for own in OWN_ADDRESSES + PUBLIC_DOWNLOADS:
         text = text.replace(own, "")
     found = [f"home path {m.group(0)}" for m in HOME_RE.finditer(text)]
     for match in IPV4_RE.finditer(text):
@@ -198,6 +200,8 @@ def test_real_data_check_catches_a_name_a_private_address_or_a_real_host(tmp_pat
 def test_real_data_check_leaves_the_addresses_of_the_project_alone_and_catches_others() -> None:
     assert real_data("https://github.com/RonanDavalan/mcp-server-diwall-browser/releases and https://mcp.diwall.davalan.fr/guides/install/") == []
     assert real_data("https://" + "github.com/someone/another-project") != []
+    assert real_data("wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb") == []
+    assert real_data("wget https://" + "dl.google.com/linux/direct/another-package.deb") != []
     assert real_data("https://" + "admin.davalan.fr/login") != []
 
 
