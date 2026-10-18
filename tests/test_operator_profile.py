@@ -53,7 +53,7 @@ def test_valid_profile_is_loaded_with_typed_values_and_defaults(tmp_path: Path) 
         Origin("https", "example.invalid", 443),
         Origin("https", "account.example.invalid", 8443),
     )
-    assert profile.secrets_dir == Path("~/Vaults/Main")
+    assert profile.secrets_dir == Path("/srv/vaults/Main")
     assert profile.secrets_crypt_dir is None
     assert profile.confirm_each_change == ()
     assert profile.local_model_origins == ()
@@ -108,12 +108,12 @@ INVALID_ROWS: list[tuple[str, dict[str, Any]]] = [
     ("declarations", {"declarations": {"local_model_client": 1}}),
     ("declarations", {"declarations": {"client_does_not_auto_confirm": "yes"}}),
     ("declarations", {"declarations": {"other": True}}),
-    ("browser", {"browser": {"family": "firefox", "profile_dir": "~/p"}}),
+    ("browser", {"browser": {"family": "firefox", "profile_dir": "/srv/p"}}),
     ("browser", {"browser": {"family": "chrome", "profile_dir": "p"}}),
-    ("browser", {"browser": {"family": "chrome", "profile_dir": "~/p", "debug_port": 1023}}),
-    ("browser", {"browser": {"family": "chrome", "profile_dir": "~/p", "debug_port": 65536}}),
-    ("browser", {"browser": {"family": "chrome", "profile_dir": "~/p", "debug_port": True}}),
-    ("browser", {"browser": {"family": "chrome", "profile_dir": "~/p", "debug_port": "127.0.0.1:9222"}}),
+    ("browser", {"browser": {"family": "chrome", "profile_dir": "/srv/p", "debug_port": 1023}}),
+    ("browser", {"browser": {"family": "chrome", "profile_dir": "/srv/p", "debug_port": 65536}}),
+    ("browser", {"browser": {"family": "chrome", "profile_dir": "/srv/p", "debug_port": True}}),
+    ("browser", {"browser": {"family": "chrome", "profile_dir": "/srv/p", "debug_port": "127.0.0.1:9222"}}),
     ("limits", {"limits": {"min_action_delay_ms": -1}}),
     ("limits", {"limits": {"min_action_delay_ms": 60001}}),
     ("limits", {"limits": {"max_actions_per_session": 0}}),
@@ -121,7 +121,7 @@ INVALID_ROWS: list[tuple[str, dict[str, Any]]] = [
     ("limits", {"limits": {"max_pages_per_session": 0}}),
     ("limits", {"limits": {"max_pages_per_session": True}}),
     ("limits", {"limits": {"max_pages_per_session": 10.0}}),
-    ("upload_dir", {"upload_dir": "~/upload"}),
+    ("upload_dir", {"upload_dir": "/srv/upload"}),
     ("unknown_key", {"unknown_key": 1}),
 ]
 
@@ -137,10 +137,10 @@ def test_invalid_profile_value_is_refused_and_named(tmp_path: Path, key: str, ov
     "overrides",
     [
         {"limits": {"min_action_delay_ms": 0, "max_actions_per_session": 100000, "max_pages_per_session": 1}},
-        {"browser": {"family": "brave", "profile_dir": "~/p", "debug_port": 1024}},
-        {"browser": {"family": "chrome", "profile_dir": "~/p", "debug_port": 65535}},
+        {"browser": {"family": "brave", "profile_dir": "/srv/p", "debug_port": 1024}},
+        {"browser": {"family": "chrome", "profile_dir": "/srv/p", "debug_port": 65535}},
         {"allowed_origins": [f"https://h{i}.example.invalid" for i in range(200)]},
-        {"secrets_crypt_dir": "~/.local/share/plasma-vault/Main.enc"},
+        {"secrets_crypt_dir": "/srv/plasma-vault/Main.enc"},
         {"declarations": {"local_model_client": True, "client_does_not_auto_confirm": True}},
         {"local_model_origins": ["http://127.0.0.1:8080"], "confirm_each_change": ["https://example.invalid"]},
     ],
@@ -181,10 +181,9 @@ def test_absent_profile_names_both_ways_and_lists_no_key(tmp_path: Path) -> None
 
 
 def test_standard_location_falls_back_to_home_config(tmp_path: Path) -> None:
-    env = {"HOME": "~"}
-    assert operator_profile.standard_profile_path(env) == Path("~/.config/mcp-server-diwall-browser/profile.json")
-    env = {"HOME": "~", "XDG_CONFIG_HOME": "relative"}
-    assert operator_profile.standard_profile_path(env) == Path("~/.config/mcp-server-diwall-browser/profile.json")
+    expected = tmp_path / ".config" / "mcp-server-diwall-browser" / "profile.json"
+    assert operator_profile.standard_profile_path({"HOME": str(tmp_path)}) == expected
+    assert operator_profile.standard_profile_path({"HOME": str(tmp_path), "XDG_CONFIG_HOME": "relative"}) == expected
 
 
 def test_environment_variable_wins_over_the_standard_file(tmp_path: Path) -> None:
@@ -264,7 +263,7 @@ REDLIST_PROFILES = [
     {"payment": {"confirm": True}},
     {"Delete": True},
     {"limits": {"RED_LIST": []}},
-    {"browser": {"family": "chrome", "profile_dir": "~/p", "secret_rotation": 1}},
+    {"browser": {"family": "chrome", "profile_dir": "/srv/p", "secret_rotation": 1}},
     {"declarations": {"rotate_secret": False}},
     {"confirm_each_change": [{"deletion": 1}]},
     {"redlist": 1},
@@ -374,9 +373,9 @@ def test_rights_check_catches_a_loader_that_reads_the_content_first(tmp_path: Pa
 # --- duplicate keys and size ------------------------------------------------------------------
 
 DUPLICATED = (
-    '{"schema_version": 1, "secrets_dir": "~/Vaults/Main", '
+    '{"schema_version": 1, "secrets_dir": "/srv/vaults/Main", '
     '"allowed_origins": ["https://example.invalid"], "allowed_origins": ["https://other.example.invalid"], '
-    '"browser": {"family": "chromium", "profile_dir": "~/Vaults/Main/browser-profile"}}'
+    '"browser": {"family": "chromium", "profile_dir": "/srv/vaults/Main/browser-profile"}}'
 )
 
 
@@ -420,8 +419,7 @@ def test_size_check_catches_a_loader_without_a_cap(tmp_path: Path, monkeypatch: 
     assert not oversized_profile_refused(tmp_path)
 
 
-def test_the_environment_directories_are_read_here() -> None:
-    assert environment_dirs({"HOME": "~", "XDG_CONFIG_HOME": "~/.cfg"}) == EnvironmentDirs(
-        home="~", config_home="~/.cfg"
-    )
-    assert environment_dirs({"HOME": "~", "XDG_CONFIG_HOME": ""}).config_home is None
+def test_the_environment_directories_are_read_here(tmp_path: Path) -> None:
+    home, config_home = str(tmp_path), str(tmp_path / ".cfg")
+    assert environment_dirs({"HOME": home, "XDG_CONFIG_HOME": config_home}) == EnvironmentDirs(home=home, config_home=config_home)
+    assert environment_dirs({"HOME": home, "XDG_CONFIG_HOME": ""}).config_home is None

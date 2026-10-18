@@ -68,13 +68,13 @@ def make_profile(
     return Profile(
         source=tmp_path / "profile.json",
         schema_version=1,
-        secrets_dir=Path("~/Vaults/Main"),
+        secrets_dir=Path("/srv/vaults/Main"),
         secrets_crypt_dir=None,
         allowed_origins=tuple(parse_origin_pattern(o) for o in allowed),
         confirm_each_change=tuple(parse_origin_pattern(o) for o in confirm),
         local_model_origins=(),
         declarations=Declarations(),
-        browser=BrowserSettings(family="chromium", profile_dir="~/Vaults/Main/browser-profile"),
+        browser=BrowserSettings(family="chromium", profile_dir="/srv/vaults/Main/browser-profile"),
         limits=limits or Limits(),
     )
 

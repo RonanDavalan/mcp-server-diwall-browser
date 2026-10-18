@@ -2206,3 +2206,48 @@ pseudo-element were refused (`element_obscured`, nothing clicked) while a raw cl
 - Proof: `tests/test_click_pseudo_integration.py` (13 tests, written first: 7 failed on the old code, the 3
   false refusals among them), `tests/test_journal.py` (1 test added). The three click files of the
   operator's guide: 347 passed.
+
+## Example paths name no user
+
+The README, its three translations, the operator guide and nine test files wrote paths under the home
+directory of an example user, `alice`. That user does not exist and has no place in what is published.
+The 104 lines of the tree, by kind: 68 documentation examples (README 5, each translation 5, the guide
+48), 33 test values (`tests/test_operator_profile.py` 20, `tests/test_mount.py` 7, `tests/conftest.py` 3,
+`tests/fixtures/action_support.py` 2, `tests/test_credential_import.py` 1), 3 lines of the definition of
+the real-data check (`tests/test_layout.py`). None of the 104 is a reference to a private document.
+
+- What is written now. A command of the documentation writes `~/...`, or `"$HOME/..."` where the
+  shell does not expand `~` (a path glued to `--user-data-dir=`, a path in quotes). The two files that
+  need an absolute path, the operator profile and the block of an MCP client, are written by a command
+  whose here-document is not quoted: the shell puts the reader's home directory in the file. A test
+  value is a made-up absolute path outside `/home` (`/srv/vaults/Main`, `/srv/p`), or `tmp_path` when
+  the test reads the environment or touches a file. The clone address of the guide is the one of the
+  project.
+- Why. The server takes an absolute path and expands neither `~` nor `$HOME` (`_absolute_path` raises
+  `path_not_absolute`), so a literal `~` in the profile is refused and a client does not expand it
+  either. The here-document gives the reader's real path, names nobody, and the example runs as
+  written, as the documentation rules ask.
+- Control. `scripts/rejouer-exemples-guide.py` of the project's workspace plays each block taken from
+  the guide, the four READMEs, the four site pages of connection and `static/instructions.md` on a
+  throwaway home: the profile it writes is loaded by `load_profile` with the paths of that home, each
+  client block is valid JSON whose command is an executable file, `claude mcp add` keeps the absolute
+  paths in the configuration of that home, and `claude mcp list` starts the server and says
+  `Connected`; 0 failures. `tests/test_layout.py`: the home-path pattern refuses `/home` followed by
+  anything, `alice` included, and two planted lines (a path of the example user, and the bare prefix)
+  are caught; the old pattern caught neither.
+- Set aside. A placeholder name after `/home` (still a home path, and forbidden by the
+  documentation rules). Literal absolute paths outside `/home` in the documentation (`/srv/...`): every
+  reader would first create directories owned by another account for the sake of the example, and the
+  layout would no longer be theirs. An expansion of `~` and `$HOME` by the server: it changes the
+  loader of a security profile, outside this change. `alice` kept as an exception of the check: the
+  check would let the one name through that must go. A temporary directory for constants of a test
+  module: there is none at import time, hence the fixed `/srv/...` values.
+- Found while replaying. `mkdir -m 700 ~/.config/mcp-server-diwall-browser` failed on a home without
+  `~/.config`; the command is now `mkdir -p -m 700`.
+- `alice` stays where it is the value typed into a form of the demonstration page or a login in a
+  credential example: it is data of the page, not the account of a machine.
+- Tests, `pytest -q` on the tree of this change, Python 3.12.11, Google Chrome 155.0.8059.84:
+  2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43), against 2381 before; without the browser tests, 1812
+  passed, 1 skipped, 571 deselected in 95.19s, against 1810: the two planted lines of the real-data check.
+  The numbers of the four READMEs, of the guide and of the installation page of the site (four languages)
+  follow. Nothing of the server changed.

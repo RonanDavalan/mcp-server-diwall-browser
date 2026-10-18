@@ -43,24 +43,28 @@ Aus einem Klon des Repositorys, mit Claude Code:
 
 ```
 claude mcp add --scope user diwall-browser \
-  -e MCP_DIWALL_BROWSER_PROFILE=~/.config/mcp-server-diwall-browser/profile.json \
-  -- ~/mcp-server-diwall-browser/.venv/bin/python -m mcp_server_diwall_browser
+  -e MCP_DIWALL_BROWSER_PROFILE="$HOME/.config/mcp-server-diwall-browser/profile.json" \
+  -- "$HOME/mcp-server-diwall-browser/.venv/bin/python" -m mcp_server_diwall_browser
 ```
 
-Für einen anderen MCP-Client der allgemeine Block `mcpServers`:
+Für einen anderen MCP-Client der allgemeine Block `mcpServers`. Der Client löst `~` nicht auf:
+Dieser Befehl gibt den Block mit Ihrem Home-Verzeichnis in den Pfaden aus, bereit zum Einfügen in
+dessen Konfiguration:
 
-```json
+```
+cat <<EOF
 {
   "mcpServers": {
     "diwall-browser": {
-      "command": "~/mcp-server-diwall-browser/.venv/bin/python",
+      "command": "$HOME/mcp-server-diwall-browser/.venv/bin/python",
       "args": ["-m", "mcp_server_diwall_browser"],
       "env": {
-        "MCP_DIWALL_BROWSER_PROFILE": "~/.config/mcp-server-diwall-browser/profile.json"
+        "MCP_DIWALL_BROWSER_PROFILE": "$HOME/.config/mcp-server-diwall-browser/profile.json"
       }
     }
   }
 }
+EOF
 ```
 
 Passen Sie `~/mcp-server-diwall-browser` an den Ort an, an dem Sie das Repository geklont haben, und den
@@ -88,9 +92,9 @@ vorenthalten, den das Modell erhält (`redacted_fields` ist 1).
 Getestet:
 
 - Die vollständige Suite unter Debian 13 mit Python 3.12.11 und den Abhängigkeiten aus `requirements.lock`: ohne
-  Browser bestehen 1810 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
+  Browser bestehen 1812 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
   Browser brauchen, sind abgewählt; mit Google Chrome 155.0.8059.84 (ohne Oberfläche, leeres temporäres Profil)
-  bestehen 2381 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
+  bestehen 2383 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
 - Download-Tests: Zwei scheiterten zufällig, 7- und 8-mal in je 30 Einzelläufen, weil der Server die
   Download-Einstellung schloss, bevor der Browser entschieden hatte, was er mit dem Download tut. Nach der
   Änderung scheiterten sie 3- und 1-mal in je 130 Einzelläufen; die 3 waren ein Lesen, im Test selbst, einer

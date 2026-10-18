@@ -42,24 +42,27 @@ Desde un clon del repositorio, con Claude Code:
 
 ```
 claude mcp add --scope user diwall-browser \
-  -e MCP_DIWALL_BROWSER_PROFILE=~/.config/mcp-server-diwall-browser/profile.json \
-  -- ~/mcp-server-diwall-browser/.venv/bin/python -m mcp_server_diwall_browser
+  -e MCP_DIWALL_BROWSER_PROFILE="$HOME/.config/mcp-server-diwall-browser/profile.json" \
+  -- "$HOME/mcp-server-diwall-browser/.venv/bin/python" -m mcp_server_diwall_browser
 ```
 
-Para otro cliente MCP, el bloque genérico `mcpServers`:
+Para otro cliente MCP, el bloque genérico `mcpServers`. El cliente no expande `~`: este comando
+imprime el bloque con tu directorio personal en las rutas, listo para pegar en su configuración:
 
-```json
+```
+cat <<EOF
 {
   "mcpServers": {
     "diwall-browser": {
-      "command": "~/mcp-server-diwall-browser/.venv/bin/python",
+      "command": "$HOME/mcp-server-diwall-browser/.venv/bin/python",
       "args": ["-m", "mcp_server_diwall_browser"],
       "env": {
-        "MCP_DIWALL_BROWSER_PROFILE": "~/.config/mcp-server-diwall-browser/profile.json"
+        "MCP_DIWALL_BROWSER_PROFILE": "$HOME/.config/mcp-server-diwall-browser/profile.json"
       }
     }
   }
 }
+EOF
 ```
 
 Adapta `~/mcp-server-diwall-browser` al lugar donde clonaste el repositorio, y la ruta del perfil al
@@ -87,8 +90,8 @@ se retiene del texto que recibe el modelo (`redacted_fields` vale 1).
 Probado:
 
 - La batería completa, en Debian 13 con Python 3.12.11 y las dependencias de `requirements.lock`: sin navegador
-  pasan 1810 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 571 que necesitan un navegador
-  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2381
+  pasan 1812 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 571 que necesitan un navegador
+  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2383
   pruebas y 1 se omite, sin fallo esperado.
 - Pruebas de descarga: dos fallaban al azar, 7 y 8 veces en 30 ejecuciones de cada una por separado, porque el
   servidor cerraba el ajuste de descarga antes de que el navegador hubiera elegido qué hacer con la descarga.

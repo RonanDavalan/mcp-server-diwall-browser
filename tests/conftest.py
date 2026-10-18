@@ -66,7 +66,7 @@ def mountinfo_line(
         options += "," + extra_options
     return (
         f"{mount_id} 28 0:56 / {escaped} rw,nosuid,nodev,relatime shared:230 - "
-        f"{fs_type} ~/.local/share/plasma-vault/Main.enc {options}"
+        f"{fs_type} /srv/plasma-vault/Main.enc {options}"
     )
 
 
@@ -162,9 +162,9 @@ def write_credential(volume: VolumePaths, name: str, **fields: Any) -> Path:
 def default_profile(**overrides: Any) -> dict[str, Any]:
     profile: dict[str, Any] = {
         "schema_version": 1,
-        "secrets_dir": "~/Vaults/Main",
+        "secrets_dir": "/srv/vaults/Main",
         "allowed_origins": ["https://example.invalid"],
-        "browser": {"family": "chromium", "profile_dir": "~/Vaults/Main/browser-profile"},
+        "browser": {"family": "chromium", "profile_dir": "/srv/vaults/Main/browser-profile"},
     }
     for key, value in overrides.items():
         if value is _DELETE:

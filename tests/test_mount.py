@@ -28,24 +28,24 @@ from mcp_server_diwall_browser.mount import (
 from mcp_server_diwall_browser.output import ToolError
 
 REAL_LINE = (
-    "412 28 0:56 / ~/Vaults/Main rw,nosuid,nodev,relatime shared:230 - fuse.gocryptfs "
-    "~/.local/share/plasma-vault/Main.enc "
+    "412 28 0:56 / /srv/vaults/Main rw,nosuid,nodev,relatime shared:230 - fuse.gocryptfs "
+    "/srv/plasma-vault/Main.enc "
     "rw,nosuid,nodev,relatime,user_id=1000,group_id=1000,max_read=1048576"
 )
 
 
 def test_parse_mountinfo_reads_mount_point_type_and_super_options() -> None:
     [entry] = parse_mountinfo(REAL_LINE + "\n")
-    assert entry.mount_point == "~/Vaults/Main"
+    assert entry.mount_point == "/srv/vaults/Main"
     assert entry.fs_type == "fuse.gocryptfs"
     assert "user_id=1000" in entry.super_options
     assert "allow_other" not in entry.super_options
 
 
 def test_parse_mountinfo_decodes_octal_escapes() -> None:
-    line = REAL_LINE.replace("~/Vaults/Main", "~/My\\040Vault\\011x\\012y\\134z")
+    line = REAL_LINE.replace("/srv/vaults/Main", "/srv/My\\040Vault\\011x\\012y\\134z")
     [entry] = parse_mountinfo(line)
-    assert entry.mount_point == "~/My Vault\tx\ny\\z"
+    assert entry.mount_point == "/srv/My Vault\tx\ny\\z"
 
 
 def test_parse_mountinfo_accepts_lines_without_optional_fields() -> None:
@@ -99,8 +99,8 @@ def substring_detector(mountinfo_text: str, secrets_dir: str) -> bool:
 
 
 def prefix_is_not_taken_for_the_mount(detect: Detector) -> bool:
-    text = REAL_LINE.replace("~/Vaults/Main ", "~/Vaults/Main-old ")
-    return detect(text, "~/Vaults/Main") is False and detect(REAL_LINE, "~/Vaults/Main") is True
+    text = REAL_LINE.replace("/srv/vaults/Main ", "/srv/vaults/Main-old ")
+    return detect(text, "/srv/vaults/Main") is False and detect(REAL_LINE, "/srv/vaults/Main") is True
 
 
 def test_mount_point_name_prefix_is_not_taken_for_the_mount() -> None:

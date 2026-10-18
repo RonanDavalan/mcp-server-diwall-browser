@@ -818,7 +818,7 @@ def test_the_process_without_a_profile_says_so_in_one_line(tmp_path: Path) -> No
 
 
 def test_the_process_with_a_wrong_command_line_says_so_in_one_line(tmp_path: Path) -> None:
-    done = run_process("--source", "~/secret-path.json", "--unknown", environ={"HOME": str(tmp_path)})
+    done = run_process("--source", "/srv/secret-path.json", "--unknown", environ={"HOME": str(tmp_path)})
     assert done.returncode == 1 and done.stdout == "" and done.stderr.split() == ["error:", "invalid_arguments"]
     assert "secret-path" not in done.stderr
 

@@ -42,24 +42,28 @@ From a clone of the repository, with Claude Code:
 
 ```
 claude mcp add --scope user diwall-browser \
-  -e MCP_DIWALL_BROWSER_PROFILE=~/.config/mcp-server-diwall-browser/profile.json \
-  -- ~/mcp-server-diwall-browser/.venv/bin/python -m mcp_server_diwall_browser
+  -e MCP_DIWALL_BROWSER_PROFILE="$HOME/.config/mcp-server-diwall-browser/profile.json" \
+  -- "$HOME/mcp-server-diwall-browser/.venv/bin/python" -m mcp_server_diwall_browser
 ```
 
-For another MCP client, the generic `mcpServers` block:
+For another MCP client, the generic `mcpServers` block. The client does not expand `~`, so this
+command prints the block with your home directory in the paths, ready to paste into its
+configuration:
 
-```json
+```
+cat <<EOF
 {
   "mcpServers": {
     "diwall-browser": {
-      "command": "~/mcp-server-diwall-browser/.venv/bin/python",
+      "command": "$HOME/mcp-server-diwall-browser/.venv/bin/python",
       "args": ["-m", "mcp_server_diwall_browser"],
       "env": {
-        "MCP_DIWALL_BROWSER_PROFILE": "~/.config/mcp-server-diwall-browser/profile.json"
+        "MCP_DIWALL_BROWSER_PROFILE": "$HOME/.config/mcp-server-diwall-browser/profile.json"
       }
     }
   }
 }
+EOF
 ```
 
 Adapt `~/mcp-server-diwall-browser` to where you cloned the repository, and the profile
@@ -88,8 +92,8 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite, on Debian 13 with Python 3.12.11 and the dependencies of `requirements.lock`: without a
-  browser, 1810 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
-  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2381 tests pass and 1 is
+  browser, 1812 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
+  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2383 tests pass and 1 is
   skipped, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the

@@ -119,7 +119,8 @@ ALLOWED_HOSTS = {"example.invalid", "example.test", "localhost", "127.0.0.1", "[
 OWN_ADDRESSES = ("https://github.com/RonanDavalan/mcp-server-diwall-browser", "https://mcp.diwall.davalan.fr")
 RESERVED_SUFFIXES = (".test", ".invalid")
 DOCUMENTATION_NETWORKS = [ipaddress.ip_network(net) for net in ("192.0.2.0/24", "198.51.100.0/24", "203.0.113.0/24", "127.0.0.0/8", "0.0.0.0/32")]
-HOME_RE = re.compile(r"~/(?!alice\b)[A-Za-z0-9_.-]+")
+# Any home directory, of anyone: the pattern is split so that this file does not hold it.
+HOME_RE = re.compile("/hom" + "e/[A-Za-z0-9_.-]*")
 IPV4_RE = re.compile(r"(?<![\d.])(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(?![\d.])")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)")
 URL_HOST_RE = re.compile(r"\b(?:https?|wss?)://(?:[^@/\s\"'<>`]+@)?(\[[^\]\s]*\]?|[^/:\s\"'<>`)\]?#]+)")
@@ -176,7 +177,9 @@ def test_no_tracked_file_holds_real_data() -> None:
 
 # Built from parts, so that this file itself holds none of them.
 PLANTED = [
-    "profile_dir = '~/" + "bob/.config/chromium'",
+    "profile_dir = '/ho" + "me/bob/.config/chromium'",
+    "cd /ho" + "me/alice/Vaults/Main",
+    "/ho" + "me/",
     "server = '192." + "168.1.20'",
     "gateway " + "10.0.0." + "1",
     "contact: bob" + "@" + "example.org",
@@ -199,7 +202,7 @@ def test_real_data_check_leaves_the_addresses_of_the_project_alone_and_catches_o
 
 
 def test_real_data_check_leaves_the_example_values_alone() -> None:
-    assert real_data("alice at ~/Vaults/Main, https://shop.example.test/pay, http://127.0.0.1:9222, user@example.invalid, 203.0.113.5") == []
+    assert real_data("cd ~/Vaults/Main, $HOME/.config, /srv/vaults/Main, https://shop.example.test/pay, http://127.0.0.1:9222, user@example.invalid, 203.0.113.5") == []
 
 
 # --- commentaires et docstrings : une seule langue, aucune histoire de projet, aucune étiquette -----------------------

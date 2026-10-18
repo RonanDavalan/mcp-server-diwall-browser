@@ -42,24 +42,28 @@ Depuis un clone du dépôt, avec Claude Code :
 
 ```
 claude mcp add --scope user diwall-browser \
-  -e MCP_DIWALL_BROWSER_PROFILE=~/.config/mcp-server-diwall-browser/profile.json \
-  -- ~/mcp-server-diwall-browser/.venv/bin/python -m mcp_server_diwall_browser
+  -e MCP_DIWALL_BROWSER_PROFILE="$HOME/.config/mcp-server-diwall-browser/profile.json" \
+  -- "$HOME/mcp-server-diwall-browser/.venv/bin/python" -m mcp_server_diwall_browser
 ```
 
-Pour un autre client MCP, le bloc générique `mcpServers` :
+Pour un autre client MCP, le bloc générique `mcpServers`. Le client ne développe pas `~` : cette
+commande affiche le bloc avec votre répertoire personnel dans les chemins, prêt à coller dans sa
+configuration :
 
-```json
+```
+cat <<EOF
 {
   "mcpServers": {
     "diwall-browser": {
-      "command": "~/mcp-server-diwall-browser/.venv/bin/python",
+      "command": "$HOME/mcp-server-diwall-browser/.venv/bin/python",
       "args": ["-m", "mcp_server_diwall_browser"],
       "env": {
-        "MCP_DIWALL_BROWSER_PROFILE": "~/.config/mcp-server-diwall-browser/profile.json"
+        "MCP_DIWALL_BROWSER_PROFILE": "$HOME/.config/mcp-server-diwall-browser/profile.json"
       }
     }
   }
 }
+EOF
 ```
 
 Adaptez `~/mcp-server-diwall-browser` à l'endroit où vous avez cloné le dépôt, et le chemin du
@@ -87,9 +91,9 @@ rectangle plein, et sa valeur est retenue dans le texte que reçoit le modèle (
 Testé :
 
 - La suite complète, sous Debian 13 avec Python 3.12.11 et les dépendances de `requirements.lock` : sans
-  navigateur, 1810 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
+  navigateur, 1812 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
   navigateur sont désélectionnés ; avec Google Chrome 155.0.8059.84 (sans interface, profil temporaire vierge),
-  2381 tests passent et 1 est ignoré, sans échec attendu.
+  2383 tests passent et 1 est ignoré, sans échec attendu.
 - Tests de téléchargement : deux échouaient au hasard, 7 et 8 fois sur 30 exécutions de chacun seul, parce
   que le serveur refermait le réglage de téléchargement avant que le navigateur ait choisi quoi faire du
   téléchargement. Après la modification, ils ont échoué 3 et 1 fois sur 130 exécutions de chacun seul ; les 3

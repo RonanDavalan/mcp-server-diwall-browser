@@ -1,15 +1,18 @@
 # Operator guide
 
 How to install the server, prepare the browser and the encrypted directory, write the operator
-profile, and answer each refusal. Every command uses the same example values: the user `alice`,
-the repository cloned at `~/mcp-server-diwall-browser`, the encrypted directory kept on
-disk at `~/Vaults/Main.enc` and opened at `~/Vaults/Main`, and sites under
-`example.invalid`. Replace them with yours; each section says which values are yours to choose.
+profile, and answer each refusal. Every command uses the same example values: the repository cloned
+at `~/mcp-server-diwall-browser`, the encrypted directory kept on disk at `~/Vaults/Main.enc` and
+opened at `~/Vaults/Main`, and sites under `example.invalid`. `~` is your home directory: the shell
+writes it in full in a command. The server and the MCP clients do not expand it, so the two
+configuration files that need an absolute path (the operator profile, section 5, and the block of an
+MCP client, section 2.1) are written by a command that puts your home directory in them. Replace the
+other values with yours; each section says which values are yours to choose.
 
 ## The final layout
 
 ```
-~/
+~/                                                 your home directory
 ├── mcp-server-diwall-browser/                     the repository; the server runs from here
 │   └── .venv/                                     its virtual environment; the MCP client starts .venv/bin/python
 ├── .config/mcp-server-diwall-browser/             mode 700
@@ -104,10 +107,10 @@ the clone: the package does not ship them. Everything from section 3 on is the s
 
 The rest of this section is the installation from a clone.
 
-Clone the repository. Replace the address with the one of your copy of the repository:
+Clone the repository. Use the address of your own copy of it if you work from one:
 
 ```
-git clone https://git.example.invalid/alice/mcp-server-diwall-browser.git ~/mcp-server-diwall-browser
+git clone https://github.com/RonanDavalan/mcp-server-diwall-browser.git ~/mcp-server-diwall-browser
 cd ~/mcp-server-diwall-browser
 ```
 
@@ -143,7 +146,7 @@ Output in the project's environment, with Python 3.12.11 (the counts are those o
 of its tests needing a browser):
 
 ```
-1810 passed, 1 skipped, 571 deselected, 1 warning in 84.69s (0:01:24)
+1812 passed, 1 skipped, 571 deselected, 1 warning in 95.19s (0:01:35)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -179,7 +182,7 @@ each starts the browser headless on a blank temporary profile. In the same envir
 Chrome 155.0.8059.84 found on the `PATH`:
 
 ```
-2381 passed, 1 skipped, 1 warning in 338.68s (0:05:38)
+2383 passed, 1 skipped, 1 warning in 343.88s (0:05:43)
 ```
 
 Then connect the server to your MCP client, as the next part describes.
@@ -190,27 +193,31 @@ The server gives the model that receives its fourteen tools the hands of the ope
 where the operator is signed in. The configuration of the client decides which model receives them,
 and with what else (a shell, the right to write files). The three configurations below are for
 OpenCode (version 2.0.29 was measured); the command that starts the server and its environment
-variable are the ones of the `README.md`, whatever the client. Adapt `~` to the clone of
-your repository, and the profile path to yours.
+variable are the ones of the `README.md`, whatever the client. Adapt the clone path of the
+repository, and the profile path, to yours.
 
 Each block is a piece of `~/.config/opencode/opencode.jsonc` (the global file) or of an
-`opencode.jsonc` at the root of one project. The server's own declaration is the same in the three:
+`opencode.jsonc` at the root of one project. The server's own declaration is the same in the three.
+The configuration file wants absolute paths and does not expand `~`: this command prints the
+declaration with your home directory in it, ready to paste:
 
-```json
+```
+cat <<EOF
 "mcp": {
   "diwall-browser": {
     "type": "local",
     "command": [
-      "~/mcp-server-diwall-browser/.venv/bin/python",
+      "$HOME/mcp-server-diwall-browser/.venv/bin/python",
       "-m",
       "mcp_server_diwall_browser"
     ],
     "environment": {
-      "MCP_DIWALL_BROWSER_PROFILE": "~/.config/mcp-server-diwall-browser/profile.json"
+      "MCP_DIWALL_BROWSER_PROFILE": "$HOME/.config/mcp-server-diwall-browser/profile.json"
     },
     "enabled": true
   }
 }
+EOF
 ```
 
 **A dedicated agent (recommended).** The server is declared globally, its tools are switched off
@@ -274,9 +281,9 @@ encrypted directory is open (section 4).
 Start the browser with one of these commands, the one of your browser:
 
 ```
-google-chrome --user-data-dir=~/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome --remote-debugging-port=9222
-chromium --user-data-dir=~/Vaults/Main/mcp-server-diwall-browser/browser-profile/chromium --remote-debugging-port=9222
-brave-browser --user-data-dir=~/Vaults/Main/mcp-server-diwall-browser/browser-profile/brave --remote-debugging-port=9222
+google-chrome --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome" --remote-debugging-port=9222
+chromium --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/chromium" --remote-debugging-port=9222
+brave-browser --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/brave" --remote-debugging-port=9222
 ```
 
 Adapt `~/Vaults/Main` to where you open the encrypted directory. The two values must be
@@ -363,34 +370,32 @@ the absolute path given in the environment variable `MCP_DIWALL_BROWSER_PROFILE`
 connection block of the `README.md` sets. The server reads it again on every call: a change
 takes effect without a restart.
 
-Create its directory and write the file with your editor:
+Create its directory and write the file. The server wants absolute paths and does not expand `~`
+or `$HOME`: the command below lets the shell write your home directory in the file. It is a complete
+example, with every key, and the server accepts the file it writes. Adapt the origins and the browser
+to yours, then edit the file with your editor when your values change:
 
 ```
-mkdir -m 700 ~/.config/mcp-server-diwall-browser
-vim ~/.config/mcp-server-diwall-browser/profile.json
-chmod 600 ~/.config/mcp-server-diwall-browser/profile.json
-chmod 700 ~/.config/mcp-server-diwall-browser
-```
-
-A complete example, with every key; the server accepts it as written. Adapt the paths, the
-origins and the browser to yours:
-
-```json
+mkdir -p -m 700 ~/.config/mcp-server-diwall-browser
+cat > ~/.config/mcp-server-diwall-browser/profile.json <<EOF
 {
   "schema_version": 1,
-  "secrets_dir": "~/Vaults/Main",
-  "secrets_crypt_dir": "~/Vaults/Main.enc",
+  "secrets_dir": "$HOME/Vaults/Main",
+  "secrets_crypt_dir": "$HOME/Vaults/Main.enc",
   "allowed_origins": ["https://account.example.invalid", "https://shop.example.invalid"],
   "confirm_each_change": ["https://account.example.invalid"],
   "local_model_origins": [],
   "declarations": {"local_model_client": false, "client_does_not_auto_confirm": false},
   "browser": {
     "family": "chrome",
-    "profile_dir": "~/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome",
+    "profile_dir": "$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome",
     "debug_port": 9222
   },
   "limits": {"min_action_delay_ms": 250, "max_actions_per_session": 200, "max_pages_per_session": 50}
 }
+EOF
+chmod 600 ~/.config/mcp-server-diwall-browser/profile.json
+chmod 700 ~/.config/mcp-server-diwall-browser
 ```
 
 - `schema_version`: always `1`.
@@ -981,7 +986,8 @@ this project's session, the announcement read `mcp-server-diwall-browser 1.25.0`
 
 Every refusal has a code and a message for the operator, in French, in `server.error`. When
 `action_expected` is set, the next step is yours or that tool's. The messages below are the ones of
-the code, with the example values in place of the variable parts.
+the code, with the example values in place of the variable parts; `~` stands for your home
+directory, which the server writes in full.
 
 `not_configured`: no operator profile is found, or a required key is missing.
 `profil de l'opérateur introuvable : le fournir dans le fichier ~/.config/mcp-server-diwall-browser/profile.json (mode 600, répertoire 700) ou désigner un fichier par la variable d'environnement MCP_DIWALL_BROWSER_PROFILE (chemin absolu)`
