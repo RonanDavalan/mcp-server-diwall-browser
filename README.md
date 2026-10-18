@@ -200,8 +200,9 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
 - **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application; its field report shaped the next fixes.
-- **gemini-3.5-flash (Google, through OpenCode)**: proved the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
+- **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, again on 16 October 2026: the stylesheet and layout of the project's website, chosen among several trials; the text and the behaviour of the pages were left untouched.
+- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, once more on 18 October 2026: a reading of the sixteen French pages of the project's website and wording proposals in four languages, kept as drafts.
 - **Local vision**: Qwen3-VL (Alibaba), run through Ollama, for the optional visual location and comparison.
 
 License: not chosen yet.
