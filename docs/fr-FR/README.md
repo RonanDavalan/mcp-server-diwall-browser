@@ -9,9 +9,36 @@ navigateur de la famille Chromium que l'opérateur démarre avec un profil dédi
 à l'interface de bouclage, ainsi qu'un répertoire chiffré (gocryptfs) pour les identifiants, les captures
 et les téléchargements.
 
+## Installer
+
+Sous Linux, le serveur est livré en paquets natifs. Téléchargez celui de votre système sur la page
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) du dépôt ou sur la page des téléchargements du site, puis installez-le depuis le dossier
+qui le contient :
+
+| Système | Commande |
+|---|---|
+| Debian 13, Ubuntu 24.04 et 26.04 | `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb` |
+| Fedora 44 | `sudo dnf install ./mcp-server-diwall-browser-0.0.1-1.fc44.noarch.rpm` |
+| openSUSE Leap 16.0 | `sudo zypper install --allow-unsigned-rpm ./mcp-server-diwall-browser-0.0.1-1.leap160.noarch.rpm` |
+| Arch Linux | `sudo pacman -U ./mcp-server-diwall-browser-0.0.1-1-any.pkg.tar.zst` |
+
+L'installation, le démarrage du serveur par un compte ordinaire et le retrait sont validés en conteneur sur
+ces systèmes. Un conteneur ne montre ni la fenêtre de confirmation, ni le montage du répertoire chiffré, ni
+un navigateur. Debian 12 et Ubuntu 22.04 ne sont pas pris en charge : leur Python est plus ancien que 3.12.
+L'installation demande une connexion au réseau : le paquet crée un environnement virtuel Python et y installe
+les dépendances, aux versions que le projet a testées. La page de manuel est `man mcp-server-diwall-browser`.
+Pour installer depuis un clone du dépôt, suivez [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md).
+
 ## Le brancher à un client MCP
 
-Le serveur parle MCP sur l'entrée et la sortie standard. Avec Claude Code :
+Le serveur parle MCP sur l'entrée et la sortie standard. Avec un paquet installé, la commande est
+`mcp-server-diwall-browser` et le profil d'opérateur est lu à sa place habituelle :
+
+```
+claude mcp add --scope user diwall-browser -- mcp-server-diwall-browser
+```
+
+Depuis un clone du dépôt, avec Claude Code :
 
 ```
 claude mcp add --scope user diwall-browser \

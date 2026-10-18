@@ -8,9 +8,37 @@ accesibilidad que el operador, y actúa en la misma sesión autenticada. Necesit
 Chromium que el operador inicia con un perfil dedicado y un puerto de depuración enlazado a la interfaz de
 bucle local, y un directorio cifrado (gocryptfs) para las credenciales, las capturas y las descargas.
 
+## Instalar
+
+En Linux, el servidor se entrega en paquetes nativos. Descarga el de tu sistema desde la página
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) del repositorio o desde la página de descargas del sitio web, y luego instálalo desde la
+carpeta que lo contiene:
+
+| Sistema | Comando |
+|---|---|
+| Debian 13, Ubuntu 24.04 y 26.04 | `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb` |
+| Fedora 44 | `sudo dnf install ./mcp-server-diwall-browser-0.0.1-1.fc44.noarch.rpm` |
+| openSUSE Leap 16.0 | `sudo zypper install --allow-unsigned-rpm ./mcp-server-diwall-browser-0.0.1-1.leap160.noarch.rpm` |
+| Arch Linux | `sudo pacman -U ./mcp-server-diwall-browser-0.0.1-1-any.pkg.tar.zst` |
+
+La instalación, el arranque del servidor por una cuenta ordinaria y la desinstalación están validados en
+contenedores en estos sistemas. Un contenedor no muestra ni la ventana de confirmación, ni el montaje del
+directorio cifrado, ni un navegador. Debian 12 y Ubuntu 22.04 no son compatibles: su Python es anterior a
+3.12. La instalación necesita una conexión de red: el paquete crea un entorno virtual de Python e instala en
+él las dependencias, en las versiones que el proyecto probó. La página de manual es
+`man mcp-server-diwall-browser`. Para instalar desde un clon del repositorio, sigue
+[docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md).
+
 ## Conectarlo a un cliente MCP
 
-El servidor habla MCP por la entrada y la salida estándar. Con Claude Code:
+El servidor habla MCP por la entrada y la salida estándar. Con un paquete instalado, el comando es
+`mcp-server-diwall-browser` y el perfil de operador se lee en su sitio habitual:
+
+```
+claude mcp add --scope user diwall-browser -- mcp-server-diwall-browser
+```
+
+Desde un clon del repositorio, con Claude Code:
 
 ```
 claude mcp add --scope user diwall-browser \

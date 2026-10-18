@@ -92,6 +92,18 @@ Use `zenity` in place of `kdialog` outside KDE if you prefer.
 
 ## 2. Installation
 
+**From a package.** On Debian, Ubuntu, Fedora, openSUSE Leap and Arch Linux, a native package replaces the
+clone, the virtual environment and the installation below (the install commands are in the `README.md`).
+It installs the server under `/usr/lib/mcp-server-diwall-browser` with a virtual environment of its own,
+and puts two commands on the `PATH`: `mcp-server-diwall-browser`, the server, and
+`mcp-server-diwall-browser-credential-import`, the command of section 6. In the connection blocks of the
+`README.md` and of section 2.1, the command is then `mcp-server-diwall-browser`, with no argument; in
+section 6, `mcp-server-diwall-browser-credential-import` takes the place of
+`.venv/bin/python -m mcp_server_diwall_browser.credential_import`. The tests and the smoke test belong to
+the clone: the package does not ship them. Everything from section 3 on is the same.
+
+The rest of this section is the installation from a clone.
+
 Clone the repository. Replace the address with the one of your copy of the repository:
 
 ```

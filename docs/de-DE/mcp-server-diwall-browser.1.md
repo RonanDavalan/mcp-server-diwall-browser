@@ -149,6 +149,24 @@ Passwort werden übernommen, ein zweiter Faktor nicht. Er überschreibt nichts u
 `DISPLAY`, `WAYLAND_DISPLAY`
 :   Die Anzeige, auf der sich das Bestätigungsfenster öffnet.
 
+# PAKETE
+
+Der Server wird als natives Paket geliefert und aus dem Ordner installiert, der die heruntergeladene Datei enthält:
+
+Debian 13, Ubuntu 24.04 und 26.04
+:   `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`
+
+Fedora 44
+:   `sudo dnf install ./mcp-server-diwall-browser-0.0.1-1.fc44.noarch.rpm`
+
+openSUSE Leap 16.0
+:   `sudo zypper install --allow-unsigned-rpm ./mcp-server-diwall-browser-0.0.1-1.leap160.noarch.rpm`
+
+Arch Linux
+:   `sudo pacman -U ./mcp-server-diwall-browser-0.0.1-1-any.pkg.tar.zst`
+
+Installation, Start des Servers durch ein gewöhnliches Konto und Entfernen sind auf diesen Systemen in Containern validiert. Ein Container zeigt weder das Bestätigungsfenster noch das Einhängen des verschlüsselten Verzeichnisses noch einen Browser. Debian 12 und Ubuntu 22.04 werden nicht unterstützt: Ihr Python ist älter als 3.12.
+
 # DATEIEN
 
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`

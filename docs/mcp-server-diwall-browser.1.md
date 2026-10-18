@@ -146,6 +146,24 @@ are carried over; a second factor is not. It overwrites nothing and deletes noth
 `DISPLAY`, `WAYLAND_DISPLAY`
 :   The display on which the confirmation window opens.
 
+# PACKAGES
+
+The server ships as native packages, installed from the folder that holds the downloaded file:
+
+Debian 13, Ubuntu 24.04 and 26.04
+:   `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`
+
+Fedora 44
+:   `sudo dnf install ./mcp-server-diwall-browser-0.0.1-1.fc44.noarch.rpm`
+
+openSUSE Leap 16.0
+:   `sudo zypper install --allow-unsigned-rpm ./mcp-server-diwall-browser-0.0.1-1.leap160.noarch.rpm`
+
+Arch Linux
+:   `sudo pacman -U ./mcp-server-diwall-browser-0.0.1-1-any.pkg.tar.zst`
+
+Installation, the start of the server by an ordinary account and removal are validated in containers on these systems. A container shows neither the confirmation window, nor the mounting of the encrypted directory, nor a browser. Debian 12 and Ubuntu 22.04 are not supported: their Python is older than 3.12.
+
 # FILES
 
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`

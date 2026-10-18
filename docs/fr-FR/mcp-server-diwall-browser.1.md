@@ -149,6 +149,24 @@ le mot de passe sont repris ; un second facteur ne l'est pas. Elle n'écrase r
 `DISPLAY`, `WAYLAND_DISPLAY`
 :   L'affichage sur lequel s'ouvre la fenêtre de confirmation.
 
+# PAQUETS
+
+Le serveur est livré en paquets natifs, installés depuis le dossier qui contient le fichier téléchargé :
+
+Debian 13, Ubuntu 24.04 et 26.04
+:   `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`
+
+Fedora 44
+:   `sudo dnf install ./mcp-server-diwall-browser-0.0.1-1.fc44.noarch.rpm`
+
+openSUSE Leap 16.0
+:   `sudo zypper install --allow-unsigned-rpm ./mcp-server-diwall-browser-0.0.1-1.leap160.noarch.rpm`
+
+Arch Linux
+:   `sudo pacman -U ./mcp-server-diwall-browser-0.0.1-1-any.pkg.tar.zst`
+
+L'installation, le démarrage du serveur par un compte ordinaire et le retrait sont validés en conteneur sur ces systèmes. Un conteneur ne montre ni la fenêtre de confirmation, ni le montage du répertoire chiffré, ni un navigateur. Debian 12 et Ubuntu 22.04 ne sont pas pris en charge : leur Python est plus ancien que 3.12.
+
 # FICHIERS
 
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
