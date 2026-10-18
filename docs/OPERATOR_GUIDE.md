@@ -423,7 +423,7 @@ chmod 700 ~/.config/mcp-server-diwall-browser
 - `browser.profile_dir`: the `--user-data-dir` of the dedicated profile (absolute path). `status`
   says in `profile_encrypted` whether this path lies in the open encrypted directory; that is what
   the profile says, not a proof of where the browser keeps its data.
-- `browser.debug_port`: the `--remote-debugging-port`, from 1024 to 65535 (default 9222).
+- `browser.debug_port`: the `--remote-debugging-port`, from 1024 to 65535 (default `9222`).
 - `limits.min_action_delay_ms`: the least time between two actions, from 0 to 60000 (default 250).
 - `limits.max_actions_per_session`: actions allowed to one server process, from 1 to 100000
   (default 200).

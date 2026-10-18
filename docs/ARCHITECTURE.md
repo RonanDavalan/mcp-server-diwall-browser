@@ -50,12 +50,15 @@ refusals that do not depend on the model's judgement.
 | `credential_import` | an operator command, outside the server: converts an old credential file, or a directory of them, to the schema, showing no value |
 | `journal` | the audit journal, one JSON line per call |
 | `operator_profile` | reading the operator profile; with `confirm`, the only module that reads the environment |
+| `profile_watch` | the trace of a change of the origin lists of the profile: the comparison, the origins last seen, the notice |
 | `cdp` | the DevTools client, its list of allowed methods and its constant scripts |
 | `browser` | attachment checks, tabs the server owns, navigation, dialogs |
 | `perception` | snapshot, marks, tree, image, masks, what is kept under the caps, waiting for a text or an element |
+| `observation_filter` | the optional `region` and `contains` of `observe`: they shrink the tree and the elements, reading only lines already redacted |
 | `gate` | the locked categories, their detection, the ceilings |
 | `confirm` | the confirmation: text of the window, native window or client's request |
 | `actions` | click, fill, select an option, keys, scroll, dialogs, through one pipeline |
+| `tab_state` | the file of the tabs the server holds, so that the next run can close those a stopped run left open |
 | `evidence` | captures and downloads written in the encrypted directory |
 | `guide` | the text the model reads when the session opens |
 | `server` | the factory of the server, its dependencies, the browser session, the journal of every call |
@@ -137,8 +140,6 @@ that the client never answers it by itself.
   reaches servers over the network only.
 - Raising the caps: they keep what the model receives bounded. Would reopen it: a page whose only
   layer is cut under the present ranking.
-- A search by text in `observe`: the tools are fourteen with fixed parameters. Would reopen it: a
-  layer the ranking cannot recognise on a page the operator needs.
 - The old credential format read by the server: its schema is strict so that a file is never read
   as something it is not. Would reopen it: a format the operator cannot convert once.
 - A tool that converts credentials: the model would be handed the path of a file of secrets, and its
