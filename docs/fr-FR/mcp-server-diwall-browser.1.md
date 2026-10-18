@@ -175,8 +175,11 @@ L'installation, le démarrage du serveur par un compte ordinaire et le retrait s
 `/usr/lib/mcp-server-diwall-browser`
 :   Le programme et son environnement virtuel Python, créé par le paquet à l'installation, qui demande une connexion au réseau pour cette étape.
 
+`/usr/share/doc/mcp-server-diwall-browser/fr/OPERATOR_GUIDE.md`
+:   Le guide de l'opérateur : installation, navigateur, répertoire chiffré, profil, identifiants et codes de refus.
+
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`
-:   Le guide de l'opérateur (en anglais) : installation, navigateur, répertoire chiffré, profil, identifiants et codes de refus.
+:   Le même guide, en anglais, langue de la source.
 
 `~/.config/mcp-server-diwall-browser/profile.json`
 :   Le profil de l'opérateur.

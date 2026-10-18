@@ -27,7 +27,7 @@ ces systèmes. Un conteneur ne montre ni la fenêtre de confirmation, ni le mont
 un navigateur. Debian 12 et Ubuntu 22.04 ne sont pas pris en charge : leur Python est plus ancien que 3.12.
 L'installation demande une connexion au réseau : le paquet crée un environnement virtuel Python et y installe
 les dépendances, aux versions que le projet a testées. La page de manuel est `man mcp-server-diwall-browser`.
-Pour installer depuis un clone du dépôt, suivez [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md).
+Pour installer depuis un clone du dépôt, suivez [docs/fr-FR/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
 ## Le brancher à un client MCP
 
@@ -74,8 +74,8 @@ Debian : `claude mcp list` montrait le serveur connecté. Les tests démarrent l
 deux blocs : `python -m mcp_server_diwall_browser` avec `MCP_DIWALL_BROWSER_PROFILE` définie.
 
 Tout ce qui précède (installer, démarrer le navigateur, ouvrir le répertoire chiffré, écrire le profil
-d'opérateur) est dans [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md). Le fonctionnement et ses raisons sont
-dans [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
+d'opérateur) est dans [docs/fr-FR/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md). Le fonctionnement et ses raisons sont
+dans [docs/fr-FR/ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Ce que le modèle voit
 
