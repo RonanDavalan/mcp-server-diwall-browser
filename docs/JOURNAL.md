@@ -2282,3 +2282,21 @@ shared by the four families), and the French README and manual page point to the
   guides and four pages of the site follow every test added (the check stays in the workspace, run with
   the comparison of the guides). A translation made by another model: the code would still be retyped, and
   the wording of a public text is the author's.
+
+## Operator guide and architecture in German
+
+`docs/de-DE/OPERATOR_GUIDE.md` and `docs/de-DE/ARCHITECTURE.md` translate the two English sources, as the
+French ones do. The packages ship them under `usr/share/doc/mcp-server-diwall-browser/de/` (the same list of
+delivered files for the four families), and the German README and manual page point to them.
+
+- How. The same method as the French guides: the code blocks of the source are masked, the text around
+  them is translated from the English source (never from the French), and the blocks are put back from the
+  source. The messages of the server stay in French, as the server writes them. The typography is the German
+  one: „…“ for quotation marks, the half-em dash with spaces, a non-breaking space in `z. B.` and before an
+  abbreviated unit, the decimal comma, and a non-breaking space between thousands from five digits on.
+- Control. The comparison of each translation with its source, the same as for French, gives 0 differences
+  for both guides; it also reads the German typography and refuses `beweisen`, `Beweis` and `KI`. Each defect
+  planted in a copy of the source is caught, and so is each defect planted in a German text (straight
+  quotation mark, long dash, decimal point, abbreviation or unit without a non-breaking space, English word).
+- Found while translating. The German README and manual page said *Marke* in some places and
+  *Markierung* in others; the README now says *Markierung*, as the manual page and the site do.

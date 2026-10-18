@@ -28,7 +28,7 @@ verschlüsselten Verzeichnisses noch einen Browser. Debian 12 und Ubuntu 22.04 w
 Python ist älter als 3.12. Die Installation braucht eine Netzwerkverbindung: Das Paket legt eine virtuelle
 Python-Umgebung an und installiert darin die Abhängigkeiten in den Versionen, die das Projekt getestet hat.
 Die Handbuchseite ist `man mcp-server-diwall-browser`. Zur Installation aus einem Klon des Repositorys folgen
-Sie [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md).
+Sie [docs/de-DE/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
 ## An einen MCP-Client anbinden
 
@@ -75,15 +75,15 @@ Befehls `claude mcp add` wurde mit `claude mcp add --help` geprüft und dann vom
 `python -m mcp_server_diwall_browser` mit gesetzter `MCP_DIWALL_BROWSER_PROFILE`.
 
 Alles, was davor liegt (Installieren, den Browser starten, das verschlüsselte Verzeichnis öffnen, das
-Bedienerprofil schreiben), steht in [docs/OPERATOR_GUIDE.md](../OPERATOR_GUIDE.md). Wie es funktioniert und
-warum, steht in [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
+Bedienerprofil schreiben), steht in [docs/de-DE/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md). Wie es funktioniert und
+warum, steht in [docs/de-DE/ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Was das Modell sieht
 
 ![Die Demoseite, wie das Modell sie erhält](../images/observe-demo.png)
 
 Das Bild oben wurde von `scripts/smoke_test.py` aus der lokalen Demoseite (`docs/demo/index.html`) erzeugt. Die
-nummerierten Marken zeichnet der Server: Eine Aktion benennt ein Element über seine Marke. Das Passwortfeld, das
+nummerierten Markierungen zeichnet der Server: Eine Aktion benennt ein Element über seine Markierung. Das Passwortfeld, das
 die Seite selbst ausgefüllt hat, wird durch ein ausgefülltes Rechteck verdeckt, und sein Wert wird dem Text
 vorenthalten, den das Modell erhält (`redacted_fields` ist 1).
 
@@ -112,8 +112,8 @@ Getestet:
   Tests, die den instabilen ersetzen, einzeln, 0 Fehlschläge in je 40 Läufen. Die Klick-Tests wurden damit nicht
   wiederholt.
 - `scripts/smoke_test.py` liefert 0 gegen Chromium 141 und 3, wenn kein Browser gefunden wird.
-- Die Marken und die Masken bei einer Bildschirmskalierung von 1, 1,5 und 2, auf einem Chromium 141 ohne
-  Oberfläche: Der Rahmen jeder sichtbaren Marke liegt innerhalb von zwei Pixeln des Rahmens, den der Browser
+- Die Markierungen und die Masken bei einer Bildschirmskalierung von 1, 1,5 und 2, auf einem Chromium 141 ohne
+  Oberfläche: Der Rahmen jeder sichtbaren Markierung liegt innerhalb von zwei Pixeln des Rahmens, den der Browser
   selbst angibt, jedes Pixel des Passwortfelds der Demoseite liegt unter seiner Maske, und die Maske reicht nicht
   mehr als zwei Pixel darüber hinaus (`tests/test_scale_integration.py`). Vor der Korrektur deckte eine Maske ihr
   Feld bei einer Skalierung über 1 nicht ab. Ein echter Bildschirm bei 1,5 wurde nicht gemessen.
@@ -164,7 +164,7 @@ Getestet:
   `docs/JOURNAL.md`.
 - Eine dichte Seite mit einem Einwilligungsbanner, das über ihrem unteren Teil festsitzt (643 Dinge zum Klicken):
   seine drei Buttons sind markiert und im Baum zuerst aufgelistet, die Elemente darunter sagen `covered`, und ein
-  Klick auf „Ablehnen“ über seine Marke entfernt das Banner (`tests/test_ranking_integration.py`).
+  Klick auf „Ablehnen“ über seine Markierung entfernt das Banner (`tests/test_ranking_integration.py`).
 - Der Befehl, der eine alte Zugangsdatei übernimmt (siehe Bedienerhandbuch): an Dateien der Testsuite in einem
   simulierten Volume, mit einer getesteten Ablehnung für jeden Ausgang und ohne einen Wert in irgendetwas, das er
   ausgibt. Er wurde an keinem echten gocryptfs-Volume ausprobiert.
@@ -213,7 +213,7 @@ Bekannte Grenzen:
   beantwortet einen solchen Dialog.
 - Die Sichtbarkeit ist ungefähr: Der Server berechnet weder Kontrast noch das Abschneiden durch `overflow`, sodass
   Text, den ein Mensch nicht lesen kann, das Modell dennoch erreichen kann.
-- Eine Beobachtung enthält höchstens 150 Marken und 400 Baumzeilen (`marks_truncated`, `tree_truncated`). Darüber
+- Eine Beobachtung enthält höchstens 150 Markierungen und 400 Baumzeilen (`marks_truncated`, `tree_truncated`). Darüber
   hinaus behält der Server zuerst, was in einer Ebene über der Seite liegt (ein Dialog, ein modaler Knoten, ein
   fester oder klebender Knoten, der über sichtbarem Inhalt liegt, wie ein Cookie-Banner), im Baum unter einer
   `overlay`-Zeile aufgeführt, dann was sichtbar und frei ist, dann was sichtbar unter einer Ebene liegt

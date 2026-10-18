@@ -175,8 +175,11 @@ Installation, Start des Servers durch ein gewöhnliches Konto und Entfernen sind
 `/usr/lib/mcp-server-diwall-browser`
 :   Das Programm und seine virtuelle Python-Umgebung, die das Paket bei der Installation anlegt und für die es eine Netzwerkverbindung braucht.
 
+`/usr/share/doc/mcp-server-diwall-browser/de/OPERATOR_GUIDE.md`
+:   Das Bedienerhandbuch: Installation, Browser, verschlüsseltes Verzeichnis, Profil, Zugangsdaten und Ablehnungscodes.
+
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`
-:   Das Bedienerhandbuch (auf Englisch): Installation, Browser, verschlüsseltes Verzeichnis, Profil, Zugangsdaten und Ablehnungscodes.
+:   Dasselbe Handbuch auf Englisch, der Sprache der Quelle.
 
 `~/.config/mcp-server-diwall-browser/profile.json`
 :   Das Bedienerprofil.
