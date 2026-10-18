@@ -6,7 +6,7 @@ Ein MCP-Server, der einem Sprachmodell die Augen und Hände eines Bedieners im e
 gibt, über das Chrome DevTools Protocol: Das Modell sieht denselben Screenshot und denselben
 Barrierefreiheitsbaum wie der Bediener und handelt in derselben angemeldeten Sitzung. Es braucht einen Browser
 der Chromium-Familie, den der Bediener mit einem eigenen Profil und einem an die Loopback-Schnittstelle
-gebundenen Debugging-Port startet, sowie ein verschlüsseltes Verzeichnis (gocryptfs) für Zugangsdaten, Belege
+gebundenen Debugging-Port startet, sowie ein verschlüsseltes Verzeichnis (gocryptfs) für Zugangsdaten, Aufnahmen
 und Downloads.
 
 ## An einen MCP-Client anbinden
@@ -178,7 +178,7 @@ Bekannte Grenzen:
 - Ein Download, den eine Seite mehr als eine halbe Sekunde nach dem Ende eines Ladevorgangs startet, wird
   abgelehnt.
 - Das Annehmen eines Dialogs, dessen Meldung eine Zahlung, eine Löschung oder eine Änderung eines Geheimnisses
-  verlangt, wird immer abgelehnt: Solange ein Dialog offen ist, kann kein Beleg aufgenommen werden. Der Bediener
+  verlangt, wird immer abgelehnt: Solange ein Dialog offen ist, kann keine Aufnahme gemacht werden. Der Bediener
   beantwortet einen solchen Dialog.
 - Die Sichtbarkeit ist ungefähr: Der Server berechnet weder Kontrast noch das Abschneiden durch `overflow`, sodass
   Text, den ein Mensch nicht lesen kann, das Modell dennoch erreichen kann.

@@ -6,7 +6,7 @@ Un serveur MCP qui donne à un modèle de langage les yeux et les mains d'un op�
 même de l'opérateur, par le protocole Chrome DevTools : le modèle voit la même capture d'écran et le
 même arbre d'accessibilité que l'opérateur, et agit dans la même session authentifiée. Il lui faut un
 navigateur de la famille Chromium que l'opérateur démarre avec un profil dédié et un port de débogage lié
-à l'interface de bouclage, ainsi qu'un répertoire chiffré (gocryptfs) pour les identifiants, les preuves
+à l'interface de bouclage, ainsi qu'un répertoire chiffré (gocryptfs) pour les identifiants, les captures
 et les téléchargements.
 
 ## Le brancher à un client MCP
@@ -180,7 +180,7 @@ Limites connues :
   fonctionnent de nouveau dès que la connexion du serveur prend fin.
 - Un téléchargement qu'une page lance plus d'une demi-seconde après la fin d'un chargement est refusé.
 - Accepter une boîte de dialogue dont le message demande un paiement, une suppression ou un changement de
-  secret est toujours refusé : aucune preuve ne peut être prise tant qu'une boîte de dialogue est ouverte.
+  secret est toujours refusé : aucune capture ne peut être prise tant qu'une boîte de dialogue est ouverte.
   L'opérateur répond à une telle boîte de dialogue.
 - La visibilité est approximative : le serveur ne calcule ni le contraste ni le rognage par `overflow`, si
   bien qu'un texte qu'un humain ne peut pas lire peut tout de même parvenir au modèle.

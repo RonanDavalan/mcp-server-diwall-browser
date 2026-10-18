@@ -6,7 +6,7 @@ An MCP server that gives a language model the eyes and hands of an operator in t
 browser, through the Chrome DevTools Protocol: the model sees the same screenshot and the same
 accessibility tree as the operator, and acts in the same authenticated session. It needs a
 Chromium-family browser that the operator starts with a dedicated profile and a debugging port
-bound to the loopback interface, and an encrypted directory (gocryptfs) for credentials, evidence
+bound to the loopback interface, and an encrypted directory (gocryptfs) for credentials, captures
 and downloads.
 
 ## Connect it to an MCP client
@@ -177,7 +177,7 @@ Known limits:
   the server's connection ends.
 - A download that a page starts more than half a second after a load ends is refused.
 - Accepting a dialog whose message asks for a payment, a deletion or a secret change is always
-  refused: no evidence can be taken while a dialog is open. The operator answers such a dialog.
+  refused: no capture can be taken while a dialog is open. The operator answers such a dialog.
 - Visibility is approximate: the server does not compute contrast or `overflow` clipping, so text a
   human cannot read can still reach the model.
 - An observation holds at most 150 marks and 400 tree lines (`marks_truncated`, `tree_truncated`).

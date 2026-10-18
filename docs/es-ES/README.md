@@ -6,7 +6,7 @@ Un servidor MCP que da a un modelo de lenguaje los ojos y las manos de un operad
 operador, mediante el protocolo Chrome DevTools: el modelo ve la misma captura de pantalla y el mismo árbol de
 accesibilidad que el operador, y actúa en la misma sesión autenticada. Necesita un navegador de la familia
 Chromium que el operador inicia con un perfil dedicado y un puerto de depuración enlazado a la interfaz de
-bucle local, y un directorio cifrado (gocryptfs) para las credenciales, las pruebas y las descargas.
+bucle local, y un directorio cifrado (gocryptfs) para las credenciales, las capturas y las descargas.
 
 ## Conectarlo a un cliente MCP
 
@@ -174,7 +174,7 @@ Límites conocidos:
   conexión del servidor.
 - Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga.
 - Aceptar un cuadro de diálogo cuyo mensaje pide un pago, un borrado o un cambio de secreto se rechaza siempre: no
-  se puede tomar ninguna prueba mientras hay un diálogo abierto. El operador responde a ese diálogo.
+  se puede tomar ninguna captura mientras hay un diálogo abierto. El operador responde a ese diálogo.
 - La visibilidad es aproximada: el servidor no calcula el contraste ni el recorte por `overflow`, así que un texto
   que una persona no puede leer puede llegar igualmente al modelo.
 - Una observación contiene como máximo 150 marcas y 400 líneas de árbol (`marks_truncated`, `tree_truncated`). Más
