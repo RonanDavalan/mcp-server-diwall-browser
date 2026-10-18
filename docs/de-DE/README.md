@@ -87,11 +87,10 @@ vorenthalten, den das Modell erhält (`redacted_fields` ist 1).
 
 Getestet:
 
-- Die vollständige Suite läuft in der Testumgebung dieses Repositorys (Ubuntu 24.04), mit Python 3.13.14 und den
-  Abhängigkeiten aus `requirements.lock`: ohne Browser bestehen 1654 Tests, und die 532, die einen Browser
-  brauchen, sind abgewählt (als anderer Benutzer als root wird einer der 1654 übersprungen: ein Test, der nur als
-  root läuft); mit Chromium 141.0.7390.37 (ohne Oberfläche, leeres temporäres Profil) bestehen die 532
-  Browser-Tests, ohne erwarteten Fehlschlag.
+- Die vollständige Suite unter Debian 13 mit Python 3.12.11 und den Abhängigkeiten aus `requirements.lock`: ohne
+  Browser bestehen 1810 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
+  Browser brauchen, sind abgewählt; mit Google Chrome 155.0.8059.84 (ohne Oberfläche, leeres temporäres Profil)
+  bestehen 2381 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
 - Download-Tests: Zwei scheiterten zufällig, 7- und 8-mal in je 30 Einzelläufen, weil der Server die
   Download-Einstellung schloss, bevor der Browser entschieden hatte, was er mit dem Download tut. Nach der
   Änderung scheiterten sie 3- und 1-mal in je 130 Einzelläufen; die 3 waren ein Lesen, im Test selbst, einer

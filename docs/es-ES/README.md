@@ -86,11 +86,10 @@ se retiene del texto que recibe el modelo (`redacted_fields` vale 1).
 
 Probado:
 
-- La batería completa se ejecuta en el entorno de pruebas de este repositorio (Ubuntu 24.04), con Python 3.13.14 y
-  las dependencias de `requirements.lock`: sin navegador pasan 1654 pruebas y las 532 que necesitan un navegador
-  quedan deseleccionadas (como usuario distinto de root se omite una de las 1654: una prueba que solo se ejecuta
-  como root); con Chromium 141.0.7390.37 (sin interfaz, perfil temporal vacío) pasan las 532 pruebas de
-  navegador, sin fallo esperado.
+- La batería completa, en Debian 13 con Python 3.12.11 y las dependencias de `requirements.lock`: sin navegador
+  pasan 1810 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 571 que necesitan un navegador
+  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2381
+  pruebas y 1 se omite, sin fallo esperado.
 - Pruebas de descarga: dos fallaban al azar, 7 y 8 veces en 30 ejecuciones de cada una por separado, porque el
   servidor cerraba el ajuste de descarga antes de que el navegador hubiera elegido qué hacer con la descarga.
   Tras el cambio fallaron 3 y 1 veces en 130 ejecuciones de cada una por separado; las 3 eran una lectura, en la

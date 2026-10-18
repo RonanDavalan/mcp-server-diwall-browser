@@ -87,11 +87,10 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 
 Tested:
 
-- The full suite runs in this repository's test environment (Ubuntu 24.04), with Python 3.13.14 and
-  the dependencies of `requirements.lock`: without a browser, 1654 tests pass and the 532 that need a
-  browser are deselected (as a user other than root, one of the 1654 is skipped: a test that runs as
-  root only); with Chromium 141.0.7390.37 (headless, blank temporary profile), the 532 browser tests
-  pass, with no expected failure.
+- The full suite, on Debian 13 with Python 3.12.11 and the dependencies of `requirements.lock`: without a
+  browser, 1810 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
+  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2381 tests pass and 1 is
+  skipped, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
   change they failed 3 and 1 times in 130 runs of each alone; the 3 were a read, in the test itself, of

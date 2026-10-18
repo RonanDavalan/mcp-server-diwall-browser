@@ -86,11 +86,10 @@ rectangle plein, et sa valeur est retenue dans le texte que reçoit le modèle (
 
 Testé :
 
-- La suite complète s'exécute dans l'environnement de test de ce dépôt (Ubuntu 24.04), avec Python
-  3.13.14 et les dépendances de `requirements.lock` : sans navigateur, 1654 tests passent et les 532 qui
-  exigent un navigateur sont désélectionnés (sous un utilisateur autre que root, l'un des 1654 est ignoré :
-  un test qui ne s'exécute qu'en root) ; avec Chromium 141.0.7390.37 (sans interface, profil temporaire
-  vierge), les 532 tests de navigateur passent, sans échec attendu.
+- La suite complète, sous Debian 13 avec Python 3.12.11 et les dépendances de `requirements.lock` : sans
+  navigateur, 1810 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
+  navigateur sont désélectionnés ; avec Google Chrome 155.0.8059.84 (sans interface, profil temporaire vierge),
+  2381 tests passent et 1 est ignoré, sans échec attendu.
 - Tests de téléchargement : deux échouaient au hasard, 7 et 8 fois sur 30 exécutions de chacun seul, parce
   que le serveur refermait le réglage de téléchargement avant que le navigateur ait choisi quoi faire du
   téléchargement. Après la modification, ils ont échoué 3 et 1 fois sur 130 exécutions de chacun seul ; les 3
