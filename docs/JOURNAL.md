@@ -2251,3 +2251,34 @@ the real-data check (`tests/test_layout.py`). None of the 104 is a reference to 
   passed, 1 skipped, 571 deselected in 95.19s, against 1810: the two planted lines of the real-data check.
   The numbers of the four READMEs, of the guide and of the installation page of the site (four languages)
   follow. Nothing of the server changed.
+
+## Operator guide and architecture in French
+
+`docs/fr-FR/OPERATOR_GUIDE.md` and `docs/fr-FR/ARCHITECTURE.md` translate the two English sources. The
+packages ship them under `usr/share/doc/mcp-server-diwall-browser/fr/` (one list of delivered files,
+shared by the four families), and the French README and manual page point to them.
+
+- How. The code blocks of the source are masked, the text around them is translated, and the blocks are put
+  back from the source: a command is never retyped. The one diagram that is a layout, not a command, keeps
+  its lines, its strokes and its paths, and its labels are translated. The typography is the French one
+  (non-breaking space before `:`, `;`, `?`, `!` and `%`, guillemets, thin space between thousands, sentence
+  case in titles), and the text reports what was measured, it claims nothing else.
+- Control. A comparison of each translation with its source reads: the sequence of titles, paragraphs,
+  bullets, table rows and blocks; the blocks, character for character; the code spans, the link targets, the
+  numbers (written as in French, read back as in English); no home path, no word of the private notes. 0
+  differences for both guides. Each defect planted in a copy of the source (a title removed, a character
+  changed in a block, a number, a span, a link, a table row, a layout line) is caught. The commands were
+  replayed on a throwaway home: the clone from the local repository, the virtual environment and
+  `pip install -e ".[dev]"`, then the suite without a browser, which gives `1812 passed, 1 skipped, 571
+  deselected, 1 warning`, the numbers the guide announces. The blocks that were not replayed (system
+  packages, mounting and unmounting a FUSE volume, an editor, a browser) are named with their reason.
+- Found while translating. The table of modules of `docs/ARCHITECTURE.md` named 19 of the 22 modules
+  (`observation_filter`, `profile_watch` and `tab_state` were missing), and its list of decisions set aside
+  still held the search by text in `observe` that `region` and `contains` have since replaced: both are
+  rewritten, and the comparison now reads the table against the package. The default port is written as a
+  code span (`9222`), so that no thousands separator can be read into it. The example journal line names
+  `workstation` and `operator`, no longer an account of a machine.
+- Set aside. A test of the module table in the suite: it adds tests, and the numbers of four READMEs, two
+  guides and four pages of the site follow every test added (the check stays in the workspace, run with
+  the comparison of the guides). A translation made by another model: the code would still be retyped, and
+  the wording of a public text is the author's.

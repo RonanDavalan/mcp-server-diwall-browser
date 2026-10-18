@@ -430,7 +430,7 @@ dernière exécution a enregistré, une ligne est ajoutée à `journal/operation
 dans `server.notices` :
 
 ```
-{"ts":"2026-10-15T14:02:11.482+02:00","event":"profile_changed","changes":{"allowed_origins":{"added":["https://shop.example.invalid"],"removed":[]}},"client":{"name":"opencode","version":"2.0.29"},"host":"alice-laptop","user":"alice"}
+{"ts":"2026-10-15T14:02:11.482+02:00","event":"profile_changed","changes":{"allowed_origins":{"added":["https://shop.example.invalid"],"removed":[]}},"client":{"name":"opencode","version":"2.0.29"},"host":"workstation","user":"operator"}
 ```
 
 ```
