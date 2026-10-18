@@ -89,7 +89,7 @@ Die Datei enthält kein Geheimnis.
 :   Das verschlüsselte Verzeichnis auf der Platte (optional).
 
 `allowed_origins`
-:   Die Seiten, die der Server liest und auf denen er handelt: Ursprünge oder Subdomain-Platzhalter wie `https://*.example.org`. Von jeder anderen Seite wird nur der Ursprung zurückgegeben.
+:   Die Seiten, die der Server liest und auf denen er handelt: Ursprünge oder Subdomain-Platzhalter wie `https://*.example.invalid`. Von jeder anderen Seite wird nur der Ursprung zurückgegeben.
 
 `confirm_each_change`
 :   Ursprünge aus `allowed_origins`, auf denen jede Änderung eine Bestätigung verlangt.

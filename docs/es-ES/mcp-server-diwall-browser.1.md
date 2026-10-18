@@ -88,7 +88,7 @@ archivo no contiene ningún secreto.
 :   El directorio cifrado en el disco (opcional).
 
 `allowed_origins`
-:   Los sitios que el servidor lee y en los que actúa: orígenes, o comodines de subdominio como `https://*.example.org`. De cualquier otra página solo se devuelve el origen.
+:   Los sitios que el servidor lee y en los que actúa: orígenes, o comodines de subdominio como `https://*.example.invalid`. De cualquier otra página solo se devuelve el origen.
 
 `confirm_each_change`
 :   Orígenes de `allowed_origins` en los que cada cambio pide una confirmación.

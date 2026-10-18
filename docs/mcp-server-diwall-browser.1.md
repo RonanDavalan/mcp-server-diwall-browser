@@ -88,7 +88,7 @@ holds no secret.
 :   The encrypted directory on disk (optional).
 
 `allowed_origins`
-:   The sites the server reads and acts on: origins, or subdomain wildcards such as `https://*.example.org`. Of any other page, only the origin is returned.
+:   The sites the server reads and acts on: origins, or subdomain wildcards such as `https://*.example.invalid`. Of any other page, only the origin is returned.
 
 `confirm_each_change`
 :   Origins of `allowed_origins` where every change asks for a confirmation.

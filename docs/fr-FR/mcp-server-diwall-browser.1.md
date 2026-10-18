@@ -90,7 +90,7 @@ aucun secret.
 :   Le répertoire chiffré sur le disque (facultatif).
 
 `allowed_origins`
-:   Les sites que le serveur lit et sur lesquels il agit : des origines, ou des jokers de sous-domaine comme `https://*.example.org`. D'une autre page, seule l'origine est rendue.
+:   Les sites que le serveur lit et sur lesquels il agit : des origines, ou des jokers de sous-domaine comme `https://*.example.invalid`. D'une autre page, seule l'origine est rendue.
 
 `confirm_each_change`
 :   Origines de `allowed_origins` où chaque changement demande une confirmation.

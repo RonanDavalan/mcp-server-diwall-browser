@@ -1325,7 +1325,7 @@ def test_environment_name_check_catches_a_variable_that_would_switch_a_check(tmp
 
 # --- aucun fichier interdit n'est suivi -------------------------------------------------------------
 
-_FORBIDDEN_NAMES = {"CLAUDE.md", "AGENTS.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "profile.json"}
+_FORBIDDEN_NAMES = {"CLAUDE.md", "AGENTS.md", "profile.json"}
 _FORBIDDEN_DIRECTORIES = {".claude", "credentials", "evidence", "downloads", "browser-profile"}
 # Une capture est une image de page : la seule suivie est celle de la page de démonstration, montrée dans le README.
 _CAPTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
@@ -1360,9 +1360,6 @@ def test_forbidden_file_check_catches_each_kind() -> None:
         "CLAUDE.md",
         "docs/AGENTS.md",
         ".claude/settings.json",
-        "LICENSE",
-        "SECURITY.md",
-        "CHANGELOG.md",
         "config/profile.json",
         "journal/operations.jsonl",
         "vault/credentials/service.json",
@@ -1372,4 +1369,5 @@ def test_forbidden_file_check_catches_each_kind() -> None:
         "docs/images/screenshot.png",
         "tests/fixtures/capture.JPG",
     ]
-    assert forbidden_files(planted + ["README.md", "tests/fixtures/pages/basic.html", "docs/images/observe-demo.png"]) == planted
+    kept = ["README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "tests/fixtures/pages/basic.html", "docs/images/observe-demo.png"]
+    assert forbidden_files(planted + kept) == planted
