@@ -151,7 +151,7 @@ are carried over; a second factor is not. It overwrites nothing and deletes noth
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
 :   The two commands.
 
-`/opt/mcp-server-diwall-browser`
+`/usr/lib/mcp-server-diwall-browser`
 :   The program and its Python virtual environment, created by the package at installation, which needs a network connection for that step.
 
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`

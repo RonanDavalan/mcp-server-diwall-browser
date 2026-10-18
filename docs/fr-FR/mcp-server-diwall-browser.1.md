@@ -154,7 +154,7 @@ le mot de passe sont repris ; un second facteur ne l'est pas. Elle n'écrase r
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
 :   Les deux commandes.
 
-`/opt/mcp-server-diwall-browser`
+`/usr/lib/mcp-server-diwall-browser`
 :   Le programme et son environnement virtuel Python, créé par le paquet à l'installation, qui demande une connexion au réseau pour cette étape.
 
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`

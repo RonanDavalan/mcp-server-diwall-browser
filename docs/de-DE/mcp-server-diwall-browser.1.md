@@ -154,7 +154,7 @@ Passwort werden übernommen, ein zweiter Faktor nicht. Er überschreibt nichts u
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
 :   Die beiden Befehle.
 
-`/opt/mcp-server-diwall-browser`
+`/usr/lib/mcp-server-diwall-browser`
 :   Das Programm und seine virtuelle Python-Umgebung, die das Paket bei der Installation anlegt und für die es eine Netzwerkverbindung braucht.
 
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`

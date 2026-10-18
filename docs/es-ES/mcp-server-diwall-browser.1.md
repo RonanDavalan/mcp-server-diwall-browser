@@ -152,7 +152,7 @@ usuario y la contraseña; un segundo factor no. No sobrescribe nada y no elimina
 `/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
 :   Los dos comandos.
 
-`/opt/mcp-server-diwall-browser`
+`/usr/lib/mcp-server-diwall-browser`
 :   El programa y su entorno virtual de Python, que el paquete crea en la instalación y para lo cual necesita una conexión de red.
 
 `/usr/share/doc/mcp-server-diwall-browser/OPERATOR_GUIDE.md`
