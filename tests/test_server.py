@@ -37,6 +37,7 @@ PAY_URL = ORIGIN + "/checkout"
 LOGIN_URL = ORIGIN + "/login"
 NEIGHBOUR = "https://shop.example.test:8443"
 OTHER = "https://other.example.test"
+SETUP = "mcp-server-diwall-browser-setup"
 SOCLE_TOOLS = [
     "status", "list_tabs", "open_tab", "navigate", "close_tab", "observe", "scroll",
     "wait", "click", "fill", "select_option", "press_key", "handle_dialog", "save_evidence",
@@ -400,7 +401,9 @@ async def test_a_closed_volume_waits_for_the_operator(rig: Rig) -> None:
     assert "n'existe pas" not in message and "introuvable" not in message
     assert code_of(armed) == "encrypted_dir_closed" and rig.gestures() == []
     assert reading["ok"]
-    assert status["server"]["encrypted_directory"] == {"state": "closed", "code": "encrypted_dir_closed", "action_expected": "operator_opens_directory"}
+    assert status["server"]["encrypted_directory"] == {
+        "state": "closed", "code": "encrypted_dir_closed", "action_expected": "operator_opens_directory", "next_command": f"{SETUP} open",
+    }
 
 
 async def test_without_a_profile_status_says_what_is_missing_and_the_rest_waits(rig: Rig) -> None:
@@ -426,6 +429,8 @@ async def test_without_a_profile_status_says_what_is_missing_and_the_rest_waits(
     assert status["ok"] and status["server"]["configured"] is False and status["server"]["missing"] == "profile"
     assert status["server"]["how_to_provide"]["environment_variable"] == "MCP_DIWALL_BROWSER_PROFILE"
     assert "standard_location" in status["server"]["how_to_provide"]
+    assert status["server"]["how_to_provide"]["setup_command"] == f"{SETUP} create"
+    assert status["server"]["next_command"] == f"{SETUP} check"
     assert refusals == {name: "not_configured" for name in calls}
     assert "Browser.getVersion" not in rig.fake.methods()
 
@@ -657,6 +662,50 @@ async def test_status_reports_a_browser_that_does_not_answer(rig: Rig) -> None:
         status = await client.call("status")
     assert status["ok"] and status["server"]["browser"]["attached"] is False
     assert status["server"]["browser"]["code"] in ("browser_unreachable", "debug_endpoint_undetermined")
+
+
+async def test_status_names_the_assistant_command_that_lifts_each_state_of_the_volume(rig: Rig) -> None:
+    async with connected(rig) as client:
+        mounted = (await client.call("status"))["server"]["encrypted_directory"]
+        rig.close_volume()
+        closed = (await client.call("status"))["server"]["encrypted_directory"]
+        (rig.crypt / "gocryptfs.conf").unlink()
+        never = (await client.call("status"))["server"]["encrypted_directory"]
+        rig.write_profile(secrets_crypt_dir=None)
+        absent = (await client.call("status"))["server"]["encrypted_directory"]
+    assert mounted == {"state": "mounted"} and "next_command" not in mounted
+    assert closed["next_command"] == f"{SETUP} open"
+    assert never["state"] == "never_initialized" and never["next_command"] == f"{SETUP} check"
+    assert absent["state"] == "closed_or_absent" and absent["next_command"] == f"{SETUP} check"
+
+
+async def test_status_of_a_browser_that_does_not_answer_adds_the_browser_command(rig: Rig) -> None:
+    await rig.fake.stop()
+    async with connected(rig) as client:
+        status = await client.call("status")
+    assert status["server"]["browser"]["next_command"] == f"{SETUP} browser"
+    assert status["server"]["encrypted_directory"] == {"state": "mounted"}
+
+
+async def test_status_adds_no_command_to_an_attached_browser(rig: Rig) -> None:
+    async with connected(rig) as client:
+        status = await client.call("status")
+    assert status["server"]["browser"]["attached"] is True and "next_command" not in status["server"]["browser"]
+
+
+async def test_the_commands_status_gives_name_no_file_of_the_volume_and_no_key(rig: Rig) -> None:
+    texts = []
+    async with connected(rig) as client:
+        rig.close_volume()
+        texts.append(json.dumps((await client.call("status"))["server"]))
+        (rig.crypt / "gocryptfs.conf").unlink()
+        texts.append(json.dumps((await client.call("status"))["server"]))
+        rig.remove_profile()
+        texts.append(json.dumps((await client.call("status"))["server"]))
+    for text in texts:
+        assert SETUP in text
+        for forbidden in ("gocryptfs.conf", "gocryptfs.diriv", "credentials", "secrets_crypt_dir"):
+            assert forbidden not in text
 
 
 # --- boîtes de dialogue et avis par les outils ------------------------------------------------------

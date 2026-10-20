@@ -23,6 +23,7 @@ dev = [
 
 [project.scripts]
 mcp-server-diwall-browser = "mcp_server_diwall_browser.__main__:main"
+mcp-server-diwall-browser-setup = "mcp_server_diwall_browser.setup:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

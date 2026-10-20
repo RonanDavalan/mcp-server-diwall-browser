@@ -17,6 +17,7 @@ from conftest import (
     mountinfo_line,
 )
 
+from mcp_server_diwall_browser import mount as mount_module
 from mcp_server_diwall_browser.mount import (
     MountChecker,
     MountInfoError,
@@ -518,3 +519,49 @@ def test_membership_check_catches_a_comparison_of_path_texts(tmp_path: Path) -> 
         "link inside the volume that leads out of it",
         "volume closed",
     }
+
+
+SETUP = "mcp-server-diwall-browser-setup"
+KEY_AND_FILE_NAMES = ("secrets_dir", "secrets_crypt_dir", "gocryptfs.conf", "gocryptfs.diriv", "credentials", ".json", "password", "username")
+
+
+def _every_refusal(tmp_path: Path) -> dict[str, ToolError]:
+    refusals = {}
+    for state in MountState:
+        if state is MountState.MOUNTED:
+            continue
+        refusals[state.value] = mount_module.verdict_error(
+            mount_module.MountVerdict(state=state, error_code=mount_module._STATE_CODES[state], reason="test")
+        )
+    refusals["project_root_missing"] = mount_module.verdict_error(
+        mount_module.MountVerdict(MountState.MOUNTED, "project_root_missing", "project_root_missing")
+    )
+    return refusals
+
+
+def test_every_refusal_names_the_assistant_command_that_lifts_it(tmp_path: Path) -> None:
+    wanted = {
+        "closed": f"{SETUP} open",
+        "never_initialized": f"{SETUP} check",
+        "closed_or_absent": f"{SETUP} check",
+        "not_gocryptfs": f"{SETUP} check",
+        "unreadable": f"{SETUP} check",
+        "project_root_missing": f"{SETUP} check",
+    }
+    refusals = _every_refusal(tmp_path)
+    assert set(refusals) == set(wanted)
+    for name, command in wanted.items():
+        assert command in refusals[name].message, name
+    assert "create" in refusals["never_initialized"].message
+
+
+def test_no_refusal_names_a_file_of_the_volume_or_a_key_of_the_profile(tmp_path: Path) -> None:
+    for name, refusal in _every_refusal(tmp_path).items():
+        for forbidden in KEY_AND_FILE_NAMES:
+            assert forbidden not in refusal.message, (name, forbidden)
+        assert "n'existe pas" not in refusal.message and "inexistant" not in refusal.message
+
+
+def test_the_mount_state_carries_the_source_of_the_mount() -> None:
+    [entry] = parse_mountinfo(REAL_LINE + "\n")
+    assert entry.source == "/srv/plasma-vault/Main.enc"

@@ -12,6 +12,7 @@ RULE_KEYWORDS = (
     "observe again",
     "human confirmation",
     "waiting state",
+    "mcp-server-diwall-browser-setup check",
     "credential_ref",
     "bound to",
     "page_content",
@@ -103,6 +104,18 @@ def test_the_guide_says_a_previous_tab_is_closed_never_worked_in() -> None:
     limit = next(line for line in reference.splitlines() if line.startswith("- A tab with previous_session"))
     assert "close_tab" in limit and "tab_not_owned" in limit
     assert "targetId" not in guide.INSTRUCTIONS and "target" not in line
+
+
+def test_the_encrypted_directory_rule_sends_the_model_to_the_read_only_report_and_never_to_work_without_it() -> None:
+    [rule] = [rule for rule in rules_of(guide.INSTRUCTIONS) if "waiting state" in rule]
+    head, _, consequence = rule.partition("→")
+    assert "never proof that it does not exist" in head
+    assert "does not exist" in head and "shell" in head and "operator" in head
+    assert "mcp-server-diwall-browser-setup check" in head and "read-only" in head
+    assert "without an encrypted directory" in head and "never" in head
+    assert consequence.strip()
+    for forbidden in ("create", "open the volume yourself", "mount"):
+        assert forbidden not in head.replace("mcp-server-diwall-browser-setup check", "")
 
 
 def test_two_rules_speak_of_a_human_confirmation() -> None:

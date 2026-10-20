@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from ..cdp import CdpError
-from ..mount import verdict_error
+from ..mount import SETUP_COMMAND, next_command, verdict_error
 from ..operator_profile import ENV_VAR, standard_profile_path
 from ..origin import entry_listed
 from ..output import ToolError, ToolOutput, tool
@@ -36,7 +36,8 @@ class Arguments(ToolArguments):
 async def run(ctx: ToolContext) -> ToolOutput:
     """State of the server: profile, encrypted directory, browser, allowed sites, ceilings, confirmation.
 
-    Works even when nothing is configured: then it says what is missing and the two ways to provide it.
+    Works even when nothing is configured: then it says what is missing and the ways to provide it.
+    When something blocks, next_command names the sub-command of the setup assistant that lifts it.
     It changes nothing in the browser; it attaches to the browser if it is not attached yet.
     It never shows the content of the profile beyond the sites, their settings and the operator's declarations.
     """
@@ -52,7 +53,9 @@ async def run(ctx: ToolContext) -> ToolOutput:
             server["how_to_provide"] = {
                 "environment_variable": ENV_VAR,
                 "standard_location": str(standard_profile_path()),
+                "setup_command": f"{SETUP_COMMAND} create",
             }
+            server["next_command"] = f"{SETUP_COMMAND} check"
         server["operations_not_journaled"] = state.operations_not_journaled
         server["counters"] = ctx.pacer.counters()
         return ToolOutput(server=server)
@@ -65,6 +68,7 @@ async def run(ctx: ToolContext) -> ToolOutput:
         volume["code"] = refusal.code
         if refusal.action_expected:
             volume["action_expected"] = refusal.action_expected
+        volume["next_command"] = next_command(verdict)
     server["encrypted_directory"] = volume
     server["operations_not_journaled"] = state.operations_not_journaled
 
@@ -73,7 +77,7 @@ async def run(ctx: ToolContext) -> ToolOutput:
         session = await ctx.browser()
     except (ToolError, CdpError, OSError) as exc:
         code = exc.code if isinstance(exc, ToolError) else "browser_unreachable"
-        server["browser"] = {"attached": False, "code": code}
+        server["browser"] = {"attached": False, "code": code, "next_command": f"{SETUP_COMMAND} browser"}
         if isinstance(exc, ToolError):
             server["browser"]["message"] = exc.message
     else:

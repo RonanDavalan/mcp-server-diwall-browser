@@ -26,9 +26,7 @@ _CONF_NAME = "gocryptfs.conf"
 _OCTAL_ESCAPE_RE = re.compile(r"\\([0-7]{3})")
 _SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9._-]")
 
-_WAITING_MESSAGE = (
-    "le répertoire chiffré est fermé ou non confirmé : l'opérateur doit l'ouvrir, puis relancer"
-)
+SETUP_COMMAND = "mcp-server-diwall-browser-setup"
 OPERATOR_OPENS_DIRECTORY = "operator_opens_directory"
 
 
@@ -41,6 +39,7 @@ class MountEntry:
     mount_point: str
     fs_type: str
     super_options: tuple[str, ...]
+    source: str = ""
 
 
 class MountState(enum.Enum):
@@ -98,6 +97,7 @@ def parse_mountinfo(text: str) -> list[MountEntry]:
                 mount_point=_unescape(fields[4]),
                 fs_type=tail[0],
                 super_options=tuple(tail[2].split(",")),
+                source=_unescape(tail[1]),
             )
         )
     return entries
@@ -178,23 +178,30 @@ class MountChecker:
         return _verdict(MountState.MOUNTED, "ok")
 
 
-_MESSAGES = {
-    "mount_unreadable": "l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution",
-    "mount_not_gocryptfs": (
-        "le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur "
-        "seul : refus par précaution"
+_STATE_MESSAGES: dict[MountState, str] = {
+    MountState.UNREADABLE: (
+        "l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution ; "
+        f"`{SETUP_COMMAND} check` dit ce que le poste permet"
     ),
-    "encrypted_dir_closed": _WAITING_MESSAGE,
-    "encrypted_dir_undetermined": _WAITING_MESSAGE,
-    "project_root_missing": (
-        "le répertoire chiffré est ouvert mais le sous-répertoire du projet n'existe pas : "
-        "l'opérateur doit le créer (mkdir -m 700 \"<secrets_dir>/mcp-server-diwall-browser\"), "
-        "puis relancer"
+    MountState.NOT_GOCRYPTFS: (
+        "le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur seul : "
+        f"refus par précaution ; `{SETUP_COMMAND} check` dit ce qui est en place et la voie gocryptfs"
+    ),
+    MountState.CLOSED: (
+        f"le répertoire chiffré est fermé : l'opérateur l'ouvre avec `{SETUP_COMMAND} open`, puis relancer"
+    ),
+    MountState.CLOSED_OR_ABSENT: (
+        "le répertoire chiffré n'est pas confirmé : fermé ou jamais créé ; l'opérateur lance "
+        f"`{SETUP_COMMAND} check`, qui dit lequel des deux, puis relancer"
+    ),
+    MountState.NEVER_INITIALIZED: (
+        "aucun volume chiffré à l'emplacement déclaré dans le profil : l'opérateur lance "
+        f"`{SETUP_COMMAND} check`, puis `{SETUP_COMMAND} create`"
     ),
 }
-_NEVER_INITIALIZED_MESSAGE = (
-    "le répertoire chiffré n'est pas confirmé : le répertoire chiffré déclaré dans le profil "
-    "(secrets_crypt_dir) ne porte pas de volume initialisé ; l'opérateur doit vérifier le profil"
+_PROJECT_ROOT_MISSING_MESSAGE = (
+    "le répertoire chiffré est ouvert mais le dossier du serveur n'y est pas : l'opérateur lance "
+    f"`{SETUP_COMMAND} check`, qui donne la commande à taper, puis relancer"
 )
 _OUTSIDE_MESSAGE = "un chemin du répertoire chiffré mène hors du volume : refus par précaution"
 _LINK_MESSAGE = "un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution"
@@ -213,9 +220,10 @@ def verdict_error(verdict: MountVerdict) -> ToolError:
     action = None
     if verdict.state in (MountState.CLOSED, MountState.CLOSED_OR_ABSENT):
         action = OPERATOR_OPENS_DIRECTORY
-    message = _MESSAGES[code]
-    if verdict.state is MountState.NEVER_INITIALIZED:
-        message = _NEVER_INITIALIZED_MESSAGE
+    if code == "project_root_missing":
+        message = _PROJECT_ROOT_MISSING_MESSAGE
+    else:
+        message = _STATE_MESSAGES[verdict.state]
     return ToolError(code, message, action_expected=action, extra_server={"mount_reason": verdict.reason})
 
 
@@ -564,3 +572,19 @@ def safe_name(text: str, max_len: int = 64) -> str:
     """Un nom de fichier construit à partir d'un texte non fiable : caractères simples seulement, borné."""
     name = _SAFE_NAME_RE.sub("_", text).lstrip(".")[:max_len]
     return name or "unnamed"
+
+
+NEXT_COMMANDS: dict[MountState, str] = {
+    MountState.CLOSED: f"{SETUP_COMMAND} open",
+    MountState.NEVER_INITIALIZED: f"{SETUP_COMMAND} check",
+    MountState.CLOSED_OR_ABSENT: f"{SETUP_COMMAND} check",
+    MountState.NOT_GOCRYPTFS: f"{SETUP_COMMAND} check",
+    MountState.UNREADABLE: f"{SETUP_COMMAND} check",
+}
+
+
+def next_command(verdict: MountVerdict) -> str | None:
+    """La sous-commande de l'assistant qui lève un refus du volume, ou ``None`` quand le volume est utilisable."""
+    if verdict.error_code == "project_root_missing":
+        return f"{SETUP_COMMAND} check"
+    return None if verdict.error_code is None else NEXT_COMMANDS[verdict.state]

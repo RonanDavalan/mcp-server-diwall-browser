@@ -180,6 +180,9 @@ _WRITE_FUNCTIONS = {
 }
 _WRITE_MODULES = {"shutil", "tempfile"}
 VOLUME_MODULE = "mount.py"
+# L'assistant d'installation crée le volume que le serveur utilisera ensuite : avant qu'il existe, aucun volume monté ne peut
+# servir de passage. C'est un programme que l'humain lance ; aucun module du serveur ne l'importe (test plus bas).
+SETUP_MODULE = "setup.py"
 
 
 def _names_in(node: ast.AST) -> set[str]:
@@ -235,7 +238,7 @@ def writes_outside_the_volume_module(package: Path) -> dict[str, list[str]]:
     result = {}
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
-        if relative == VOLUME_MODULE:
+        if relative in (VOLUME_MODULE, SETUP_MODULE):
             continue
         calls = write_calls(path.read_text())
         if calls:
@@ -694,11 +697,17 @@ def test_transport_check_catches_a_second_way_to_the_browser(tmp_path: Path, sou
 
 # --- aucun interrupteur ne désactive un contrôle : aucune lecture d'environnement hors de son module, aucune option, aucun indicateur ---
 
-ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py"}
-# La commande qu'un opérateur lance à la main, hors du processus du serveur (aucun module ne l'importe) :
-# elle a une ligne de commande de quatre options et écrit une ligne de résultat par fichier.
+ENVIRONMENT_MODULES = {"operator_profile.py", "confirm.py", SETUP_MODULE}
+# Les commandes qu'un opérateur lance à la main, hors du processus du serveur (aucun module du serveur ne les importe) :
+# l'import d'identifiants a une ligne de commande de quatre options et écrit une ligne de résultat par fichier ;
+# l'assistant d'installation a cinq sous-options et ne lit de l'environnement que les noms de ENVIRONMENT_NAMES.
 OPERATOR_COMMAND = "credential_import.py"
 OPERATOR_COMMAND_OPTIONS = frozenset({"--source", "--name", "--origin", "--source-dir"})
+OPERATOR_COMMANDS = {
+    OPERATOR_COMMAND: OPERATOR_COMMAND_OPTIONS,
+    # Les trois dernières sont les options du navigateur dédié, que l'assistant lance et dont il reconnaît les processus.
+    SETUP_MODULE: frozenset({"--json", "--temporary", "--crypt-dir", "--mount-dir", "--browser", "--user-data-dir=", "--remote-debugging-port=", "--type="}),
+}
 _ENVIRONMENT_RE = re.compile(r"\bos\.environ\b|\bgetenv\b|\bputenv\b")
 _COMMAND_LINE_RE = re.compile(r"\bsys\.argv\b|\bargparse\b|\boptparse\b|\bgetopt\b|\bclick\.option\b")
 _FLAG_RE = re.compile(r"(?i)^(testing|test_mode|is_test|under_test|unsafe|insecure|skip_checks?|disable_checks?|no_checks?|bypass\w*)$")
@@ -729,10 +738,10 @@ def switches(package: Path) -> list[str]:
         tree = ast.parse(text)
         if relative not in ENVIRONMENT_MODULES and _ENVIRONMENT_RE.search(text):
             found.append(f"{relative}: environment")
-        if _COMMAND_LINE_RE.search(text) and relative != OPERATOR_COMMAND:
+        if _COMMAND_LINE_RE.search(text) and relative not in OPERATOR_COMMANDS:
             found.append(f"{relative}: command line")
-        if relative == OPERATOR_COMMAND:
-            found.extend(f"{relative}: option {literal}" for literal in _string_literals(text) if literal.startswith("--") and literal not in OPERATOR_COMMAND_OPTIONS)
+        if relative in OPERATOR_COMMANDS:
+            found.extend(f"{relative}: option {literal}" for literal in _string_literals(text) if literal.startswith("--") and literal not in OPERATOR_COMMANDS[relative])
         # Les options propres de la fenêtre de confirmation (--no-label, --no-markup) sont celles de son outil, pas du serveur.
         if relative != CONFIRM_MODULE_NAME and any(text_.startswith("--no-") for text_ in _string_literals(text)):
             found.append(f"{relative}: --no- option")
@@ -766,14 +775,59 @@ def test_switch_check_catches_an_environment_option_or_flag(tmp_path: Path, sour
     assert {entry.split(":")[0] for entry in switches(copy)} == {"server.py"}
 
 
-def test_the_operator_command_has_its_four_options_and_no_other(tmp_path: Path) -> None:
-    assert [entry for entry in switches(PACKAGE_DIR) if entry.startswith(OPERATOR_COMMAND)] == []
+@pytest.mark.parametrize("command", sorted(OPERATOR_COMMANDS))
+def test_an_operator_command_has_its_own_options_and_no_other(tmp_path: Path, command: str) -> None:
+    assert [entry for entry in switches(PACKAGE_DIR) if entry.startswith(command)] == []
     for planted in ("parser.add_argument('--skip-checksum')\n", "parser.add_argument('--force')\n", "FLAG = '--no-verify'\n"):
         copy = tmp_path / "pkg"
         shutil.rmtree(copy, ignore_errors=True)
         shutil.copytree(PACKAGE_DIR, copy)
-        (copy / OPERATOR_COMMAND).write_text((copy / OPERATOR_COMMAND).read_text() + "\n" + planted)
-        assert any(entry.startswith(OPERATOR_COMMAND) for entry in switches(copy))
+        (copy / command).write_text((copy / command).read_text() + "\n" + planted)
+        assert any(entry.startswith(command) for entry in switches(copy))
+
+
+def _imports_of(path: Path) -> list[str]:
+    names: list[str] = []
+    for node in ast.walk(ast.parse(path.read_text())):
+        if isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            names += [f"{module}.{alias.name}".strip(".") for alias in node.names] + [module]
+        elif isinstance(node, ast.Import):
+            names += [alias.name for alias in node.names]
+    return names
+
+
+def operator_command_importers(package: Path) -> list[str]:
+    """Modules du paquet, autres que les commandes, qui importent une commande d'opérateur."""
+    wanted = {name.removesuffix(".py") for name in OPERATOR_COMMANDS}
+    found = []
+    for path in sorted(package.rglob("*.py")):
+        relative = path.relative_to(package).as_posix()
+        if relative in OPERATOR_COMMANDS:
+            continue
+        if any(imported.rsplit(".", 1)[-1] in wanted for imported in _imports_of(path)):
+            found.append(relative)
+    return found
+
+
+def test_no_module_of_the_server_imports_an_operator_command() -> None:
+    assert operator_command_importers(PACKAGE_DIR) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "from .setup import run\n",
+        "from . import setup\n",
+        "import mcp_server_diwall_browser.setup\n",
+        "from .credential_import import main\n",
+    ],
+)
+def test_importer_check_catches_a_server_module_that_reaches_a_command(tmp_path: Path, source: str) -> None:
+    copy = tmp_path / "pkg"
+    shutil.copytree(PACKAGE_DIR, copy)
+    (copy / "server.py").write_text(source)
+    assert operator_command_importers(copy) == ["server.py"]
 
 
 def test_the_operator_command_is_not_a_way_to_give_the_server_a_command_line(tmp_path: Path) -> None:
@@ -784,6 +838,8 @@ def test_the_operator_command_is_not_a_way_to_give_the_server_a_command_line(tmp
 
 
 # --- le serveur ne démarre jamais un navigateur : le seul processus qu'il démarre est la fenêtre de confirmation ---
+# L'assistant d'installation, programme que l'humain lance et qu'aucun module du serveur n'importe, démarre gocryptfs,
+# fusermount3 et le navigateur dédié : c'est l'exception nommée de ce contrôle.
 
 CONFIRM_MODULE = "confirm.py"
 _PROCESS_START_RE = re.compile(
@@ -795,7 +851,7 @@ def process_starts_outside_confirm(package: Path) -> list[str]:
     return [
         path.relative_to(package).as_posix()
         for path in sorted(package.rglob("*.py"))
-        if path.relative_to(package).as_posix() != CONFIRM_MODULE and _PROCESS_START_RE.search(path.read_text())
+        if path.relative_to(package).as_posix() not in (CONFIRM_MODULE, SETUP_MODULE) and _PROCESS_START_RE.search(path.read_text())
     ]
 
 
@@ -1165,7 +1221,7 @@ def standard_output_writes(package: Path) -> list[str]:
         found.extend(
             f"{relative}: {match.group(0)}"
             for match in _STDOUT_RE.finditer(path.read_text())
-            if match.group(0) != "print(" and not (relative == OPERATOR_COMMAND and match.group(0) == "sys.stdout")
+            if match.group(0) != "print(" and not (relative in OPERATOR_COMMANDS and match.group(0) == "sys.stdout")
         )
     return found
 
@@ -1190,16 +1246,17 @@ def test_output_check_catches_a_write_on_standard_output(tmp_path: Path, source:
     assert [entry.split(":")[0] for entry in standard_output_writes(copy)] != []
 
 
-def test_only_the_operator_command_may_name_standard_output_and_it_may_not_print(tmp_path: Path) -> None:
+@pytest.mark.parametrize("operator_command", sorted(OPERATOR_COMMANDS))
+def test_only_an_operator_command_may_name_standard_output_and_it_may_not_print(tmp_path: Path, operator_command: str) -> None:
     copy = tmp_path / "pkg"
     shutil.copytree(PACKAGE_DIR, copy)
-    command = (copy / OPERATOR_COMMAND).read_text()
+    command = (copy / operator_command).read_text()
     assert standard_output_writes(copy) == []
-    (copy / OPERATOR_COMMAND).write_text(command + "\nprint('x')\n")
-    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [OPERATOR_COMMAND]
-    (copy / OPERATOR_COMMAND).write_text(command + "\nimport os\nos.write(1, b'x')\n")
-    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [OPERATOR_COMMAND]
-    (copy / OPERATOR_COMMAND).write_text(command)
+    (copy / operator_command).write_text(command + "\nprint('x')\n")
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [operator_command]
+    (copy / operator_command).write_text(command + "\nimport os\nos.write(1, b'x')\n")
+    assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == [operator_command]
+    (copy / operator_command).write_text(command)
     (copy / "journal.py").write_text("import sys\nsys.stdout.write('x')\n")
     assert [entry.split(":")[0] for entry in standard_output_writes(copy)] == ["journal.py"]
 
@@ -1277,11 +1334,11 @@ def test_devtools_check_catches_a_method_out_of_the_list(tmp_path: Path, module:
 
 # --- la fabrique ne prend ses dépendances que de son appelant ---------------------------------------
 
-ENVIRONMENT_NAMES = frozenset({"HOME", "XDG_CONFIG_HOME", "MCP_DIWALL_BROWSER_PROFILE", "ENV_VAR", "WAYLAND_DISPLAY", "DISPLAY"})
+ENVIRONMENT_NAMES = frozenset({"HOME", "XDG_CONFIG_HOME", "XDG_RUNTIME_DIR", "MCP_DIWALL_BROWSER_PROFILE", "ENV_VAR", "WAYLAND_DISPLAY", "DISPLAY"})
 
 
 def environment_names_read(package: Path) -> set[str]:
-    """Noms cherchés dans l'environnement par les deux modules autorisés à le lire."""
+    """Noms cherchés dans l'environnement par les modules autorisés à le lire."""
     names: set[str] = set()
     for module in ENVIRONMENT_MODULES:
         for node in ast.walk(ast.parse((package / module).read_text())):
