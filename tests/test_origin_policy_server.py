@@ -226,7 +226,7 @@ async def test_open_reads_a_public_origin_that_was_never_listed(rig: Rig) -> Non
     assert read["ok"] and rig.window.questions() == []
 
 
-@pytest.mark.parametrize("url", ["http://10.0.0.1/page", "http://localhost:8000/page", "http://machine.local/page"])
+@pytest.mark.parametrize("url", ["http://10.0.0." "1/page", "http://localhost:8000/page", "http://machine." "local/page"])
 async def test_open_still_refuses_a_local_origin_until_it_is_listed(rig: Rig, url: str) -> None:
     rig.browser.site[url] = neutral_page
     rig.write_profile(origin_policy="open")

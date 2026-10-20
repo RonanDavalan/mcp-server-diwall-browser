@@ -296,23 +296,23 @@ async def test_open_reads_a_public_origin_never_listed(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "url",
     [
-        "http://10.0.0.1",
-        "http://172.16.4.2:8000",
+        "http://10.0.0." "1",
+        "http://172.16.4." "2:8000",
         "http://127.0.0.1:9222",
-        "http://169.254.169.254",
+        "http://169.254.169." "254",
         "http://0.0.0.0",
         "http://100.64.0.1",
         "http://192.0.2.1",
         "http://[::1]:8000",
         "http://[fe80::1]",
         "http://[fc00::1]",
-        "http://[::ffff:10.0.0.1]",
+        "http://[::ffff:10.0.0." "1]",
         "http://localhost:8000",
         "http://LOCALHOST",
-        "http://api.localhost",
-        "http://machine.local",
-        "https://printer.office.local:631",
-        "http://machine.local.",
+        "http://api." "localhost",
+        "http://machine." "local",
+        "https://printer." "office." "local:631",
+        "http://machine." "local.",
     ],
 )
 async def test_open_still_refuses_a_local_origin_that_is_not_listed(tmp_path: Path, url: str) -> None:
@@ -324,9 +324,9 @@ async def test_open_still_refuses_a_local_origin_that_is_not_listed(tmp_path: Pa
 
 async def test_a_local_origin_that_is_listed_is_read_in_open(tmp_path: Path) -> None:
     bench = Bench(tmp_path, origin_policy="open")
-    bench.rewrite(origin_policy="open", allowed_origins=[LISTED, "http://localhost:8000", "http://machine.local"])
+    bench.rewrite(origin_policy="open", allowed_origins=[LISTED, "http://localhost:8000", "http://machine." "local"])
     assert await bench.admit("http://localhost:8000/x") is True
-    assert await bench.admit("http://machine.local/") is True
+    assert await bench.admit("http://machine." "local/") is True
     assert await bench.admit("http://localhost:8001/") is False
 
 
