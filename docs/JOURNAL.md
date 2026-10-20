@@ -2373,7 +2373,7 @@ list of delivered files for the four families), and the Spanish README and manua
   policy in the profile leaves `profile_changed` like a change of a list.
 - The windows, measured with the real programs in a virtual X screen answered by keystrokes. `zenity` places the default on the
   cancel button (`--default-cancel`) and prints the label of an extra button, so three named answers fit. `kdialog` has no
-  `--defaultno` (it answers « Option inconnue »), its `--yesno` puts the focus on the first button, and its `--yesnocancel` makes
+  `--defaultno` (it answers with an unknown-option error), its `--yesno` puts the focus on the first button, and its `--yesnocancel` makes
   Escape the third answer: a list with one entry checked (`--radiolist`) is the only form where Enter and Escape both give the
   refusal. Its text is rich text, where a line break is a space: the lines are joined by `<br>` after the text is escaped. The
   confirmation window of a locked action took the same form: before, `kdialog` gave the focus to `Autoriser`. A `zenity` that cannot
