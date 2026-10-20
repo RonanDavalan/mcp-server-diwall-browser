@@ -46,7 +46,7 @@ origin it is bound to, in the three policies. The details are in section 5 of
 ## Install
 
 On Linux the server ships as native packages. Download the one of your system from the
-[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) page of the repository or from the [install guide of the website](https://mcp.diwall.davalan.fr/guides/install/), then install it from the
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) page of the repository or from the [install guide of the website](https://mcp-diwall.davalan.fr/guides/install/), then install it from the
 folder that holds it:
 
 | System | Command |

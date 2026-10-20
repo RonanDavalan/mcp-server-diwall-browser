@@ -246,7 +246,7 @@ sonst mit 1, nachdem es eine Zeile `error: CODE` auf die Fehlerausgabe geschrieb
 **gocryptfs**(1), **fusermount3**(1), **kdialog**(1), **zenity**(1)
 
 Projekt: <https://github.com/RonanDavalan/mcp-server-diwall-browser> und
-<https://mcp.diwall.davalan.fr>
+<https://mcp-diwall.davalan.fr>
 
 # AUTOR
 

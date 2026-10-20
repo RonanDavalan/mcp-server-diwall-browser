@@ -245,7 +245,7 @@ avec 1 sinon, après avoir écrit une ligne `error: CODE` sur sa sortie d'erreur
 **gocryptfs**(1), **fusermount3**(1), **kdialog**(1), **zenity**(1)
 
 Projet : <https://github.com/RonanDavalan/mcp-server-diwall-browser> et
-<https://mcp.diwall.davalan.fr>
+<https://mcp-diwall.davalan.fr>
 
 # AUTEUR
 

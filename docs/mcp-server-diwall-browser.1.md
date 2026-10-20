@@ -267,7 +267,7 @@ one line `refus CODE : message` on its error output, and with 2 when its command
 **gocryptfs**(1), **fusermount3**(1), **kdialog**(1), **zenity**(1)
 
 Project: <https://github.com/RonanDavalan/mcp-server-diwall-browser> and
-<https://mcp.diwall.davalan.fr>
+<https://mcp-diwall.davalan.fr>
 
 # AUTHOR
 

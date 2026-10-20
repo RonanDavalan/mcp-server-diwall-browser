@@ -46,7 +46,7 @@ Richtlinien nur auf dem genauen Ursprung getippt, an den sie gebunden sind. Die 
 ## Installieren
 
 Unter Linux wird der Server als natives Paket geliefert. Laden Sie das Paket Ihres Systems von der Seite
-[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) des Repositorys oder aus der [Installationsanleitung der Website](https://mcp.diwall.davalan.fr/de/anleitungen/installieren/) herunter und installieren Sie es
+[Releases](https://github.com/RonanDavalan/mcp-server-diwall-browser/releases) des Repositorys oder aus der [Installationsanleitung der Website](https://mcp-diwall.davalan.fr/de/anleitungen/installieren/) herunter und installieren Sie es
 aus dem Ordner, der es enthält:
 
 | System | Befehl |

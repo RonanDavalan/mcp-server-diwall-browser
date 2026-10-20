@@ -243,7 +243,7 @@ una herramienta es un resultado con un código que se devuelve al cliente, no un
 **gocryptfs**(1), **fusermount3**(1), **kdialog**(1), **zenity**(1)
 
 Proyecto: <https://github.com/RonanDavalan/mcp-server-diwall-browser> y
-<https://mcp.diwall.davalan.fr>
+<https://mcp-diwall.davalan.fr>
 
 # AUTOR
 
