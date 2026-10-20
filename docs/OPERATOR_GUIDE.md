@@ -782,7 +782,7 @@ The second command needs no browser. Not measured: the zoom made by the Ctrl and
 that is not headless (the protocol has no command for a zoom, so the tests write the default zoom of
 the profile, and whether the browser keeps the two kinds of zoom in the same way is not confirmed),
 and a screen whose scale really is 1.5. On Google Chrome 154.0.8037.97 the operator replayed the zoom
-and scale tests of the revision `919ed8c` (125 passed) and all of its 188 browser tests (188 passed).
+and scale tests of the revision `ff8c433` (125 passed) and all of its 188 browser tests (188 passed).
 The clicks are in the next section.
 
 ### Clicks at any page zoom and on a scrolled page

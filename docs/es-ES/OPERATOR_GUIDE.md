@@ -783,7 +783,7 @@ El segundo comando no necesita navegador. No se midió: el zoom hecho con las te
 que no es sin interfaz (el protocolo no tiene ningún comando de zoom, así que las pruebas escriben el zoom por defecto
 del perfil, y que el navegador guarde las dos clases de zoom del mismo modo no está confirmado),
 ni una pantalla cuya escala sea realmente 1,5. En Google Chrome 154.0.8037.97 el operador repitió las pruebas de zoom
-y de escala de la revisión `919ed8c` (125 pasaron) y todas sus 188 pruebas de navegador (188 pasaron).
+y de escala de la revisión `ff8c433` (125 pasaron) y todas sus 188 pruebas de navegador (188 pasaron).
 Los clics están en la sección siguiente.
 
 ### Clics a cualquier zoom de página y en una página desplazada

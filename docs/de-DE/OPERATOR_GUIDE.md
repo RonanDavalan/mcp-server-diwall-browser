@@ -824,7 +824,7 @@ Browsers, der nicht ohne Oberfläche läuft (das Protokoll hat keinen Befehl fü
 schreiben die Tests den Standardzoom des Profils, und ob der Browser die beiden Arten von Zoom gleich
 behandelt, ist nicht bestätigt), und ein Bildschirm, dessen Skalierung tatsächlich 1,5 beträgt. Unter
 Google Chrome 154.0.8037.97 wiederholte der Bediener die Zoom- und Skalierungstests der Revision
-`919ed8c` (125 bestanden) und alle ihre 188 Browser-Tests (188 bestanden). Die Klicks stehen im
+`ff8c433` (125 bestanden) und alle ihre 188 Browser-Tests (188 bestanden). Die Klicks stehen im
 nächsten Abschnitt.
 
 ### Klicks bei jedem Seitenzoom und auf einer gescrollten Seite

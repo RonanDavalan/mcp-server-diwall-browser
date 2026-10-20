@@ -1621,7 +1621,7 @@ session's shell, outside the repository, let the launcher of the tests find it, 
 Chrome 154 was not available here: what the operator reported on it is quoted as such, and what was not replayed on it
 is said under each heading.
 
-Starting point: `realisation/p9-masque-et-zoom` at `919ed8c`, as the brief said; the environment named another branch and
+Starting point: `realisation/p9-masque-et-zoom` at `ff8c433`, as the brief said; the environment named another branch and
 the brief was followed. On that revision here: `pytest -q -m "not browser"` 1547 passed and 188 deselected (as root, so
 the test that runs as root only passes), and `pytest -q -m browser` 188 passed in 116.51 s. The operator's own measure of
 the same revision, as given with the brief: 1546 passed, 1 skipped and 188 deselected without a browser; 125 passed in
@@ -1644,7 +1644,7 @@ click landed when its target received exactly one click, no other button any, no
 returned no error (`assert_landed`, a function of those counts alone, `tests/fixtures/click_targets.py`). The fourth
 case is the large button after the page was scrolled to put it in the middle of the view, before the observation.
 
-On the server as it was (the production file of `919ed8c`), 8 combinations by 4 cases, 20 of the 32 attempts failed:
+On the server as it was (the production file of `ff8c433`), 8 combinations by 4 cases, 20 of the 32 attempts failed:
 
 | case | what it is | failed at | passed at |
 |---|---|---|---|
@@ -1703,7 +1703,7 @@ error code, no shape of a result. The cost is one more `Page.getLayoutMetrics` p
 
 Controls, each also run on a defective version that must fail:
 
-- `pytest -q -m browser tests/test_click_integration.py` (264 tests). Against the production file of `919ed8c`, 36 of
+- `pytest -q -m browser tests/test_click_integration.py` (264 tests). Against the production file of `ff8c433`, 36 of
   them fail: the three tests of the real path, 20 + 8 + 8 (the four cases, the page scrolled in both directions, the
   covered button); the 228 others, the counter-proofs included, pass. With the fix, all 264 pass.
 - The counter-proof of the fix: the same check on a server whose offset reads 0 fails exactly where the page ends
@@ -1713,7 +1713,7 @@ Controls, each also run on a defective version that must fail:
   combinations.
 - `pytest -q tests/test_click_lookup_point.py` (20 tests, no browser, so that the suite the continuous integration runs
   guards the fix): a simulated browser whose node lookup is wrapped to answer for a point of the document, as measured,
-  on four pages (not scrolled, scrolled down, across, both ways); on the production file of `919ed8c` the three
+  on four pages (not scrolled, scrolled down, across, both ways); on the production file of `ff8c433` the three
   scrolled ones fail. A missing, text, null or boolean offset gives `element_obscured` with neither the lookup nor a
   mouse event sent; with the strict reading ignored, a missing, text or boolean one clicks.
 
@@ -1794,7 +1794,7 @@ Done (Chromium 141.0.7390.37; Python 3.12.3 on a fresh clone of the branch, with
   `pytest -q -m browser tests/test_click_integration.py` (264 passed).
 - The page and the check have their own tests: `pytest -q tests/test_click_targets_page.py` (51 passed, no browser).
 - The node lookup of a click is guarded without a browser: `pytest -q tests/test_click_lookup_point.py` (20 passed).
-- `pytest -q -m "not browser"`: 1618 passed, 452 deselected in 72.08 s. `pytest -q`: 2070 passed in 271.63 s (Python 3.12.3, fresh clone at `0619fa3`). `python -m compileall -q src`: no output.
+- `pytest -q -m "not browser"`: 1618 passed, 452 deselected in 72.08 s. `pytest -q`: 2070 passed in 271.63 s (Python 3.12.3, fresh clone at `e2e70e9`). `python -m compileall -q src`: no output.
   No method was added to `ALLOWED_METHODS`.
 
 Remains:
@@ -1814,7 +1814,7 @@ Remains:
 
 ## 2026-10-04 — A click is checked again after the pointer moved, before it is pressed
 
-Point of departure: `4997ee1`. Chromium 141.0.7390.37 (headless, as root with `--no-sandbox`, a link named `chromium`
+Point of departure: `50b97a4`. Chromium 141.0.7390.37 (headless, as root with `--no-sandbox`, a link named `chromium`
 outside the repository), Python 3.13.14 with `requirements.lock`; Chrome 154, on which the operator replays, was not
 available here.
 
@@ -1823,7 +1823,7 @@ available here.
 The click checked what lies under its point once, before its first mouse event, then sent `mouseMoved`, `mousePressed`
 and `mouseReleased` to that point. A new page, `tests/fixtures/pages/click-shifting.html`, moves each of the three
 targets (large, small between two decoys, far) 60 CSS pixels down at the first `mousemove` of the document, once, and
-shows a button of another name where the target was. On `4997ee1`, by `Actions.click`, at the eight combinations of page
+shows a button of another name where the target was. On `50b97a4`, by `Actions.click`, at the eight combinations of page
 zoom (100, 125, 150, 200 %) and screen scale (1, 1.5): 24 of 24 attempts returned no error and the intruder received the
 click (`large received 0 clicks ... large-intruder received 1 clicks`, the same for `small` and `far`, eight times each),
 the page having moved its target in every attempt (read apart, `marginTop` of the target is `60px`).
@@ -1876,7 +1876,7 @@ result is "landed" (no error, one click on the target, nothing else), "refused" 
 
 | | landed | refused | no error, click elsewhere or lost | landed on another button |
 |---|---|---|---|---|
-| `4997ee1` | 64 | 0 | 80 | 0 |
+| `50b97a4` | 64 | 0 | 80 | 0 |
 | after | 55 | 82 | 7 | 0 |
 
 By button, after: large 13 landed, 31 refused, 4 lost; small 0, 47, 1; far 42, 4, 2. The 7 that remain are clicks the page
@@ -1886,7 +1886,7 @@ the window that is left, and its order of magnitude on this machine.
 ### Latency
 
 Median of 20 clicks on `click-targets.html` at zoom 100 % and scale 1, by `Actions.click`, the pacer on a fake clock so
-that its delay is not counted: 318.41 ms on `4997ee1`, 318.42 ms after (min 315.74 / 315.67, max 330.53 / 331.25). The
+that its delay is not counted: 318.41 ms on `50b97a4`, 318.42 ms after (min 315.74 / 315.67, max 330.53 / 331.25). The
 figure is almost entirely the 0.3 s the call waits for a load a click may start (`settle_start_s`); the two extra readings
 are not measurable against it. No surcharge above 100 ms.
 
@@ -1908,12 +1908,12 @@ makes its page move by wrapping the mouse handler. The probes of the integration
 
 ## 2026-10-04 — The second lookup before the press is made every time
 
-Point of departure: `62a3a0c`. Chrome 154.0.8037.97, Python 3.12, `.venv` of the repository.
+Point of departure: `fc32b3e`. Chrome 154.0.8037.97, Python 3.12, `.venv` of the repository.
 
 ### What was replayed first
 
 `pytest -q -m "not browser"`: 1653 passed, 1 skipped, 532 deselected. `pytest -q -m browser`: 532 passed in 232.79 s.
-The diff of `4997ee1..62a3a0c` touches `tests/` by additions only (5 files, 498 insertions, no deletion).
+The diff of `50b97a4..fc32b3e` touches `tests/` by additions only (5 files, 498 insertions, no deletion).
 
 ### The change and its decision
 

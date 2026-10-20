@@ -105,7 +105,7 @@ Probado:
 - El operador repitió una revisión anterior en Debian (Python 3.13.5) con Chrome 154.0.8037.97: sin navegador
   pasaron 1450 y 1 se omitió (una prueba que solo se ejecuta como root); con él pasaron 119 y 6 fallaron como se
   esperaba, las seis del zoom de página, cerradas desde entonces; las dos pruebas de descarga por separado, 0
-  fallos en 40 ejecuciones cada una. Después el operador repitió `919ed8c` (la revisión anterior a las pruebas de
+  fallos en 40 ejecuciones cada una. Después el operador repitió `ff8c433` (la revisión anterior a las pruebas de
   clic) en el mismo navegador: sin navegador pasaron 1546, 1 se omitió y 188 quedaron deseleccionadas; los tres
   archivos de zoom y escala, 125 pasaron; las 188 pruebas de navegador pasaron todas; las dos pruebas de descarga
   y las dos que sustituyen a la inestable, cada una por separado, 0 fallos en 40 ejecuciones. Las pruebas de clic
@@ -170,7 +170,7 @@ Probado:
   interfaz de bucle local; el servidor abrió una página de un sitio público de compras, rellenó su campo de
   búsqueda, pulsó Intro y observó los resultados. El texto escrito no aparece en el diario.
 - La ventana de confirmación, mostrada en el equipo del operador y respondida por una persona el 15 de octubre
-  de 2026 (revisión `873f1ac`), con el volumen gocryptfs propio del operador montado y una página de pago
+  de 2026 (revisión `365c465`), con el volumen gocryptfs propio del operador montado y una página de pago
   local, en Opera (que el servidor leyó como Chrome 153.0.8010.55): un rechazo devolvió
   `confirmation_denied` y la página no recibió nada; una aceptación hizo el clic y la página recibió una
   petición; sin respuesta, la petición caducó a los 91 segundos (`confirmation_expired`) y la página no

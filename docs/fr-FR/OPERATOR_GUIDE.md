@@ -752,7 +752,7 @@ La seconde commande n'exige aucun navigateur. Non mesuré : le zoom fait par le
 pas sans interface (le protocole n'a aucune commande de zoom, si bien que les tests écrivent le zoom par défaut du profil,
 et que le navigateur garde les deux sortes de zoom de la même façon n'est pas confirmé), et un écran dont l'échelle est
 réellement de 1,5. Sous Google Chrome 154.0.8037.97, l'opérateur a rejoué les tests de zoom et d'échelle de la révision
-`919ed8c` (125 passés) et tous ses 188 tests de navigateur (188 passés). Les clics sont dans la section suivante.
+`ff8c433` (125 passés) et tous ses 188 tests de navigateur (188 passés). Les clics sont dans la section suivante.
 
 ### Clics à tout zoom de page et sur une page défilée
 

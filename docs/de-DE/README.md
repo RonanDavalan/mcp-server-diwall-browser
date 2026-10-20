@@ -106,7 +106,7 @@ Getestet:
 - Der Bediener hat eine frühere Revision unter Debian (Python 3.13.5) mit Chrome 154.0.8037.97 wiederholt: ohne
   Browser bestanden 1450 und 1 wurde übersprungen (ein Test, der nur als root läuft); mit ihm bestanden 119, und
   6 scheiterten wie erwartet, die sechs des Seitenzooms, seither geschlossen; die beiden Download-Tests einzeln,
-  0 Fehlschläge in je 40 Läufen. Der Bediener wiederholte dann `919ed8c` (die Revision vor den Klick-Tests) mit
+  0 Fehlschläge in je 40 Läufen. Der Bediener wiederholte dann `ff8c433` (die Revision vor den Klick-Tests) mit
   demselben Browser: ohne Browser bestanden 1546, 1 wurde übersprungen und 188 abgewählt; die drei Zoom- und
   Skalierungsdateien, 125 bestanden; alle 188 Browser-Tests bestanden; die beiden Download-Tests und die beiden
   Tests, die den instabilen ersetzen, einzeln, 0 Fehlschläge in je 40 Läufen. Die Klick-Tests wurden damit nicht
@@ -175,7 +175,7 @@ Getestet:
   eines öffentlichen Einkaufsportals, füllte dessen Suchfeld, drückte die Eingabetaste und beobachtete die
   Ergebnisse. Der getippte Text erscheint nicht im Journal.
 - Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und am 15. Oktober 2026 von einer Person
-  beantwortet (Revision `873f1ac`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen
+  beantwortet (Revision `365c465`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen
   Zahlungsseite, in Opera (das der Server als Chrome 153.0.8010.55 las): Eine Ablehnung lieferte
   `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick aus, und die Seite
   erhielt eine Anfrage; ohne Antwort verfiel die Anfrage nach 91 Sekunden (`confirmation_expired`), und die

@@ -106,7 +106,7 @@ Testé :
 - L'opérateur a rejoué une révision antérieure sous Debian (Python 3.13.5) avec Chrome 154.0.8037.97 : sans
   navigateur 1 450 ont passé et 1 a été ignoré (un test qui ne s'exécute qu'en root) ; avec lui 119 ont passé
   et 6 ont échoué comme prévu, les six du zoom de page, clos depuis ; les deux tests de téléchargement seuls,
-  0 échec sur 40 exécutions chacun. L'opérateur a ensuite rejoué `919ed8c` (la révision avant les tests de
+  0 échec sur 40 exécutions chacun. L'opérateur a ensuite rejoué `ff8c433` (la révision avant les tests de
   clic) sur le même navigateur : sans navigateur 1 546 ont passé, 1 a été ignoré et 188 désélectionnés ; les
   trois fichiers de zoom et d'échelle, 125 passés ; les 188 tests de navigateur ont tous passé ; les deux
   tests de téléchargement et les deux tests qui remplacent l'instable, chacun seul, 0 échec sur 40
@@ -176,7 +176,7 @@ Testé :
   champ de recherche, appuyé sur Entrée et observé les résultats. Le texte saisi n'apparaît pas dans le
   journal.
 - La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 15
-  octobre 2026 (révision `873f1ac`), avec le propre volume gocryptfs de l'opérateur monté et une page de
+  octobre 2026 (révision `365c465`), avec le propre volume gocryptfs de l'opérateur monté et une page de
   paiement locale, dans Opera (que le serveur a lu comme Chrome 153.0.8010.55) : un refus a rendu
   `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu une requête ;
   sans réponse, la demande a expiré après 91 secondes (`confirmation_expired`) et la page n'a rien reçu.

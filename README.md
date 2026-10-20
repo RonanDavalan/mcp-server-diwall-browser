@@ -106,7 +106,7 @@ Tested:
 - The operator replayed an earlier revision on Debian (Python 3.13.5) with Chrome
   154.0.8037.97: without a browser 1450 passed and 1 was skipped (a test that runs as root only);
   with it 119 passed and 6 failed as expected, the six of the page zoom, closed since;
-  the two download tests alone, 0 failures in 40 runs each. The operator then replayed `919ed8c`
+  the two download tests alone, 0 failures in 40 runs each. The operator then replayed `ff8c433`
   (the revision before the click tests) on the same browser: without a browser 1546 passed, 1 was
   skipped and 188 were deselected; the three zoom and scale files, 125 passed; all 188 browser tests
   passed; the two download tests and the two tests that replace the unstable one, each alone, 0
@@ -173,7 +173,7 @@ Tested:
   a page of a public shopping site, filled its search field, pressed Enter and observed the
   results. The typed text does not appear in the journal.
 - The confirmation window, shown on the operator's workstation and answered by a person on 15 October
-  2026 (revision `873f1ac`), with the operator's own gocryptfs volume mounted and a local payment page,
+  2026 (revision `365c465`), with the operator's own gocryptfs volume mounted and a local payment page,
   in Opera (which the server read as Chrome 153.0.8010.55): a refusal returned `confirmation_denied` and
   the page received nothing; an acceptance made the click and the page received one request; with no
   answer, the request expired after 91 seconds (`confirmation_expired`) and the page received nothing.
