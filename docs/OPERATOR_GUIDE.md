@@ -105,7 +105,7 @@ write, and only while the encrypted directory is open.
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
-  machine; the complete suite, 571 browser tests included, passed on Google Chrome 155.0.8059.84, and
+  machine; the complete suite, 583 browser tests included, passed on Google Chrome 155.0.8059.84, and
   the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
   alone. Chromium 154 was not available there. Brave was not tried.
 - `fuse3` and `gocryptfs` for the encrypted directory.
@@ -207,11 +207,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output on 20 October 2026, on the code of version 0.0.1, with Python 3.12.11 (571 of its tests
+Output on 20 October 2026, on the code of version 0.0.1, with Python 3.12.11 (583 of its tests
 need a browser):
 
 ```
-1877 passed, 1 skipped, 571 deselected, 1 warning in 94.92s (0:01:34)
+2019 passed, 1 skipped, 583 deselected, 1 warning in 105.60s (0:01:45)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -242,12 +242,12 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 571 browser tests;
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 583 browser tests;
 each starts the browser headless on a blank temporary profile. On the same day, with Google
 Chrome 155.0.8059.84 found on the `PATH`:
 
 ```
-2448 passed, 1 skipped, 1 warning in 341.51s (0:05:41)
+2602 passed, 1 skipped, 1 warning in 372.94s (0:06:12)
 ```
 
 Then connect the server to your MCP client, as the next part describes.

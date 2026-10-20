@@ -126,9 +126,9 @@ vorenthalten, den das Modell erhält (`redacted_fields` ist 1).
 Getestet:
 
 - Die vollständige Suite unter Debian 13 mit Python 3.12.11 und den Abhängigkeiten aus `requirements.lock`: ohne
-  Browser bestehen 1877 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
+  Browser bestehen 2019 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 583, die einen
   Browser brauchen, sind abgewählt; mit Google Chrome 155.0.8059.84 (ohne Oberfläche, leeres temporäres Profil)
-  bestehen 2448 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
+  bestehen 2602 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
 - Download-Tests: Zwei scheiterten zufällig, 7- und 8-mal in je 30 Einzelläufen, weil der Server die
   Download-Einstellung schloss, bevor der Browser entschieden hatte, was er mit dem Download tut. Nach der
   Änderung scheiterten sie 3- und 1-mal in je 130 Einzelläufen; die 3 waren ein Lesen, im Test selbst, einer
@@ -214,7 +214,8 @@ Getestet:
   Volume und einem Debugging-Port auf der Loopback-Schnittstelle, wurde angebunden; der Server öffnete eine Seite
   eines öffentlichen Einkaufsportals, füllte dessen Suchfeld, drückte die Eingabetaste und beobachtete die
   Ergebnisse. Der getippte Text erscheint nicht im Journal.
-- Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und am 15. Oktober 2026 von einer Person
+- Die Ursprungsrichtlinie (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` und `tests/test_origin_policy_server.py` auf einem simulierten Browser und `tests/test_origin_policy_integration.py`, 12 Tests des über seinen Einstiegspunkt gestarteten Servers gegen Google Chrome 155.0.8059.84, mit Attrappenprogrammen für das Fenster: ein Portal, das auf einen zweiten Origin verweist, eine Weiterleitung auf einen unbekannten Origin, die drei Antworten des Fensters (das Profil nach `Ajouter à la liste` neu gelesen), unter `open` abgelehnte lokale Namen, eine Zahlung, die weiter ihr Fenster verlangt, und die im Profil geänderte Richtlinie ohne Neustart. Die Fenster der echten `kdialog` und `zenity` wurden in einem virtuellen Bildschirm gezeigt und durch Tastendrücke beantwortet (Eingabe und Escape geben die Ablehnung); noch keine Person hat sie beantwortet.
+- Die frühere Form des Bestätigungsfensters (zwei Schaltflächen), auf dem Rechner des Bedieners gezeigt und am 15. Oktober 2026 von einer Person
   beantwortet (Revision `365c465`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen
   Zahlungsseite, in Opera (das der Server als Chrome 153.0.8010.55 las): Eine Ablehnung lieferte
   `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick aus, und die Seite

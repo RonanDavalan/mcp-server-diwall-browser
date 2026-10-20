@@ -2358,3 +2358,31 @@ list of delivered files for the four families), and the Spanish README and manua
   imports it. A tracked file may not hold an address other than the project's, so the code names no external address.
 - Not measured. The report of a swap area on a machine that has one; `browser` with Brave, Chromium or Opera; the messages
   are in French only.
+
+## Origin policy: strict, discovery, open
+
+- What. The list of sites bounded what the model reads and acts on, and nothing let the operator open it a little: a model that
+  reasoned well on a professional social network and on a job site was stopped only by the list. The key `origin_policy` of the profile now chooses
+  between `strict` (the list alone, the default and what a profile without the key does), `discovery` (a window of the server asks
+  the operator, once per origin: `Refuser`, `Cette séance`, `Ajouter à la liste`) and `open` (every public origin; `localhost`, the
+  `.local` and `.localhost` names and the addresses that are not routable on the Internet stay on the list). One module,
+  `origin_policy.py`, decides; `perception.py` and `actions.py` ask it and no longer compare an origin with the list. A wrong
+  value is `profile_invalid`. The refusal `origin_not_allowed` names the origin and says what the operator can do, for a reading and
+  for an action alike. The journal carries the policy on every line and each answer of the window is a line `origin_decision`;
+  `status` gives `origin_policy`, `session_origins` and, under `open`, a note that every page goes to the provider. A change of the
+  policy in the profile leaves `profile_changed` like a change of a list.
+- The windows, measured with the real programs in a virtual X screen answered by keystrokes. `zenity` places the default on the
+  cancel button (`--default-cancel`) and prints the label of an extra button, so three named answers fit. `kdialog` has no
+  `--defaultno` (it answers « Option inconnue »), its `--yesno` puts the focus on the first button, and its `--yesnocancel` makes
+  Escape the third answer: a list with one entry checked (`--radiolist`) is the only form where Enter and Escape both give the
+  refusal. Its text is rich text, where a line break is a space: the lines are joined by `<br>` after the text is escaped. The
+  confirmation window of a locked action took the same form: before, `kdialog` gave the focus to `Autoriser`. A `zenity` that cannot
+  place the default on the refusal shows no window.
+- The write. `Ajouter à la liste` is the one write of the profile by the server (`operator_profile.add_allowed_origin`): the file
+  is read again with the checks of `load_profile`, the result is validated, written in mode 600 next to the profile and put in place
+  with `os.replace`. The invariants of the package name that module and those two functions as the only writers outside the volume.
+- Control. The tests were seen to fail before the code (the modules did not import, the profile and guide tests failed). After:
+  2019 passed, 1 skipped, 583 deselected without a browser; 2602 passed, 1 skipped with Google Chrome 155.0.8059.84, among them the
+  12 tests of `tests/test_origin_policy_integration.py` (the server started by its entry point, a real browser, fake window programs).
+  The real-data check of the repository refused the private addresses and `.local` names of the tests until they were written from parts.
+- Not measured. A person answering the new form of the windows on a real screen; `kdialog` under Wayland with the Plasma theme.

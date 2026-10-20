@@ -126,8 +126,8 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite, on Debian 13 with Python 3.12.11 and the dependencies of `requirements.lock`: without a
-  browser, 1877 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
-  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2448 tests pass and 1 is
+  browser, 2019 tests pass, 1 is skipped (a test that runs as root only) and the 583 that need a browser are
+  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2602 tests pass and 1 is
   skipped, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
@@ -212,7 +212,8 @@ Tested:
   in that volume and a debugging port on the loopback interface, was attached; the server opened
   a page of a public shopping site, filled its search field, pressed Enter and observed the
   results. The typed text does not appear in the journal.
-- The confirmation window, shown on the operator's workstation and answered by a person on 15 October
+- The origin policy (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` and `tests/test_origin_policy_server.py` on a simulated browser, and `tests/test_origin_policy_integration.py`, 12 tests of the server started by its entry point against Google Chrome 155.0.8059.84, with fake window programs: a portal that links to a second origin, a redirection to an unknown origin, the three answers of the window (the profile read back after `Ajouter à la liste`), local names refused under `open`, a payment that still asks its window, and the policy changed in the profile without restarting. The windows of the real `kdialog` and `zenity` were shown in a virtual screen and answered by keystrokes (Enter and Escape give the refusal); no person has answered them yet.
+- The earlier form of the confirmation window (two buttons), shown on the operator's workstation and answered by a person on 15 October
   2026 (revision `365c465`), with the operator's own gocryptfs volume mounted and a local payment page,
   in Opera (which the server read as Chrome 153.0.8010.55): a refusal returned `confirmation_denied` and
   the page received nothing; an acceptance made the click and the page received one request; with no

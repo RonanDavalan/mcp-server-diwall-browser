@@ -102,7 +102,7 @@ que le répertoire chiffré est ouvert.
 - Un navigateur de la famille Chromium : Google Chrome, Chromium ou Brave. Le serveur ne vérifie pas la version du navigateur. Chrome 136 et les versions suivantes ignorent le port de débogage sur le profil par défaut du
   navigateur, ce qui est une des raisons pour lesquelles le serveur exige un profil dédié (le projet n'a pas mesuré ce
   comportement ; le serveur refuse de toute façon un profil par défaut). Les tests ont tourné sous Chromium 141 dans
-  l'environnement du projet et sous Chrome 154 sur la machine de l'opérateur ; la suite complète, dont 571 tests de
+  l'environnement du projet et sous Chrome 154 sur la machine de l'opérateur ; la suite complète, dont 583 tests de
   navigateur, a passé sous Google Chrome 155.0.8059.84, et les 536 tests de navigateur d'une révision antérieure ont aussi
   passé sous Chromium 155.0.8059.39 (Debian 13), chacun seul. Chromium 154 n'y était pas disponible. Brave n'a pas été
   essayé.
@@ -199,11 +199,11 @@ des deux ne touche à votre navigateur, à votre répertoire chiffré ni à votr
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Sortie du 20 octobre 2026, sur le code de la version 0.0.1, avec Python 3.12.11 (571 tests exigent un
+Sortie du 20 octobre 2026, sur le code de la version 0.0.1, avec Python 3.12.11 (583 tests exigent un
 navigateur) :
 
 ```
-1877 passed, 1 skipped, 571 deselected, 1 warning in 94.92s (0:01:34)
+2019 passed, 1 skipped, 583 deselected, 1 warning in 105.60s (0:01:45)
 ```
 
 L'avertissement est un `IncompleteFieldDefinitionWarning` de `pydantic_settings`, une bibliothèque que le SDK MCP
@@ -233,12 +233,12 @@ et rend 3. Il rend 0 quand le résultat est celui attendu, et 1 quand il diffèr
 `<- not as expected`). La ligne du répertoire chiffré lit `closed_or_absent` exprès : le test de fumée donne au serveur un
 répertoire qui n'est pas monté. `--save-image ~/observe.png` écrit l'image que le modèle a reçue.
 
-Avec un navigateur dans votre `PATH`, `.venv/bin/python -m pytest -q` lance aussi les 571 tests de navigateur ; chacun
+Avec un navigateur dans votre `PATH`, `.venv/bin/python -m pytest -q` lance aussi les 583 tests de navigateur ; chacun
 démarre le navigateur sans interface sur un profil temporaire vierge. Le même jour, avec Google Chrome
 155.0.8059.84 trouvé dans le `PATH` :
 
 ```
-2448 passed, 1 skipped, 1 warning in 341.51s (0:05:41)
+2602 passed, 1 skipped, 1 warning in 372.94s (0:06:12)
 ```
 
 Branchez ensuite le serveur à votre client MCP, comme le décrit la partie suivante.

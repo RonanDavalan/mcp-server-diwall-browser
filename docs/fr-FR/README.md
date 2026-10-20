@@ -125,9 +125,9 @@ rectangle plein, et sa valeur est retenue dans le texte que reçoit le modèle (
 Testé :
 
 - La suite complète, sous Debian 13 avec Python 3.12.11 et les dépendances de `requirements.lock` : sans
-  navigateur, 1 877 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
+  navigateur, 2019 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 583 qui exigent un
   navigateur sont désélectionnés ; avec Google Chrome 155.0.8059.84 (sans interface, profil temporaire vierge),
-  2 448 tests passent et 1 est ignoré, sans échec attendu.
+  2 602 tests passent et 1 est ignoré, sans échec attendu.
 - Tests de téléchargement : deux échouaient au hasard, 7 et 8 fois sur 30 exécutions de chacun seul, parce
   que le serveur refermait le réglage de téléchargement avant que le navigateur ait choisi quoi faire du
   téléchargement. Après la modification, ils ont échoué 3 et 1 fois sur 130 exécutions de chacun seul ; les 3
@@ -215,7 +215,8 @@ Testé :
   l'interface de bouclage, a été attaché ; le serveur a ouvert une page d'un site marchand public, rempli son
   champ de recherche, appuyé sur Entrée et observé les résultats. Le texte saisi n'apparaît pas dans le
   journal.
-- La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 15
+- La politique d'origines (`strict`, `discovery`, `open`) : `tests/test_origin_policy.py` et `tests/test_origin_policy_server.py` sur un navigateur simulé, et `tests/test_origin_policy_integration.py`, 12 tests du serveur lancé par son point d'entrée contre Google Chrome 155.0.8059.84, avec de faux programmes de fenêtre : un portail qui renvoie vers une seconde origine, une redirection vers une origine inconnue, les trois réponses de la fenêtre (le profil relu après `Ajouter à la liste`), les noms locaux refusés avec `open`, un paiement qui demande toujours sa fenêtre, et la politique changée dans le profil sans redémarrage. Les fenêtres des vrais `kdialog` et `zenity` ont été montrées dans un écran virtuel et répondues par des frappes (Entrée et Échap donnent le refus) ; aucune personne n'y a encore répondu.
+- La forme précédente de la fenêtre de confirmation (deux boutons), affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 15
   octobre 2026 (révision `365c465`), avec le propre volume gocryptfs de l'opérateur monté et une page de
   paiement locale, dans Opera (que le serveur a lu comme Chrome 153.0.8010.55) : un refus a rendu
   `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu une requête ;
