@@ -9,6 +9,57 @@ configuration files that need an absolute path (the operator profile, section 5,
 MCP client, section 2.1) are written by a command that puts your home directory in them. Replace the
 other values with yours; each section says which values are yours to choose.
 
+## First launch
+
+The server does not work without an encrypted directory. The browser it attaches to keeps your signed-in sessions in its profile, and that profile lives in the encrypted directory so that it never sits on the disk in clear; there is no mode without encryption. A first user has neither the directory nor an operator profile, and one command makes both: `mcp-server-diwall-browser-setup`, which you run yourself, in a terminal. It is a separate program: the server itself never mounts, unmounts or creates anything (section 4).
+
+With a package, the command is `mcp-server-diwall-browser-setup`. From a clone of the repository, `.venv/bin/python -m mcp_server_diwall_browser.setup` takes its place everywhere below. The messages of the assistant are in French, like the refusals of the server (section 11); its codes are in English.
+
+Run it with no argument first. It reads the machine and changes nothing: it needs no terminal and no password, and it prints a report that ends with the next command to type.
+
+```
+mcp-server-diwall-browser-setup
+```
+
+On 20 October 2026, in a clean Debian 13 container where `gocryptfs` had just been installed with the command the report gave, with no browser and no screen:
+
+```
+Premier lancement : état du poste
+
+- mécanisme gocryptfs (linux) : pris en charge, disponible
+- /dev/fuse : présent
+- gestionnaire de paquets : apt
+- volumes gocryptfs fermés trouvés : aucun
+- profil du serveur : absent (~/.config/mcp-server-diwall-browser/profile.json)
+- navigateurs : aucun de la famille Chromium trouvé (guide, section 1) ; port 9222 ne répond pas
+- terminal interactif : non (create, open, browser et close le demandent)
+- écran : non (le navigateur en demande un)
+- fenêtre de confirmation : aucune (kdialog ou zenity à installer)
+
+Prochaine étape : `mcp-server-diwall-browser-setup create --temporary`
+  aucun profil ni volume : un essai immédiat se fait sur un volume temporaire en mémoire vive, détruit à sa fermeture ; `mcp-server-diwall-browser-setup create` fait un volume durable (~/Vaults/Main.enc, ouvert sur ~/Vaults/Main)
+```
+
+The report says whether `gocryptfs`, `fusermount3` and `/dev/fuse` are there and, when something is missing, the install command of the package manager it found (`sudo apt install gocryptfs fuse3` with `apt`; `dnf`, `zypper` and `pacman` on the other families); the closed `gocryptfs` volumes it finds in the usual places (`~/Vaults*`, the folder of Plasma Vault); the mounted volumes of another kind (LUKS, eCryptfs, EncFS, CryFS), which the server does not support, because it needs a `gocryptfs` mount: the way forward is a `gocryptfs` volume next to them; whether the operator profile exists and what state its volume is in; the browsers of the Chromium family it found; whether a swap area exists; whether it runs in a terminal and has a screen. `mcp-server-diwall-browser-setup check --json` prints the same report on one line of JSON: a model that has a shell runs it, and tells you what it says.
+
+The other commands act. Each asks for a terminal, because the password has no other place to be typed: the assistant hands the terminal to `gocryptfs`, which asks for the password itself, and the assistant does not read, keep or pass it on. Without a terminal, they refuse with `no_terminal`.
+
+| Command | What it does |
+|---|---|
+| `mcp-server-diwall-browser-setup create --temporary` | A trial, on a temporary volume kept in memory. |
+| `mcp-server-diwall-browser-setup create` | A durable volume, `~/Vaults/Main.enc` opened on `~/Vaults/Main`, and the operator profile. |
+| `mcp-server-diwall-browser-setup open` | Opens the volume of the profile. |
+| `mcp-server-diwall-browser-setup browser` | Starts the browser on the profile kept in the volume. |
+| `mcp-server-diwall-browser-setup close` | Stops the browser, then unmounts the volume. |
+
+The trial lives under `$XDG_RUNTIME_DIR`, which is memory, and the assistant refuses to create it anywhere that is not: nothing is written on the disk. `close`, the stop of the machine or the end of your session destroys it, and with it the sessions of the sites you opened in the browser, the audit journal and the evidence. A machine that has a swap area can write memory to it: the report says so, and says that the encryption of that swap is not determined. `create` without the option makes the durable volume, which keeps all of that.
+
+`create` asks for the password twice, to confirm it, and once more to open the new volume. For a durable volume, `gocryptfs` then prints a master key, once, on your terminal: write it on paper or keep it in a password manager, never in a file of this disk; it is the only recovery if you lose the password. `--crypt-dir` and `--mount-dir`, absolute paths, choose other places. When `--crypt-dir` names a volume that already exists (copied from another machine, or made by Plasma Vault), `create` does not initialise it: it opens it with your password and writes the profile. It writes the profile only after it has seen the volume mounted, with no site allowed: add your sites to `allowed_origins` (section 5) before the model works on them. It never replaces the profile of a volume you can open, or that it cannot read; it replaces only the volume paths of a profile whose volume no longer exists (a finished trial) or is not a `gocryptfs` volume, and keeps your sites.
+
+`browser` starts the browser only when the volume is open, detached from the terminal so that it outlives it, with `--user-data-dir` on the profile of the volume and `--remote-debugging-port` on the port of the operator profile. Sign in to your sites yourself in that browser: a session is yours to open. `close` stops the browser first, because it writes in the volume, waits for it to end, and unmounts with `fusermount3 -u`, never with `-z`.
+
+`status`, called by the model, says what blocks and gives, in `next_command`, the sub-command that lifts it: under `encrypted_directory` when the directory blocks, under `browser` when the browser does not answer, and at the top of `server` when there is no profile. When you add the server to an MCP client, restart the client: a session that was already open does not see the new server.
+
 ## The final layout
 
 ```
@@ -109,11 +160,14 @@ Use `zenity` in place of `kdialog` outside KDE if you prefer.
 **From a package.** On Debian, Ubuntu, Fedora, openSUSE Leap and Arch Linux, a native package replaces the
 clone, the virtual environment and the installation below (the install commands are in the `README.md`).
 It installs the server under `/usr/lib/mcp-server-diwall-browser` with a virtual environment of its own,
-and puts two commands on the `PATH`: `mcp-server-diwall-browser`, the server, and
-`mcp-server-diwall-browser-credential-import`, the command of section 6. In the connection blocks of the
+and puts three commands on the `PATH`: `mcp-server-diwall-browser`, the server,
+`mcp-server-diwall-browser-credential-import`, the command of section 6, and
+`mcp-server-diwall-browser-setup`, the command of the first launch. In the connection blocks of the
 `README.md` and of section 2.1, the command is then `mcp-server-diwall-browser`, with no argument; in
 section 6, `mcp-server-diwall-browser-credential-import` takes the place of
-`.venv/bin/python -m mcp_server_diwall_browser.credential_import`. The tests and the smoke test belong to
+`.venv/bin/python -m mcp_server_diwall_browser.credential_import`, and the setup command takes the place of
+`.venv/bin/python -m mcp_server_diwall_browser.setup`. The package ends its installation by printing the first
+command to type. The tests and the smoke test belong to
 the clone: the package does not ship them. Everything from section 3 on is the same.
 
 The rest of this section is the installation from a clone.
@@ -153,11 +207,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output on 18 October 2026, on the code of version 0.0.1, with Python 3.12.11 (571 of its tests
+Output on 20 October 2026, on the code of version 0.0.1, with Python 3.12.11 (571 of its tests
 need a browser):
 
 ```
-1812 passed, 1 skipped, 571 deselected, 1 warning in 89.94s (0:01:29)
+1877 passed, 1 skipped, 571 deselected, 1 warning in 94.92s (0:01:34)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -193,7 +247,7 @@ each starts the browser headless on a blank temporary profile. On the same day, 
 Chrome 155.0.8059.84 found on the `PATH`:
 
 ```
-2383 passed, 1 skipped, 1 warning in 345.00s (0:05:45)
+2448 passed, 1 skipped, 1 warning in 341.51s (0:05:41)
 ```
 
 Then connect the server to your MCP client, as the next part describes.
@@ -289,7 +343,8 @@ The server only attaches to a browser started on a profile of its own, never on 
 profile. That profile lives in the encrypted directory, so the browser can only be started once the
 encrypted directory is open (section 4).
 
-Start the browser with one of these commands, the one of your browser:
+With the encrypted directory open, `mcp-server-diwall-browser-setup browser` starts the browser with these two
+options, on the profile of the volume. By hand, start it with one of these commands, the one of your browser:
 
 ```
 google-chrome --user-data-dir="$HOME/Vaults/Main/mcp-server-diwall-browser/browser-profile/chrome" --remote-debugging-port=9222
@@ -335,10 +390,12 @@ layout at the top of this guide). It never mounts or unmounts the encrypted dire
 `gocryptfs` or `fusermount3`, and never knows its password. When the encrypted directory is closed,
 the server refuses to write; it has no fallback to an unencrypted place.
 
-On Debian with gocryptfs 2.5.1, a throw-away volume was created and mounted with a password file in
-place of the prompt, and the server accepted it (`status` read `mounted`); the commands below, with
-the prompt, were not run as written. The operator's own volume, opened by the operator, served the
-test of the confirmation window on 15 October 2026 (`README.md`).
+`mcp-server-diwall-browser-setup` does what this section describes (the first launch, above): on
+20 October 2026, with gocryptfs 2.5.1, it created, opened and closed a throw-away volume with the
+prompt, in a pseudo-terminal, and the server read `mounted`; it runs the same `gocryptfs -init`,
+`gocryptfs` and `fusermount3 -u` as the commands below, which are for doing it by hand. The operator's
+own volume, opened by the operator, served the test of the confirmation window on 15 October 2026
+(`README.md`).
 
 Create the encrypted directory once. `gocryptfs` prints a master key at this step: write it down
 on paper or keep it in a password manager, never in a file of this disk.
@@ -386,7 +443,8 @@ the absolute path given in the environment variable `MCP_DIWALL_BROWSER_PROFILE`
 connection block of the `README.md` sets. The server reads it again on every call: a change
 takes effect without a restart.
 
-Create its directory and write the file. The server wants absolute paths and does not expand `~`
+`mcp-server-diwall-browser-setup create` writes this file, with the volume paths and no site allowed;
+the rest of this section is for adding your sites and for writing the file by hand. The server wants absolute paths and does not expand `~`
 or `$HOME`: the command below lets the shell write your home directory in the file. It is a complete
 example, with every key, and the server accepts the file it writes. Adapt the origins and the browser
 to yours, then edit the file with your editor when your values change:
@@ -876,7 +934,9 @@ tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromi
 ## 8. What the server never does
 
 - It never mounts or unmounts the encrypted directory, never runs `gocryptfs` or `fusermount3`,
-  and never knows the password of the encrypted directory.
+  and never knows the password of the encrypted directory. `mcp-server-diwall-browser-setup` is another
+  program, which you run in your own terminal: no module of the server imports it, and it never reads the
+  password either.
 - It opens no listening port. It connects only to the browser's debugging port on `127.0.0.1`.
 - It runs no script that the model or a page provides; the only scripts it sends to a page are
   the constant ones written in its code.
@@ -884,8 +944,8 @@ tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromi
 - It does not read or write the clipboard.
 - It does not show or read the tabs you opened yourself; it lists only the tabs it opened, the windows
   its pages opened, and the tabs an earlier run of it left open.
-- It does not start or close the browser; its tabs stay open when it stops, and the next run can
-  close them, not work in them (the part below).
+- It does not start or close the browser (the setup command does, when you ask it to); its tabs stay open
+  when it stops, and the next run can close them, not work in them (the part below).
 - It never pays, deletes or changes a secret without a confirmation.
 - It never changes the operator profile or the allowed origins.
 
@@ -1032,25 +1092,33 @@ The server could not read `/proc/net/tcp`, or `/proc/net/tcp6` on a system with 
 
 `browser_unreachable`: `le navigateur ne répond pas sur le port de débogage du profil : l'opérateur doit le lancer avec --remote-debugging-port=<port> et --user-data-dir=<profil dédié>`,
 or `le navigateur ne répond pas : vérifier qu'il est lancé avec le port de débogage du profil`.
-Start the browser (section 3) with the port of `browser.debug_port`.
+Start the browser (section 3) with the port of `browser.debug_port`: with the encrypted directory open,
+`mcp-server-diwall-browser-setup browser` does it, and `status` names that command in `next_command` under `browser`.
 
-`encrypted_dir_closed` and `encrypted_dir_undetermined`: `le répertoire chiffré est fermé ou non confirmé : l'opérateur doit l'ouvrir, puis relancer`
-(`action_expected`: `operator_opens_directory`). Open the encrypted directory (section 4), then ask
-the model to try again. If `secrets_crypt_dir` holds no volume, the message is
-`le répertoire chiffré n'est pas confirmé : le répertoire chiffré déclaré dans le profil (secrets_crypt_dir) ne porte pas de volume initialisé ; l'opérateur doit vérifier le profil`:
-correct `secrets_crypt_dir`.
+`encrypted_dir_closed` and `encrypted_dir_undetermined`: the message names the command that lifts the state, and
+`status` gives it in `next_command` under `encrypted_directory`. For a closed volume (`action_expected`:
+`operator_opens_directory`): `le répertoire chiffré est fermé : l'opérateur l'ouvre avec mcp-server-diwall-browser-setup open, puis relancer`.
+When the profile does not say where the volume lies on the disk (`secrets_crypt_dir`), the server cannot tell a
+closed volume from one never created (`action_expected`: `operator_opens_directory`):
+`le répertoire chiffré n'est pas confirmé : fermé ou jamais créé ; l'opérateur lance mcp-server-diwall-browser-setup check, qui dit lequel des deux, puis relancer`.
+When `secrets_crypt_dir` holds no volume:
+`aucun volume chiffré à l'emplacement déclaré dans le profil : l'opérateur lance mcp-server-diwall-browser-setup check, puis mcp-server-diwall-browser-setup create`.
+Run the command, then ask the model to try again. By hand, open the volume as in section 4.
 
-`mount_not_gocryptfs`: `le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur seul : refus par précaution`.
-Something else is mounted at `secrets_dir`, or the volume is mounted by another user or with
-`allow_other`. Check with `findmnt ~/Vaults/Main`; unmount and open it again as in
-section 4.
+`mount_not_gocryptfs`: `le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur seul : refus par précaution ; mcp-server-diwall-browser-setup check dit ce qui est en place et la voie gocryptfs`.
+Something else is mounted at `secrets_dir` (a LUKS, eCryptfs, EncFS or CryFS volume, which the server does not
+support), or the volume is mounted by another user or with `allow_other`. `mcp-server-diwall-browser-setup check`
+says what is there; the way forward is a `gocryptfs` volume next to it, which
+`mcp-server-diwall-browser-setup create` makes and writes in the profile. Check with `findmnt ~/Vaults/Main`;
+unmount and open it again as in section 4.
 
-`mount_unreadable`: `l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution`.
+`mount_unreadable`: `l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution ; mcp-server-diwall-browser-setup check dit ce que le poste permet`.
 The server could not read `/proc/self/mountinfo` or the directory's state; check that
 `cat /proc/self/mountinfo` works for your user.
 
-`project_root_missing`: `le répertoire chiffré est ouvert mais le sous-répertoire du projet n'existe pas : l'opérateur doit le créer (mkdir -m 700 "<secrets_dir>/mcp-server-diwall-browser"), puis relancer`.
-Run `mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser`.
+`project_root_missing`: `le répertoire chiffré est ouvert mais le dossier du serveur n'y est pas : l'opérateur lance mcp-server-diwall-browser-setup check, qui donne la commande à taper, puis relancer`.
+The command is `mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser` and the same for its `credentials`
+directory, with your own volume path.
 
 `volume_path_refused`: `un répertoire du volume chiffré n'est pas privé (mode 700, propriétaire du serveur) : refus par précaution`,
 `un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution` or
@@ -1176,6 +1244,44 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 `internal_error`: `erreur interne du serveur`. An unexpected failure; the server's standard error
 (kept by the MCP client) holds the name of the tool and the type of the failure (for a protocol error of the browser, its numeric code too), never page data or the text of the error.
 
+### The refusals of the setup assistant
+
+`mcp-server-diwall-browser-setup` refuses with one line, `refus CODE : message`, on its error output, and exits with
+1; a command line it does not understand prints its usage and exits with 2, without repeating what was typed.
+
+- `no_terminal`: `create`, `open`, `browser` and `close` need an interactive terminal, because the password has no
+  other place to be typed. Run the command yourself in a terminal; `check` needs none.
+- `mechanism_missing`: `gocryptfs`, `fusermount3` or `/dev/fuse` is missing. The message gives the install command
+  of the package manager, or `modprobe fuse`, or says that a container must be started with `--device /dev/fuse`.
+- `path_not_absolute`: `--crypt-dir` and `--mount-dir` take absolute paths (the shell writes `~` in full).
+- `profile_exists`: a profile already exists and its volume is open, closed but present, or unreadable; it is not
+  replaced. `mcp-server-diwall-browser-setup check` says what to do.
+- `profile_absent`, `profile_invalid`: `open`, `browser` and `close` need a profile that the server reads;
+  `create` writes one, and the message of `profile_invalid` says what the server could not read.
+- `mount_point_busy`, `mount_point_not_empty`, `crypt_dir_not_empty`: the place chosen for the volume is a mount
+  point already, holds files, or is not an empty folder; choose another with `--crypt-dir` and `--mount-dir`.
+- `init_failed`: `gocryptfs` did not create the volume (the two passwords differed, or it refused); nothing else
+  was done.
+- `mount_failed`: the volume did not open (wrong password, or an unreadable volume). After `create`, run the same
+  command again: it opens the volume that exists and writes the profile. Otherwise run `open`.
+- `no_runtime_dir`, `runtime_dir_not_memory`, `session_exists`: the trial needs `XDG_RUNTIME_DIR` to be set and
+  to lie in memory (`tmpfs`), and no trial to exist already; `close` destroys the one that exists, and `create`
+  makes a durable volume.
+- `volume_missing`, `crypt_dir_unknown`, `volume_not_openable`: `open` cannot open what the profile names (a finished
+  trial no longer exists; the profile does not say where the volume lies; its state forbids it).
+  `mcp-server-diwall-browser-setup check` says which.
+- `volume_not_mounted`: `browser` starts only when the volume is open, because the profile of the browser lives in it.
+  Run `open`.
+- `no_display`, `browser_missing`: the browser needs a screen (`DISPLAY` or `WAYLAND_DISPLAY`) and a browser of the
+  family of the profile on the `PATH`.
+- `browser_still_running`: the browser did not stop within thirty seconds. Close its window, then run `close` again;
+  the volume stays open meanwhile.
+- `volume_busy`, `unmount_failed`: a program still uses the volume, or it is still mounted after the attempt. Close
+  those programs, then run `close` again; a lazy unmount is never used (section 4).
+- `volume_not_ours`, `mount_unreadable`: the state of the volume is not that of a `gocryptfs` volume of your user, or
+  the table of mounts cannot be read: nothing is unmounted.
+- `io_error`: a file could not be created or removed; the message gives the system's reason.
+
 ## 12. Known limits
 
 - While the server is attached, the browser refuses every download, in your own tabs too, except
@@ -1214,6 +1320,11 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   operator profile and read credential files of the open encrypted directory. The server does not
   stop it; it only writes `profile_changed` after the change of an origin list (section 5), which
   that same shell can erase from the journal. Use the dedicated agent of section 2.1.
+- The messages of the setup assistant are in French. It was played on Linux only, with `gocryptfs`; a
+  LUKS, eCryptfs, EncFS or CryFS volume is reported and not used, and Windows and macOS have no
+  mechanism in its table. It was played in a pseudo-terminal on a throw-away volume and in a clean Debian 13
+  container (where it reports and installs `gocryptfs`). The report of the swap area was tested on a simulated list
+  of swap areas, not on a machine that has one.
 - `local_model_origins` and the two declarations are shown in `status` and change nothing else.
 - `profile_encrypted` in `status` says where the declared profile lies, not where the browser
   keeps its data.

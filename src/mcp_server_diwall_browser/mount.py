@@ -181,27 +181,27 @@ class MountChecker:
 _STATE_MESSAGES: dict[MountState, str] = {
     MountState.UNREADABLE: (
         "l'état de montage du répertoire chiffré ne peut pas être lu : refus par précaution ; "
-        f"`{SETUP_COMMAND} check` dit ce que le poste permet"
+        f"{SETUP_COMMAND} check dit ce que le poste permet"
     ),
     MountState.NOT_GOCRYPTFS: (
         "le répertoire déclaré n'est pas un volume gocryptfs monté pour l'utilisateur du serveur seul : "
-        f"refus par précaution ; `{SETUP_COMMAND} check` dit ce qui est en place et la voie gocryptfs"
+        f"refus par précaution ; {SETUP_COMMAND} check dit ce qui est en place et la voie gocryptfs"
     ),
     MountState.CLOSED: (
-        f"le répertoire chiffré est fermé : l'opérateur l'ouvre avec `{SETUP_COMMAND} open`, puis relancer"
+        f"le répertoire chiffré est fermé : l'opérateur l'ouvre avec {SETUP_COMMAND} open, puis relancer"
     ),
     MountState.CLOSED_OR_ABSENT: (
         "le répertoire chiffré n'est pas confirmé : fermé ou jamais créé ; l'opérateur lance "
-        f"`{SETUP_COMMAND} check`, qui dit lequel des deux, puis relancer"
+        f"{SETUP_COMMAND} check, qui dit lequel des deux, puis relancer"
     ),
     MountState.NEVER_INITIALIZED: (
         "aucun volume chiffré à l'emplacement déclaré dans le profil : l'opérateur lance "
-        f"`{SETUP_COMMAND} check`, puis `{SETUP_COMMAND} create`"
+        f"{SETUP_COMMAND} check, puis {SETUP_COMMAND} create"
     ),
 }
 _PROJECT_ROOT_MISSING_MESSAGE = (
     "le répertoire chiffré est ouvert mais le dossier du serveur n'y est pas : l'opérateur lance "
-    f"`{SETUP_COMMAND} check`, qui donne la commande à taper, puis relancer"
+    f"{SETUP_COMMAND} check, qui donne la commande à taper, puis relancer"
 )
 _OUTSIDE_MESSAGE = "un chemin du répertoire chiffré mène hors du volume : refus par précaution"
 _LINK_MESSAGE = "un chemin du répertoire chiffré passe par un lien symbolique : refus par précaution"

@@ -8,6 +8,25 @@ accesibilidad que el operador, y actúa en la misma sesión autenticada. Necesit
 Chromium que el operador inicia con un perfil dedicado y un puerto de depuración enlazado a la interfaz de
 bucle local, y un directorio cifrado (gocryptfs) para las credenciales, las capturas y las descargas.
 
+## Antes del primer uso
+
+El servidor no funciona sin un directorio cifrado: el perfil del navegador al que se conecta guarda sus sesiones
+iniciadas, y no deben quedar en claro en el disco. No existe ningún modo sin cifrado. Tras la instalación, el primer
+comando, que usted ejecuta en una terminal, es `mcp-server-diwall-browser-setup`: lee su máquina y termina con el
+siguiente comando que debe teclear.
+
+- `mcp-server-diwall-browser-setup create --temporary` crea un volumen en memoria, para un ensayo. Cerrarlo, apagar la
+  máquina o terminar su sesión lo destruye, y con él las sesiones de los sitios que usted abrió en el navegador, el
+  diario de auditoría y las capturas.
+- `mcp-server-diwall-browser-setup create` crea un volumen duradero.
+- `mcp-server-diwall-browser-setup open`, `browser` y `close` abren el volumen, inician el navegador sobre su perfil y
+  detienen ambos.
+
+Usted teclea la contraseña, cuando `gocryptfs` se la pide; el asistente no la lee nunca. Usted inicia sesión en sus
+sitios, en el navegador que él inicia. Tras añadir el servidor a su cliente MCP, reinicie el cliente: una sesión ya
+abierta no lo ve. Los pasos, los rechazos y el camino manual están en la sección «Primer arranque» de
+[docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Instalar
 
 En Linux, el servidor se entrega en paquetes nativos. Descargue el de su sistema desde la página
@@ -90,8 +109,8 @@ se retiene del texto que recibe el modelo (`redacted_fields` vale 1).
 Probado:
 
 - La batería completa, en Debian 13 con Python 3.12.11 y las dependencias de `requirements.lock`: sin navegador
-  pasan 1812 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 571 que necesitan un navegador
-  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2383
+  pasan 1877 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 571 que necesitan un navegador
+  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2448
   pruebas y 1 se omite, sin fallo esperado.
 - Pruebas de descarga: dos fallaban al azar, 7 y 8 veces en 30 ejecuciones de cada una por separado, porque el
   servidor cerraba el ajuste de descarga antes de que el navegador hubiera elegido qué hacer con la descarga.
@@ -161,6 +180,12 @@ Probado:
 - Una página densa con un banner de consentimiento fijo sobre su parte baja (643 cosas donde hacer clic): sus tres
   botones están marcados y listados primero en el árbol, los elementos que quedan debajo dicen `covered`, y un clic
   en «Rechazar» por su marca quita el banner (`tests/test_ranking_integration.py`).
+- El asistente de instalación, `mcp-server-diwall-browser-setup`: 50 pruebas sobre una máquina simulada (tablas de
+  montaje, gestores de paquetes, sin `/dev/fuse`, sin terminal, un volumen LUKS); después, el 20 de octubre de 2026, con el
+  gocryptfs 2.5.1 real en un pseudoterminal, sobre volúmenes desechables: `create --temporary`, el servidor leyendo
+  `mounted`, `browser` (Google Chrome 155.0.8059.84 sin pantalla, conectado, `profile_encrypted: true`), `close` (ningún
+  volumen queda en memoria, ningún archivo del perfil del navegador en el disco), después `create`, `close` y `open` de un
+  volumen duradero; y en un contenedor Debian 13 limpio, donde `check` dio `sudo apt install gocryptfs fuse3`, que funcionó.
 - El comando que traspasa un archivo de credenciales antiguo (véase la guía del operador): sobre archivos de la
   batería de pruebas en un volumen simulado, con un rechazo probado para cada salida, y sin ningún valor en nada de
   lo que imprime. No se probó en un volumen gocryptfs real.
@@ -181,6 +206,9 @@ Probado:
   estándar, no mantiene ningún socket a la escucha y se ejecuta con un límite de archivo core de cero.
 
 No probado:
+
+- El asistente de instalación en una máquina con área de intercambio (su informe se probó sobre una lista simulada), y
+  su comando `browser` con Brave, Chromium u Opera.
 
 - Brave, y las compilaciones de Google Chrome distintas de la que ejecutó el operador.
 - La confirmación pedida a través de un cliente MCP de escritorio (elicitation): probada solo con el cliente del

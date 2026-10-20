@@ -46,8 +46,9 @@ du jugement du modèle.
 | `mount` | si le répertoire chiffré est monté comme attendu, et chaque chemin à l'intérieur |
 | `credentials` | lecture des fichiers d'identifiants, résolution de l'un d'eux pour une origine exacte, et le schéma que le reste du code peut interroger |
 | `credential_import` | une commande de l'opérateur, hors du serveur : convertit un ancien fichier d'identifiants, ou un répertoire de tels fichiers, vers le schéma, sans montrer aucune valeur |
+| `setup` | un programme de l'opérateur, hors du serveur et importé par aucun de ses modules : lit la machine, crée ou ouvre le volume gocryptfs, écrit le profil de l'opérateur, lance le navigateur sur son profil et ferme les deux ; le terminal va à gocryptfs, qui seul lit le mot de passe |
 | `journal` | le journal d'audit, une ligne JSON par appel |
-| `operator_profile` | lecture du profil de l'opérateur ; avec `confirm`, le seul module qui lit l'environnement |
+| `operator_profile` | lecture du profil de l'opérateur ; avec `confirm`, les seuls modules du serveur qui lisent l'environnement |
 | `profile_watch` | la trace d'un changement des listes d'origines du profil : la comparaison, les origines vues en dernier, l'avis |
 | `cdp` | le client DevTools, sa liste de méthodes autorisées et ses scripts constants |
 | `browser` | contrôles d'attachement, onglets que le serveur possède, navigation, boîtes de dialogue |

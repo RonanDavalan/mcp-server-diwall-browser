@@ -9,6 +9,25 @@ der Chromium-Familie, den der Bediener mit einem eigenen Profil und einem an die
 gebundenen Debugging-Port startet, sowie ein verschlüsseltes Verzeichnis (gocryptfs) für Zugangsdaten, Aufnahmen
 und Downloads.
 
+## Vor dem ersten Gebrauch
+
+Der Server arbeitet nicht ohne verschlüsseltes Verzeichnis: Das Profil des Browsers, an den er sich anbindet, hält Ihre
+angemeldeten Sitzungen, und sie dürfen nicht unverschlüsselt auf der Platte liegen. Einen Modus ohne Verschlüsselung gibt
+es nicht. Nach der Installation lautet der erste Befehl, den Sie selbst in einem Terminal ausführen,
+`mcp-server-diwall-browser-setup`: Er liest Ihren Rechner und endet mit dem nächsten Befehl, den Sie eingeben.
+
+- `mcp-server-diwall-browser-setup create --temporary` legt für einen Versuch ein Volume im Arbeitsspeicher an. Es zu
+  schließen, den Rechner auszuschalten oder Ihre Sitzung zu beenden zerstört es, und mit ihm die Sitzungen der Websites, die
+  Sie im Browser geöffnet haben, das Audit-Journal und die Aufnahmen.
+- `mcp-server-diwall-browser-setup create` legt ein dauerhaftes Volume an.
+- `mcp-server-diwall-browser-setup open`, `browser` und `close` öffnen das Volume, starten den Browser auf seinem Profil
+  und beenden beides.
+
+Das Passwort geben Sie selbst an der Eingabeaufforderung von `gocryptfs` ein; der Assistent liest es nie. Bei Ihren Websites
+melden Sie sich selbst an, in dem Browser, den er startet. Haben Sie den Server zu Ihrem MCP-Client hinzugefügt, starten Sie
+den Client neu: Eine bereits offene Sitzung sieht ihn nicht. Die Schritte, die Ablehnungen und der manuelle Weg stehen im
+Abschnitt „Erster Start“ von [docs/de-DE/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Installieren
 
 Unter Linux wird der Server als natives Paket geliefert. Laden Sie das Paket Ihres Systems von der Seite
@@ -92,9 +111,9 @@ vorenthalten, den das Modell erhält (`redacted_fields` ist 1).
 Getestet:
 
 - Die vollständige Suite unter Debian 13 mit Python 3.12.11 und den Abhängigkeiten aus `requirements.lock`: ohne
-  Browser bestehen 1812 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
+  Browser bestehen 1877 Tests, 1 wird übersprungen (ein Test, der nur als root läuft) und die 571, die einen
   Browser brauchen, sind abgewählt; mit Google Chrome 155.0.8059.84 (ohne Oberfläche, leeres temporäres Profil)
-  bestehen 2383 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
+  bestehen 2448 Tests und 1 wird übersprungen, ohne erwarteten Fehlschlag.
 - Download-Tests: Zwei scheiterten zufällig, 7- und 8-mal in je 30 Einzelläufen, weil der Server die
   Download-Einstellung schloss, bevor der Browser entschieden hatte, was er mit dem Download tut. Nach der
   Änderung scheiterten sie 3- und 1-mal in je 130 Einzelläufen; die 3 waren ein Lesen, im Test selbst, einer
@@ -165,6 +184,12 @@ Getestet:
 - Eine dichte Seite mit einem Einwilligungsbanner, das über ihrem unteren Teil festsitzt (643 Dinge zum Klicken):
   seine drei Buttons sind markiert und im Baum zuerst aufgelistet, die Elemente darunter sagen `covered`, und ein
   Klick auf „Ablehnen“ über seine Markierung entfernt das Banner (`tests/test_ranking_integration.py`).
+- Der Einrichtungsassistent `mcp-server-diwall-browser-setup`: 50 Tests auf einem simulierten Rechner (Einhängetabellen,
+  Paketverwaltungen, kein `/dev/fuse`, kein Terminal, ein LUKS-Volume); dann, am 20. Oktober 2026, mit dem echten gocryptfs
+  2.5.1 in einem Pseudoterminal, auf Wegwerf-Volumes: `create --temporary`, der Server liest `mounted`, `browser`
+  (Google Chrome 155.0.8059.84 ohne Bildschirm, angebunden, `profile_encrypted: true`), `close` (kein Volume mehr im
+  Arbeitsspeicher, keine Datei des Browserprofils auf der Platte), dann `create`, `close` und `open` eines dauerhaften
+  Volumes; und in einem sauberen Debian-13-Container, wo `check` `sudo apt install gocryptfs fuse3` gab, was gelang.
 - Der Befehl, der eine alte Zugangsdatei übernimmt (siehe Bedienerhandbuch): an Dateien der Testsuite in einem
   simulierten Volume, mit einer getesteten Ablehnung für jeden Ausgang und ohne einen Wert in irgendetwas, das er
   ausgibt. Er wurde an keinem echten gocryptfs-Volume ausprobiert.
@@ -186,6 +211,9 @@ Getestet:
   Standardausgabe, hält keinen lauschenden Socket und läuft mit einer Core-Datei-Grenze von null.
 
 Nicht getestet:
+
+- Der Einrichtungsassistent auf einem Rechner mit Auslagerungsspeicher (sein Bericht ist an einer simulierten Liste
+  erprobt) und sein Befehl `browser` mit Brave, Chromium oder Opera.
 
 - Brave und Google-Chrome-Versionen außer der, die der Bediener verwendet hat.
 - Die über einen Desktop-MCP-Client erfragte Bestätigung (Elicitation): nur mit dem Client des MCP-SDK getestet.

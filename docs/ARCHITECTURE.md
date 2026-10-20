@@ -48,8 +48,9 @@ refusals that do not depend on the model's judgement.
 | `mount` | whether the encrypted directory is mounted as expected, and every path inside it |
 | `credentials` | reading credential files, resolving one for an exact origin, and the schema other code may ask |
 | `credential_import` | an operator command, outside the server: converts an old credential file, or a directory of them, to the schema, showing no value |
+| `setup` | an operator program, outside the server and imported by none of its modules: reads the machine, creates or opens the gocryptfs volume, writes the operator profile, starts the browser on its profile and closes both; the terminal goes to gocryptfs, which alone reads the password |
 | `journal` | the audit journal, one JSON line per call |
-| `operator_profile` | reading the operator profile; with `confirm`, the only module that reads the environment |
+| `operator_profile` | reading the operator profile; with `confirm`, the only modules of the server that read the environment |
 | `profile_watch` | the trace of a change of the origin lists of the profile: the comparison, the origins last seen, the notice |
 | `cdp` | the DevTools client, its list of allowed methods and its constant scripts |
 | `browser` | attachment checks, tabs the server owns, navigation, dialogs |

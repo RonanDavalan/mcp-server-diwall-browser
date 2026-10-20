@@ -48,8 +48,9 @@ rechazos que no dependen del criterio del modelo.
 | `mount` | si el directorio cifrado está montado como se espera, y cada ruta dentro de él |
 | `credentials` | lectura de los archivos de credenciales, resolución de uno para un origen exacto, y el esquema que otro código puede pedir |
 | `credential_import` | un comando del operador, fuera del servidor: convierte un archivo de credenciales antiguo, o un directorio de ellos, al esquema, sin mostrar ningún valor |
+| `setup` | un programa del operador, fuera del servidor e importado por ninguno de sus módulos: lee la máquina, crea o abre el volumen gocryptfs, escribe el perfil del operador, inicia el navegador sobre su perfil y cierra ambos; la terminal pasa a gocryptfs, que es el único que lee la contraseña |
 | `journal` | el diario de auditoría, una línea JSON por llamada |
-| `operator_profile` | lectura del perfil del operador; junto con `confirm`, el único módulo que lee el entorno |
+| `operator_profile` | lectura del perfil del operador; junto con `confirm`, los únicos módulos del servidor que leen el entorno |
 | `profile_watch` | la huella de un cambio de las listas de orígenes del perfil: la comparación, los orígenes vistos por última vez, el aviso |
 | `cdp` | el cliente de DevTools, su lista de métodos permitidos y sus scripts constantes |
 | `browser` | comprobaciones de la conexión, pestañas que posee el servidor, navegación, diálogos |

@@ -14,7 +14,30 @@ mcp-server-diwall-browser - MCP server that gives a language model the eyes and 
 
 **mcp-server-diwall-browser-credential-import** **\--source-dir** *DIR*
 
+**mcp-server-diwall-browser-setup** [**check** [**\--json**]]
+
+**mcp-server-diwall-browser-setup** **create** [**\--temporary** | **\--crypt-dir** *DIR* **\--mount-dir** *DIR*] [**\--browser** *FAMILY*]
+
+**mcp-server-diwall-browser-setup** {**open** | **browser** | **close**}
+
 # DESCRIPTION
+
+## Before first use
+
+The server does not work without an encrypted directory: the profile of the browser it attaches to keeps the
+signed-in sessions of the operator, and they must not sit on the disk in clear. There is no mode without
+encryption. After installing the package, the first command, run by the operator in a terminal, is
+**mcp-server-diwall-browser-setup**: with no argument it reads the machine, changes nothing and ends on the next
+command to type (see **SETUP ASSISTANT**).
+
+**mcp-server-diwall-browser-setup create \--temporary** makes a trial volume in memory, destroyed by **close**, by
+the stop of the machine or by the end of the session; the signed-in sessions of the sites, the audit journal and
+the evidence are lost with it. **mcp-server-diwall-browser-setup create** makes a durable volume. The operator types
+the password at the prompt of **gocryptfs**(1), which the assistant never reads, and signs in to the sites in the
+browser that **mcp-server-diwall-browser-setup browser** starts. After adding the server to an MCP client, restart
+the client: a session that was already open does not see the new server.
+
+## The server
 
 **mcp-server-diwall-browser** is a Model Context Protocol (MCP) server. It attaches to a
 browser of the Chromium family (Google Chrome, Chromium or Brave) that the operator has
@@ -36,8 +59,9 @@ reachable beyond the loopback interface (`debug_endpoint_not_loopback`). Credent
 downloads and the audit journal are kept in an encrypted directory (gocryptfs) that the
 operator opens; while it is closed, the server writes nothing.
 
-Installing the program does not configure it. Write the operator profile first (see
-**OPERATOR PROFILE**), then connect the server to an MCP client; with Claude Code:
+Installing the program does not configure it. **mcp-server-diwall-browser-setup create** writes the operator
+profile (see *Before first use* and **OPERATOR PROFILE**); then connect the server to an MCP client; with
+Claude Code:
 
     claude mcp add --scope user diwall-browser -- mcp-server-diwall-browser
 
@@ -68,6 +92,46 @@ The server offers fourteen tools to the model.
 
 **save_evidence**
 :   Keep a capture in the encrypted directory.
+
+# SETUP ASSISTANT
+
+**mcp-server-diwall-browser-setup** is a program of its own, run by the operator in a terminal. The server never
+mounts, unmounts or creates anything; no module of the server imports the assistant. The assistant hands the
+terminal to **gocryptfs**(1) and never reads, keeps or passes on the password. Its messages are in French, its codes
+in English. With no sub-command it runs **check**.
+
+**check** [**\--json**]
+:   Reads the machine and changes nothing; it needs neither a terminal nor a password. Reports the mechanism
+    (**gocryptfs** on Linux), **fusermount3**, `/dev/fuse`, the install command of the package manager (`apt`, `dnf`,
+    `zypper` or `pacman`) when something is missing, the closed **gocryptfs** volumes found in the usual places, the
+    mounted volumes of another kind (LUKS, eCryptfs, EncFS, CryFS), which the server does not support, the operator
+    profile and the state of its volume, the browsers found, the swap area (its encryption is not determined), the
+    terminal and the screen, and ends on the next command. **\--json** prints the same report on one line.
+
+**create** [**\--temporary**]
+:   Makes a volume, the directories of the server in mode 700 and the operator profile, written only once the volume
+    is seen mounted, with no site allowed. **\--temporary** makes the volume under `$XDG_RUNTIME_DIR`, which must be
+    memory, and refuses otherwise. Without it the volume is `~/Vaults/Main.enc`, opened on `~/Vaults/Main`.
+
+**create** **\--crypt-dir** *DIR* **\--mount-dir** *DIR* [**\--browser** *FAMILY*]
+:   The same, for other absolute paths. A *DIR* that already holds a **gocryptfs** volume is opened, not initialised.
+    *FAMILY* is `chrome`, `chromium` or `brave`; by default the first one found. A profile whose volume is open,
+    closed but present or unreadable is never replaced; the volume paths of a profile whose volume is gone or is not
+    **gocryptfs** are replaced, and its sites kept.
+
+**open**
+:   Opens the volume of the operator profile.
+
+**browser**
+:   Starts the browser on the profile kept in the open volume, detached from the terminal, with
+    `--user-data-dir` and `--remote-debugging-port`. It refuses unless the volume is open.
+
+**close**
+:   Stops the browser, waits for it to end, then unmounts with `fusermount3 -u`, never lazily. A trial volume is
+    destroyed.
+
+**create**, **open**, **browser** and **close** refuse with `no_terminal` when they have no terminal. A refusal is one
+line, `refus CODE : message`, on the error output; the codes are in the operator guide.
 
 # OPERATOR PROFILE
 
@@ -140,6 +204,9 @@ are carried over; a second factor is not. It overwrites nothing and deletes noth
 `MCP_DIWALL_BROWSER_PROFILE`
 :   Absolute path of the operator profile, in place of the standard place.
 
+`XDG_RUNTIME_DIR`
+:   Where the setup assistant keeps a trial volume: memory, destroyed at the stop of the machine.
+
 `XDG_CONFIG_HOME`
 :   Base of the standard place of the operator profile.
 
@@ -166,8 +233,8 @@ Installation, the start of the server by an ordinary account and removal are val
 
 # FILES
 
-`/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
-:   The two commands.
+`/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`, `/usr/bin/mcp-server-diwall-browser-setup`
+:   The three commands.
 
 `/usr/lib/mcp-server-diwall-browser`
 :   The program and its Python virtual environment, created by the package at installation, which needs a network connection for that step.
@@ -188,6 +255,9 @@ tool is a result returned to the client, with a code, not an exit status.
 
 **mcp-server-diwall-browser-credential-import** exits with 0 when every file is carried over and
 with 1 otherwise, after printing one line `error: CODE` on its error output.
+
+**mcp-server-diwall-browser-setup** exits with 0 when the command is done, with 1 after a refusal, which it prints as
+one line `refus CODE : message` on its error output, and with 2 when its command line is not understood.
 
 # SEE ALSO
 

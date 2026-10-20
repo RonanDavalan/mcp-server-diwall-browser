@@ -51,8 +51,9 @@ Bedieners und die Ablehnungen, die nicht vom Urteil des Modells abhängen.
 | `mount` | ob das verschlüsselte Verzeichnis wie erwartet eingehängt ist, und jeder Pfad darin |
 | `credentials` | Lesen von Zugangsdatendateien, Auflösen einer für einen genauen Ursprung und das Schema, das anderer Code erfragen darf |
 | `credential_import` | ein Bedienerbefehl, außerhalb des Servers: wandelt eine alte Zugangsdatendatei oder ein Verzeichnis davon in das Schema um, ohne einen Wert zu zeigen |
+| `setup` | ein Bedienerprogramm, außerhalb des Servers und von keinem seiner Module importiert: liest den Rechner, legt das gocryptfs-Volume an oder öffnet es, schreibt das Bedienerprofil, startet den Browser auf seinem Profil und schließt beides; das Terminal geht an gocryptfs, das allein das Passwort liest |
 | `journal` | das Prüfprotokoll, eine JSON-Zeile je Aufruf |
-| `operator_profile` | Lesen des Bedienerprofils; zusammen mit `confirm` das einzige Modul, das die Umgebung liest |
+| `operator_profile` | Lesen des Bedienerprofils; zusammen mit `confirm` die einzigen Module des Servers, die die Umgebung lesen |
 | `profile_watch` | die Spur einer Änderung der Ursprungslisten des Profils: der Vergleich, die zuletzt gesehenen Ursprünge, der Hinweis |
 | `cdp` | der DevTools-Client, seine Liste erlaubter Methoden und seine konstanten Skripte |
 | `browser` | Prüfungen der Anbindung, Tabs, die dem Server gehören, Navigation, Dialoge |

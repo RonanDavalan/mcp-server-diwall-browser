@@ -2333,3 +2333,28 @@ list of delivered files for the four families), and the Spanish README and manua
 - Control. After the change, the commands copied from the guide give, on both systems, 1812 tests passed
   without a browser and a smoke test whose result is conforming (Chromium 155.0.8059.79 on Debian 13, Google
   Chrome 155.0.8059.84 on Ubuntu 24.04).
+
+## First launch with the setup assistant
+
+- What. A first user had no volume and no profile, and the server's refusals named no next step (a model told the
+  operator it could not work without an encrypted directory, without looking at the machine). `mcp-server-diwall-browser-setup`
+  (`src/mcp_server_diwall_browser/setup.py`) is a program the human runs in a terminal: `check` reads the machine and ends
+  on the next command, `create` (durable, or `--temporary` in memory under `XDG_RUNTIME_DIR`) makes or adopts a gocryptfs
+  volume and writes the profile only after it has seen the volume mounted, `open`, `browser` and `close` do the rest;
+  `close` stops the browser before it unmounts, never lazily. The terminal goes to gocryptfs: the assistant never reads the
+  password. `status` gives `next_command` by state, the refusals of the mount name the sub-command that lifts them (and no
+  key or file name), and the rule of the model's guide sends a model with a shell to `check`. The guide opens on a "First
+  launch" section; the README, the manual page, the site and the installation notice of the four package families say the
+  server does not work without an encrypted directory, what the trial costs and that the client is restarted.
+- Control. The tests of the assistant (`tests/test_setup.py`, 50), the new status tests and the guide's rule were seen to
+  fail before the code (the module did not import; 11 tests failed). Then 1877 passed, 1 skipped, 571 deselected without a
+  browser, and 2448 passed, 1 skipped with Google Chrome 155.0.8059.84. With the real gocryptfs 2.5.1 in a pseudo-terminal
+  on throw-away volumes (`scripts/rejouer-premier-lancement.py`): `create --temporary`, `status` read `mounted`, `browser`
+  attached Chrome (`profile_encrypted: true`), `close` left no volume in memory and no browser profile file on the disk,
+  then a durable `create`, `close` and `open`. In a clean Debian 13 container, `check` gave `sudo apt install gocryptfs fuse3`,
+  the command succeeded and `check` no longer gave it.
+- What the tests of the package taught. The invariants of the package named no program that creates a volume, starts a
+  process or reads the environment: `setup.py` is now their one named exception, with a new test that no module of the server
+  imports it. A tracked file may not hold an address other than the project's, so the code names no external address.
+- Not measured. The report of a swap area on a machine that has one; `browser` with Brave, Chromium or Opera; the messages
+  are in French only.

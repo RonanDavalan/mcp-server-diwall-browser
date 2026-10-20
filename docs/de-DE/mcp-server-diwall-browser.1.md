@@ -14,7 +14,21 @@ mcp-server-diwall-browser - MCP-Server, der einem Sprachmodell die Augen und Hä
 
 **mcp-server-diwall-browser-credential-import** **\--source-dir** *VERZEICHNIS*
 
+**mcp-server-diwall-browser-setup** [**check** [**\--json**]]
+
+**mcp-server-diwall-browser-setup** **create** [**\--temporary** | **\--crypt-dir** *VERZEICHNIS* **\--mount-dir** *VERZEICHNIS*] [**\--browser** *FAMILIE*]
+
+**mcp-server-diwall-browser-setup** {**open** | **browser** | **close**}
+
 # BESCHREIBUNG
+
+## Vor dem ersten Gebrauch
+
+Der Server arbeitet nicht ohne verschlüsseltes Verzeichnis: Das Profil des Browsers, an den er sich anbindet, hält die angemeldeten Sitzungen des Bedieners, und sie dürfen nicht unverschlüsselt auf der Platte liegen. Einen Modus ohne Verschlüsselung gibt es nicht. Nach der Installation des Pakets lautet der erste Befehl, den der Bediener in einem Terminal ausführt, **mcp-server-diwall-browser-setup**: Ohne Argument liest er den Rechner, ändert nichts und endet mit dem nächsten Befehl, den man eingibt (siehe **EINRICHTUNGSASSISTENT**).
+
+**mcp-server-diwall-browser-setup create \--temporary** legt ein Versuchs-Volume im Arbeitsspeicher an, zerstört durch **close**, durch das Ausschalten des Rechners oder durch das Ende der Sitzung; die Sitzungen der Websites, das Audit-Journal und die Aufnahmen gehen mit ihm verloren. **mcp-server-diwall-browser-setup create** legt ein dauerhaftes Volume an. Der Bediener gibt das Passwort an der Eingabeaufforderung von **gocryptfs**(1) ein, die der Assistent nie liest, und meldet sich bei den Websites in dem Browser an, den **mcp-server-diwall-browser-setup browser** startet. Haben Sie den Server zu einem MCP-Client hinzugefügt, starten Sie den Client neu: Eine bereits offene Sitzung sieht den neuen Server nicht.
+
+## Der Server
 
 **mcp-server-diwall-browser** ist ein Model-Context-Protocol-Server (MCP). Er verbindet sich über
 das Chrome DevTools Protocol mit einem Browser der Chromium-Familie (Google Chrome, Chromium oder
@@ -37,8 +51,7 @@ Der Server weist ein Standardprofil (`profile_dir_is_default`) und einen Debuggi
 Aufnahmen, Downloads und das Prüfprotokoll liegen in einem verschlüsselten Verzeichnis
 (gocryptfs), das der Bediener öffnet; solange es geschlossen ist, schreibt der Server nichts.
 
-Die Installation des Programms konfiguriert es nicht. Schreiben Sie zuerst das Bedienerprofil
-(siehe **BEDIENERPROFIL**) und verbinden Sie dann den Server mit einem MCP-Client; mit Claude Code:
+Die Installation des Programms konfiguriert es nicht. **mcp-server-diwall-browser-setup create** schreibt das Bedienerprofil (siehe *Vor dem ersten Gebrauch* und **BEDIENERPROFIL**); verbinden Sie dann den Server mit einem MCP-Client; mit Claude Code:
 
     claude mcp add --scope user diwall-browser -- mcp-server-diwall-browser
 
@@ -69,6 +82,30 @@ Der Server bietet dem Modell vierzehn Werkzeuge.
 
 **save_evidence**
 :   Eine Aufnahme im verschlüsselten Verzeichnis aufbewahren.
+
+# EINRICHTUNGSASSISTENT
+
+**mcp-server-diwall-browser-setup** ist ein eigenes Programm, das der Bediener in einem Terminal ausführt. Der Server hängt nie etwas ein oder aus und legt nie etwas an; kein Modul des Servers importiert den Assistenten. Der Assistent reicht das Terminal an **gocryptfs**(1) weiter und liest, behält oder gibt das Passwort nie weiter. Seine Meldungen sind auf Französisch, seine Codes englisch. Ohne Unterbefehl führt er **check** aus.
+
+**check** [**\--json**]
+:   Liest den Rechner und ändert nichts; er braucht weder ein Terminal noch ein Passwort. Berichtet den Mechanismus (**gocryptfs** unter Linux), **fusermount3**, `/dev/fuse`, den Installationsbefehl der Paketverwaltung (`apt`, `dnf`, `zypper` oder `pacman`), wenn etwas fehlt, die geschlossenen **gocryptfs**-Volumes an den üblichen Orten, die eingehängten Volumes anderer Art (LUKS, eCryptfs, EncFS, CryFS), die der Server nicht unterstützt, das Bedienerprofil und den Zustand seines Volumes, die gefundenen Browser, den Auslagerungsspeicher (seine Verschlüsselung ist nicht bestimmt), das Terminal und den Bildschirm, und endet mit dem nächsten Befehl. **\--json** gibt denselben Bericht in einer Zeile aus.
+
+**create** [**\--temporary**]
+:   Legt ein Volume an, die Verzeichnisse des Servers im Modus 700 und das Bedienerprofil, geschrieben erst, nachdem das Volume eingehängt gesehen wurde, ohne erlaubte Website. **\--temporary** legt das Volume unter `$XDG_RUNTIME_DIR` an, das Arbeitsspeicher sein muss, und lehnt sonst ab. Ohne sie ist das Volume `~/Vaults/Main.enc`, geöffnet unter `~/Vaults/Main`.
+
+**create** **\--crypt-dir** *VERZEICHNIS* **\--mount-dir** *VERZEICHNIS* [**\--browser** *FAMILIE*]
+:   Dasselbe, für andere absolute Pfade. Ein *VERZEICHNIS*, das schon ein **gocryptfs**-Volume enthält, wird geöffnet, nicht initialisiert. *FAMILIE* ist `chrome`, `chromium` oder `brave`; standardmäßig die erste gefundene. Ein Profil, dessen Volume geöffnet, geschlossen aber vorhanden oder unlesbar ist, wird nie ersetzt; die Volume-Pfade eines Profils, dessen Volume verschwunden oder nicht **gocryptfs** ist, werden ersetzt, und seine Websites bleiben.
+
+**open**
+:   Öffnet das Volume des Bedienerprofils.
+
+**browser**
+:   Startet den Browser auf dem im geöffneten Volume liegenden Profil, vom Terminal gelöst, mit `--user-data-dir` und `--remote-debugging-port`. Er lehnt ab, wenn das Volume nicht geöffnet ist.
+
+**close**
+:   Beendet den Browser, wartet, bis er beendet ist, und hängt dann mit `fusermount3 -u` aus, nie verzögert. Ein Versuchs-Volume wird zerstört.
+
+**create**, **open**, **browser** und **close** lehnen mit `no_terminal` ab, wenn sie kein Terminal haben. Eine Ablehnung ist eine Zeile, `refus CODE : message`, auf der Fehlerausgabe; die Codes stehen im Bedienerhandbuch.
 
 # BEDIENERPROFIL
 
@@ -143,6 +180,9 @@ Passwort werden übernommen, ein zweiter Faktor nicht. Er überschreibt nichts u
 `MCP_DIWALL_BROWSER_PROFILE`
 :   Absoluter Pfad des Bedienerprofils anstelle des üblichen Ortes.
 
+`XDG_RUNTIME_DIR`
+:   Wo der Einrichtungsassistent ein Versuchs-Volume hält: Arbeitsspeicher, beim Ausschalten des Rechners zerstört.
+
 `XDG_CONFIG_HOME`
 :   Basis des üblichen Ortes des Bedienerprofils.
 
@@ -169,8 +209,8 @@ Installation, Start des Servers durch ein gewöhnliches Konto und Entfernen sind
 
 # DATEIEN
 
-`/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`
-:   Die beiden Befehle.
+`/usr/bin/mcp-server-diwall-browser`, `/usr/bin/mcp-server-diwall-browser-credential-import`, `/usr/bin/mcp-server-diwall-browser-setup`
+:   Die drei Befehle.
 
 `/usr/lib/mcp-server-diwall-browser`
 :   Das Programm und seine virtuelle Python-Umgebung, die das Paket bei der Installation anlegt und für die es eine Netzwerkverbindung braucht.
@@ -195,6 +235,8 @@ Exit-Status.
 
 **mcp-server-diwall-browser-credential-import** endet mit 0, wenn jede Datei übernommen ist, und
 sonst mit 1, nachdem es eine Zeile `error: CODE` auf die Fehlerausgabe geschrieben hat.
+
+**mcp-server-diwall-browser-setup** endet mit 0, wenn der Befehl ausgeführt ist, mit 1 nach einer Ablehnung, die er als eine Zeile `refus CODE : message` auf die Fehlerausgabe schreibt, und mit 2, wenn seine Befehlszeile nicht verstanden wird.
 
 # SIEHE AUCH
 

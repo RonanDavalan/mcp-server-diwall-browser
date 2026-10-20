@@ -9,6 +9,25 @@ navigateur de la famille Chromium que l'opérateur démarre avec un profil dédi
 à l'interface de bouclage, ainsi qu'un répertoire chiffré (gocryptfs) pour les identifiants, les captures
 et les téléchargements.
 
+## Avant le premier usage
+
+Le serveur ne travaille pas sans répertoire chiffré : le profil du navigateur auquel il s'attache garde vos sessions
+ouvertes, et elles ne doivent pas reposer en clair sur le disque. Il n'existe aucun mode sans chiffrement. Après
+l'installation, la première commande, que vous lancez vous-même dans un terminal, est
+`mcp-server-diwall-browser-setup` : elle lit votre machine et se termine sur la commande suivante à taper.
+
+- `mcp-server-diwall-browser-setup create --temporary` fait un volume en mémoire, pour un essai. Le fermer, arrêter la
+  machine ou terminer votre session le détruit, et avec lui les sessions des sites que vous avez ouvertes dans le
+  navigateur, le journal d'audit et les captures.
+- `mcp-server-diwall-browser-setup create` fait un volume durable.
+- `mcp-server-diwall-browser-setup open`, `browser` et `close` ouvrent le volume, lancent le navigateur sur son profil
+  et arrêtent les deux.
+
+Vous tapez vous-même le mot de passe, à l'invite de `gocryptfs` ; l'assistant ne le lit jamais. Vous ouvrez vous-même
+vos sessions sur vos sites, dans le navigateur qu'il lance. Après avoir ajouté le serveur à votre client MCP,
+redémarrez le client : une session déjà ouverte ne le voit pas. Les étapes, les refus et la voie manuelle sont dans la
+section « Premier lancement » de [docs/fr-FR/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Installer
 
 Sous Linux, le serveur est livré en paquets natifs. Téléchargez celui de votre système sur la page
@@ -91,9 +110,9 @@ rectangle plein, et sa valeur est retenue dans le texte que reçoit le modèle (
 Testé :
 
 - La suite complète, sous Debian 13 avec Python 3.12.11 et les dépendances de `requirements.lock` : sans
-  navigateur, 1 812 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
+  navigateur, 1 877 tests passent, 1 est ignoré (un test qui ne s'exécute qu'en root) et les 571 qui exigent un
   navigateur sont désélectionnés ; avec Google Chrome 155.0.8059.84 (sans interface, profil temporaire vierge),
-  2 383 tests passent et 1 est ignoré, sans échec attendu.
+  2 448 tests passent et 1 est ignoré, sans échec attendu.
 - Tests de téléchargement : deux échouaient au hasard, 7 et 8 fois sur 30 exécutions de chacun seul, parce
   que le serveur refermait le réglage de téléchargement avant que le navigateur ait choisi quoi faire du
   téléchargement. Après la modification, ils ont échoué 3 et 1 fois sur 130 exécutions de chacun seul ; les 3
@@ -166,6 +185,12 @@ Testé :
   trois boutons sont repérés et listés en premier dans l'arbre, les éléments situés dessous disent
   `covered`, et un clic sur « Refuser » par son repère retire la bannière
   (`tests/test_ranking_integration.py`).
+- L'assistant d'installation, `mcp-server-diwall-browser-setup` : 50 tests sur une machine simulée (tables de montage,
+  gestionnaires de paquets, pas de `/dev/fuse`, pas de terminal, un volume LUKS) ; puis, le 20 octobre 2026, avec le vrai
+  gocryptfs 2.5.1 dans un pseudo-terminal, sur des volumes jetables : `create --temporary`, le serveur lisant `mounted`,
+  `browser` (Google Chrome 155.0.8059.84 sans écran, rattaché, `profile_encrypted: true`), `close` (plus de volume en
+  mémoire, aucun fichier du profil du navigateur sur le disque), puis `create`, `close` et `open` d'un volume durable ; et
+  dans un conteneur Debian 13 propre, où `check` a donné `sudo apt install gocryptfs fuse3`, qui a réussi.
 - La commande qui reprend un ancien fichier d'identifiants (voir le guide de l'opérateur) : sur des fichiers
   de la suite de tests dans un volume simulé, avec un refus testé pour chaque issue, et aucune valeur dans ce
   qu'elle affiche. Elle n'a pas été essayée sur un vrai volume gocryptfs.
@@ -187,6 +212,8 @@ Testé :
 
 Non testé :
 
+- L'assistant d'installation sur une machine qui a un espace d'échange (son rapport est essayé sur une liste simulée), et
+  sa commande `browser` avec Brave, Chromium ou Opera.
 - Brave, et les versions de Google Chrome autres que celle que l'opérateur a employée.
 - La confirmation demandée par un client MCP de bureau (sollicitation) : testée avec le seul client du SDK
   MCP.

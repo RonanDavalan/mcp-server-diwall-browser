@@ -9,6 +9,25 @@ Chromium-family browser that the operator starts with a dedicated profile and a 
 bound to the loopback interface, and an encrypted directory (gocryptfs) for credentials, captures
 and downloads.
 
+## Before the first use
+
+The server does not work without an encrypted directory: the profile of the browser it attaches to keeps your
+signed-in sessions, and they must not sit on the disk in clear. There is no mode without encryption. After
+installing, the first command, which you run yourself in a terminal, is `mcp-server-diwall-browser-setup`: it
+reads your machine and ends on the next command to type.
+
+- `mcp-server-diwall-browser-setup create --temporary` makes a volume in memory, for a trial. Closing it, stopping
+  the machine or ending your session destroys it, and with it the sessions of the sites you opened in the
+  browser, the audit journal and the evidence.
+- `mcp-server-diwall-browser-setup create` makes a durable volume.
+- `mcp-server-diwall-browser-setup open`, `browser` and `close` open the volume, start the browser on its profile,
+  and stop both.
+
+You type the password yourself, at the prompt of `gocryptfs`; the assistant never reads it. You sign in to your sites
+yourself, in the browser it starts. After adding the server to your MCP client, restart the client: a session
+that was already open does not see it. The steps, the refusals and the manual way are in the section "First launch" of
+[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md).
+
 ## Install
 
 On Linux the server ships as native packages. Download the one of your system from the
@@ -92,8 +111,8 @@ its value is withheld from the text the model receives (`redacted_fields` is 1).
 Tested:
 
 - The full suite, on Debian 13 with Python 3.12.11 and the dependencies of `requirements.lock`: without a
-  browser, 1812 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
-  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2383 tests pass and 1 is
+  browser, 1877 tests pass, 1 is skipped (a test that runs as root only) and the 571 that need a browser are
+  deselected; with Google Chrome 155.0.8059.84 (headless, blank temporary profile), 2448 tests pass and 1 is
   skipped, with no expected failure.
 - Download tests: two failed at random, 7 and 8 times in 30 runs of each alone, because the server
   closed the download setting before the browser had chosen what to do with the download. After the
@@ -163,6 +182,12 @@ Tested:
 - A dense page with a consent banner fixed over its lower part (643 things to click): its three
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
+- The setup assistant, `mcp-server-diwall-browser-setup`: 50 tests on a simulated machine (mount tables, package
+  managers, no `/dev/fuse`, no terminal, a LUKS volume); then, on 20 October 2026, with the real gocryptfs 2.5.1 in a
+  pseudo-terminal, on throw-away volumes: `create --temporary`, the server reading `mounted`, `browser`
+  (Google Chrome 155.0.8059.84 without a screen, attached, `profile_encrypted: true`), `close` (no volume left in
+  memory, no file of the browser profile on the disk), then `create`, `close` and `open` of a durable volume; and
+  in a clean Debian 13 container, where `check` gave `sudo apt install gocryptfs fuse3`, which succeeded.
 - The command that carries an old credential file over (see the operator guide): on files of the
   test suite in a simulated volume, with a refusal tested for each way out, and no value in
   anything it prints. It was not tried on a real gocryptfs volume.
@@ -184,6 +209,8 @@ Tested:
 
 Not tested:
 
+- The setup assistant on a machine that has a swap area (its report is tested on a simulated list), and its
+  `browser` command with Brave, Chromium or Opera.
 - Brave, and Google Chrome builds other than the one the operator ran.
 - The confirmation asked through a desktop MCP client (elicitation): tested with the client of
   the MCP SDK only.

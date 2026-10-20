@@ -620,3 +620,64 @@ def test_main_is_declared_as_a_console_script() -> None:
     text = (Path(__file__).parent.parent / "pyproject.toml").read_text()
     assert 'mcp-server-diwall-browser-setup = "mcp_server_diwall_browser.setup:main"' in text
     assert callable(setup.main)
+
+
+# --- les fonctions de production, sur de vrais processus et de vraies prises -----------------------
+
+
+def test_a_mounted_volume_is_never_entered_by_the_search_for_closed_volumes(poste: Poste) -> None:
+    mounted = poste.home / "Vaults" / "Open"
+    mounted.mkdir(parents=True)
+    (mounted / "gocryptfs.conf").write_text("{}")
+    poste.mounts[os.path.realpath(mounted)] = "fuse.gocryptfs"
+    poste.write_mountinfo()
+    assert report_of(poste)["volumes"]["closed"] == []
+
+
+def test_the_real_browser_finder_and_stopper_work_on_real_processes(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+
+    sleeper = "import time; time.sleep(60)"
+    profile_dir = str(tmp_path / "profile")
+    main = subprocess.Popen([sys.executable, "-c", sleeper, f"--user-data-dir={profile_dir}"])
+    child = subprocess.Popen([sys.executable, "-c", sleeper, f"--user-data-dir={profile_dir}", "--type=renderer"])
+    other = subprocess.Popen([sys.executable, "-c", sleeper, f"--user-data-dir={tmp_path / 'other'}"])
+    try:
+        assert setup._find_browser_pids(profile_dir) == [main.pid]
+        assert setup._find_browser_pids(profile_dir + "/") == [main.pid]
+        assert setup._stop_processes([main.pid], 5.0) is True
+        assert main.wait(timeout=5) != 0
+        assert other.poll() is None
+        assert setup._stop_processes([other.pid], 0.0) is False or other.poll() is not None
+    finally:
+        for process in (main, child, other):
+            process.kill()
+            process.wait()
+
+
+def test_the_real_detached_start_gives_the_browser_a_session_of_its_own() -> None:
+    import sys
+
+    pid = setup._spawn_detached([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        assert os.getsid(pid) == pid != os.getsid(0)
+    finally:
+        os.kill(pid, 9)
+        os.waitpid(pid, 0)
+
+
+def test_the_real_port_probe_sees_a_listening_socket_and_a_closed_one() -> None:
+    import socket
+
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen(1)
+        port = server.getsockname()[1]
+        assert setup._port_listening(port) is True
+    assert setup._port_listening(port) is False
+
+
+def test_a_device_mapper_named_luks_is_an_encrypted_device_when_sysfs_cannot_say() -> None:
+    assert setup._is_crypt_device("/dev/mapper/luks-0000") is True
+    assert setup._is_crypt_device("/dev/mapper/vg-root") is False
