@@ -13,6 +13,7 @@ import errno
 import json
 import os
 import stat
+import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,8 @@ from .output import ToolError
 ENV_VAR = "MCP_DIWALL_BROWSER_PROFILE"
 PROFILE_DIR_NAME = "mcp-server-diwall-browser"
 PROFILE_FILE_NAME = "profile.json"
+ORIGIN_POLICIES = ("strict", "discovery", "open")
+DEFAULT_ORIGIN_POLICY = "strict"
 MAX_PROFILE_BYTES = 256 * 1024
 MAX_PATH_LENGTH = 4096
 REDLIST_KEYS = frozenset(
@@ -79,6 +82,7 @@ class _ProfileModel(_Strict):
     declarations: Declarations = Field(default_factory=Declarations)
     browser: BrowserSettings
     limits: Limits = Field(default_factory=Limits)
+    origin_policy: Literal["strict", "discovery", "open"] = DEFAULT_ORIGIN_POLICY
 
     @field_validator("schema_version")
     @classmethod
@@ -105,6 +109,7 @@ class Profile:
     declarations: Declarations
     browser: BrowserSettings
     limits: Limits
+    origin_policy: str = DEFAULT_ORIGIN_POLICY
 
 
 @dataclass(frozen=True)
@@ -153,6 +158,48 @@ def load_profile(environ: Mapping[str, str] | None = None, *, euid: int | None =
     data = _read_json(path, standard, os.geteuid() if euid is None else euid)
     _reject_redlist_keys(data)
     return _validate(data, path, standard)
+
+
+def add_allowed_origin(profile: Profile, origin: Origin, *, euid: int | None = None) -> None:
+    """Ajouter une origine exacte à la fin de ``allowed_origins``, dans le fichier d'où ce profil a été lu.
+
+    C'est la seule écriture du profil par le serveur, et elle n'est appelée que par la réponse de l'opérateur à la
+    fenêtre de ``discovery`` : aucun outil du modèle n'y mène. Le fichier est relu avec les contrôles de droits de
+    ``load_profile``, le résultat est validé par le schéma avant d'être écrit, puis écrit dans un fichier voisin en
+    mode 600 et mis en place par un remplacement atomique : un échec laisse l'ancien profil entier.
+    """
+    standard = standard_profile_path()
+    data = _read_json(profile.source, standard, os.geteuid() if euid is None else euid)
+    _reject_redlist_keys(data)
+    if not isinstance(data, dict) or not isinstance(data.get("allowed_origins"), list):
+        _invalid("le profil doit porter une liste allowed_origins", "schema")
+    if origin.canonical in data["allowed_origins"]:
+        return
+    updated = {**data, "allowed_origins": [*data["allowed_origins"], origin.canonical]}
+    _validate(updated, profile.source, standard)
+    real = Path(os.path.realpath(profile.source))
+    fd, temporary = tempfile.mkstemp(prefix=".profile-", suffix=".tmp", dir=real.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(updated, indent=2, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, real)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
+    _sync_directory(real.parent)
+
+
+def _sync_directory(directory: Path) -> None:
+    descriptor = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _how_to_provide(standard: Path) -> str:
@@ -252,6 +299,7 @@ def _validate(data: Any, path: Path, standard: Path) -> Profile:
         declarations=model.declarations,
         browser=model.browser,
         limits=model.limits,
+        origin_policy=model.origin_policy,
     )
 
 

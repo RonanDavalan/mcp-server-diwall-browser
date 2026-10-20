@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from fixtures.action_support import strict_admit
 from conftest import FAKE_PASSWORD
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
 from fixtures.page_server import PageServer
@@ -76,7 +77,7 @@ async def registry(attachment: BrowserAttachment) -> AsyncIterator[TabRegistry]:
 @pytest.fixture
 def percept(registry: TabRegistry, pages: PageServer) -> Perception:
     allowed = [parse_origin(pages.origin)]
-    return Perception(registry, allowed_origins=lambda: allowed)
+    return Perception(registry, admit=strict_admit(lambda: allowed))
 
 
 async def open_page(registry: TabRegistry, pages: PageServer, name: str) -> Tab:
@@ -324,7 +325,7 @@ async def test_a_page_outside_the_allowed_sites_is_not_read(attachment: BrowserA
     sent_before = len(connection.methods)
     elsewhere = [parse_origin("https://allowed.example.test")]
     with pytest.raises(ToolError) as caught:
-        await Perception(registry, allowed_origins=lambda: elsewhere).observe(tab)
+        await Perception(registry, admit=strict_admit(lambda: elsewhere)).observe(tab)
     assert caught.value.code == "origin_not_allowed"
     assert caught.value.extra_server == {"origin": pages.origin}
     assert connection.methods[sent_before:] == ["Page.getFrameTree"]

@@ -17,6 +17,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from fixtures.action_support import strict_admit
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
 from fixtures.page_server import PageServer
 from fixtures.raw_cdp import RawSession
@@ -79,7 +80,7 @@ async def registry(screen: Screen) -> AsyncIterator[TabRegistry]:
 
 def perceiver(server: PageServer, tabs: TabRegistry) -> Perception:
     allowed = [parse_origin(server.origin)]
-    return Perception(tabs, allowed_origins=lambda: allowed)
+    return Perception(tabs, admit=strict_admit(lambda: allowed))
 
 
 # --- reading the truth apart from the server -----------------------------------------------------

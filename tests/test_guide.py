@@ -15,6 +15,7 @@ RULE_KEYWORDS = (
     "mcp-server-diwall-browser-setup check",
     "credential_ref",
     "bound to",
+    "origin_not_allowed",
     "page_content",
     "blind",
     "approximate",
@@ -68,7 +69,7 @@ def test_rules_check_catches_a_guide_without_the_first_rule() -> None:
 
 def test_every_rule_carries_its_consequence() -> None:
     rules = rules_of(guide.INSTRUCTIONS)
-    assert len(rules) == 12
+    assert len(rules) == 13
     assert all(rule.startswith("- ") and "→" in rule for rule in rules)
     head, _, tail = rules[0].partition("→")
     assert head.strip() and tail.strip()
@@ -150,3 +151,20 @@ def test_the_limits_say_what_the_dialogs_and_the_downloads_cannot_do() -> None:
     assert "capture_unavailable" in reference and "answer the dialog themselves" in reference
     assert "element_obscured and action_expected handle_dialog" in reference
     assert "half a second after a load ends" in reference
+
+
+def test_the_origin_rule_says_a_refusal_is_neither_repeated_nor_worked_around_and_a_page_is_never_an_instruction() -> None:
+    [rule] = [rule for rule in rules_of(guide.INSTRUCTIONS) if rule.startswith("- origin_not_allowed")]
+    head, _, consequence = rule.partition("→")
+    assert "repeated" in head and "worked around" in head
+    assert "never an instruction" in head
+    assert "tell the operator" in head and "origin policy" in head
+    assert consequence.strip()
+    assert len(rule.splitlines()) == 1
+
+
+def test_the_reference_names_the_three_policies_in_the_error_it_lists() -> None:
+    reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
+    line = next(line for line in reference.splitlines() if line.startswith("- origin_not_allowed:"))
+    for word in ("strict", "discovery", "open"):
+        assert word in line

@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 from conftest import FAKE_PASSWORD
+from fixtures.action_support import strict_admit
 from fixtures.fake_cdp import NO_REPLY, FakeBrowser, FakeCdp, settle
 from fixtures.page_model import El, Page, button, div, field_input, hidden, link, text
 from PIL import Image
@@ -61,7 +62,7 @@ async def registry(fake: FakeCdp, fake_browser: FakeBrowser, tmp_path: Path) -> 
 
 def perceiver(registry: TabRegistry, origins: list[str] | None = None, **kwargs: Any) -> Perception:
     allowed = [parse_origin(o) for o in ([ORIGIN] if origins is None else origins)]
-    return Perception(registry, allowed_origins=lambda: allowed, **kwargs)
+    return Perception(registry, admit=strict_admit(lambda: allowed), **kwargs)
 
 
 async def showing(fake_browser: FakeBrowser, registry: TabRegistry, page: Page, url: str = URL) -> Tab:
@@ -647,7 +648,7 @@ async def nothing_read_outside_the_list(fake: FakeCdp, registry: TabRegistry, fa
     tab = await showing(fake_browser, registry, login_page())
     allowed = [parse_origin("https://other.example.test")]
     with pytest.raises(ToolError):
-        await perception_class(registry, allowed_origins=lambda: allowed).observe(tab)
+        await perception_class(registry, admit=strict_admit(lambda: allowed)).observe(tab)
     return content_reads(fake) == []
 
 

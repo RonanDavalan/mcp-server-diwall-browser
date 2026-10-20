@@ -55,7 +55,7 @@ def test_operation_produces_one_json_line_with_only_the_listed_fields(tmp_path: 
     assert FAKE_PASSWORD not in raw and FAKE_USERNAME not in raw
     assert entry["origin"] == "https://example.invalid"
     assert entry["intent"] == "type <redacted> for <redacted> then <secret:password>"
-    assert entry["gates"] == {"red_list": False, "confirmation": "none"}
+    assert entry["gates"] == {"red_list": False, "confirmation": "none", "origin_policy": "strict"}
     assert entry["client"] == {"name": "Test Clientscript", "version": "1.2.3"}
     assert entry["mutating"] is True
     assert "+" in str(entry["ts"]) or "-" in str(entry["ts"])[19:]
@@ -153,7 +153,7 @@ def test_required_entry_is_written_when_the_volume_is_open(tmp_path: Path) -> No
     )
     [entry] = read_lines(paths.project)
     assert entry["result"] == "requested"
-    assert entry["gates"] == {"red_list": True, "confirmation": "requested"}
+    assert entry["gates"] == {"red_list": True, "confirmation": "requested", "origin_policy": "strict"}
 
 
 # --- redaction: the check and its counter-proof -------------------------------------

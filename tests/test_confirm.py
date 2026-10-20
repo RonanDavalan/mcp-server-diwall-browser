@@ -17,7 +17,9 @@ from mcp_server_diwall_browser.confirm import (
     ConfirmRequest,
     ElicitationChannel,
     NativeDialogChannel,
+    OriginAnswer,
     UnavailableChannel,
+    build_origin_text,
     build_text,
     choose_channel,
     find_amounts,
@@ -113,8 +115,13 @@ if arguments and arguments[0] in ("--help", "--help-question"):
 with open({record!r}, "a") as handle:
     handle.write(json.dumps({{"pid": os.getpid(), "args": arguments}}) + "\\n")
 time.sleep({sleep})
+sys.stdout.write({output!r})
 sys.exit({code})
 """
+
+
+# What zenity says of its options: the default button is the refusal where the tool can place it.
+DEFAULT_HELP = "  --default-cancel   Give Cancel button focus by default\n"
 
 
 class FakeTools:
@@ -123,9 +130,11 @@ class FakeTools:
         self.record = directory / "calls.jsonl"
         self.present: set[str] = set()
 
-    def install(self, name: str, *, code: int = 0, sleep: float = 0.0, help_text: str = "") -> None:
+    def install(self, name: str, *, code: int = 0, sleep: float = 0.0, help_text: str = DEFAULT_HELP, output: str = "") -> None:
         path = self.directory / name
-        path.write_text(FAKE_TOOL.format(python=sys.executable, help_text=help_text, record=str(self.record), sleep=sleep, code=code))
+        path.write_text(
+            FAKE_TOOL.format(python=sys.executable, help_text=help_text, record=str(self.record), sleep=sleep, code=code, output=output)
+        )
         os.chmod(path, 0o700)
         self.present.add(name)
 
@@ -150,12 +159,30 @@ def channel(tools: FakeTools, **kwargs: Any) -> NativeDialogChannel:
     return NativeDialogChannel(which=tools.which, **kwargs)
 
 
-@pytest.mark.parametrize("name", ["kdialog", "zenity"])
-async def test_exit_zero_grants_and_one_denies(tools: FakeTools, name: str) -> None:
-    tools.install(name, code=0)
+async def test_zenity_exit_zero_grants_and_one_denies(tools: FakeTools) -> None:
+    tools.install("zenity", code=0)
     assert await channel(tools).ask("text") is ConfirmationDecision.GRANTED
-    tools.install(name, code=1)
+    tools.install("zenity", code=1)
     assert await channel(tools).ask("text") is ConfirmationDecision.DENIED
+
+
+@pytest.mark.parametrize(
+    ("code", "output", "expected"),
+    [
+        (0, "grant\n", ConfirmationDecision.GRANTED),
+        (0, "deny\n", ConfirmationDecision.DENIED),
+        (0, "", ConfirmationDecision.DENIED),
+        (0, "grant now\n", ConfirmationDecision.DENIED),
+        (1, "", ConfirmationDecision.DENIED),
+        (1, "grant\n", ConfirmationDecision.DENIED),
+        (2, "grant\n", ConfirmationDecision.DENIED),
+    ],
+)
+async def test_kdialog_grants_only_when_the_window_ends_well_on_the_grant_entry(
+    tools: FakeTools, code: int, output: str, expected: ConfirmationDecision
+) -> None:
+    tools.install("kdialog", code=code, output=output)
+    assert await channel(tools).ask("text") is expected
 
 
 async def test_zenity_timeout_code_is_expired(tools: FakeTools) -> None:
@@ -188,15 +215,26 @@ async def test_unavailable_channel_asks_nothing(tools: FakeTools) -> None:
     assert tools.calls() == []
 
 
-async def test_kdialog_gets_the_exact_command_with_the_default_on_refusal(tools: FakeTools) -> None:
-    tools.install("kdialog", help_text="Options:\n  --defaultno  make no the default\n")
+async def test_kdialog_gets_the_exact_command_with_the_refusal_as_the_checked_entry(tools: FakeTools) -> None:
+    tools.install("kdialog")
     await channel(tools).ask("Origine : x")
     [call] = tools.calls()
-    assert call["args"] == ["--title", "Confirmation du serveur MCP", "--yes-label", "Autoriser", "--no-label", "Refuser", "--defaultno", "--yesno", "Origine : x"]
+    assert call["args"] == [
+        "--title",
+        "Confirmation du serveur MCP",
+        "--radiolist",
+        "Origine : x",
+        "deny",
+        "Refuser",
+        "on",
+        "grant",
+        "Autoriser",
+        "off",
+    ]
 
 
 async def test_zenity_gets_the_exact_command_with_the_default_on_refusal(tools: FakeTools) -> None:
-    tools.install("zenity", help_text="  --default-cancel   Give Cancel button focus by default\n")
+    tools.install("zenity")
     await channel(tools).ask("Origine : x")
     [call] = tools.calls()
     assert call["args"] == [
@@ -211,10 +249,125 @@ async def test_zenity_gets_the_exact_command_with_the_default_on_refusal(tools: 
     ]
 
 
-async def test_an_option_the_tool_does_not_know_is_not_passed(tools: FakeTools) -> None:
-    tools.install("kdialog", help_text="no such option here")
-    await channel(tools).ask("x")
-    assert "--defaultno" not in tools.calls()[0]["args"]
+async def test_a_zenity_that_cannot_put_the_default_on_refusal_shows_no_window(tools: FakeTools) -> None:
+    tools.install("zenity", help_text="no such option here")
+    assert await channel(tools).ask("x") is ConfirmationDecision.UNAVAILABLE
+    assert await channel(tools).ask_origin("x") is OriginAnswer.UNAVAILABLE
+    assert tools.calls() == []
+
+
+async def test_kdialog_puts_each_line_in_rich_text_and_escapes_what_the_page_wrote(tools: FakeTools) -> None:
+    # The label of the list is rich text and a line break in it is a space: the lines are joined by <br>, and
+    # what a page wrote is escaped first, so it is shown and never read as markup.
+    tools.install("kdialog")
+    await channel(tools).ask('Origine : x\nTexte : <b onclick="x">a & b</b>')
+    [call] = tools.calls()
+    assert call["args"][3] == "Origine : x<br>Texte : &lt;b onclick=\"x\"&gt;a &amp; b&lt;/b&gt;"
+
+
+# --- the window of an origin the list does not hold -----------------------------------------------------------
+
+
+def test_the_text_of_the_origin_window_is_the_origin_and_fixed_sentences() -> None:
+    lines = build_origin_text("https://a.example.test:8443").splitlines()
+    assert lines[0] == "Origine : https://a.example.test:8443"
+    assert len(lines) == 5
+    assert "Refuser" in lines[2] and "Cette séance" in lines[3] and "Ajouter à la liste" in lines[4]
+    assert "(réponse par défaut)" in lines[2]
+
+
+async def test_kdialog_origin_window_is_a_list_of_three_with_the_refusal_checked(tools: FakeTools) -> None:
+    tools.install("kdialog", output="refuse\n")
+    assert await channel(tools).ask_origin("Origine : x") is OriginAnswer.REFUSED
+    [call] = tools.calls()
+    assert call["args"] == [
+        "--title",
+        "Confirmation du serveur MCP",
+        "--radiolist",
+        "Origine : x",
+        "refuse",
+        "Refuser",
+        "on",
+        "session",
+        "Cette séance",
+        "off",
+        "add",
+        "Ajouter à la liste",
+        "off",
+    ]
+
+
+async def test_zenity_origin_window_has_the_default_on_refusal_and_the_session_as_an_extra_button(tools: FakeTools) -> None:
+    tools.install("zenity", code=1)
+    assert await channel(tools).ask_origin("Origine : x") is OriginAnswer.REFUSED
+    [call] = tools.calls()
+    assert call["args"] == [
+        "--question",
+        "--title=Confirmation du serveur MCP",
+        "--text=Origine : x",
+        "--ok-label=Ajouter à la liste",
+        "--cancel-label=Refuser",
+        "--extra-button=Cette séance",
+        "--no-markup",
+        "--timeout=90",
+        "--default-cancel",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("code", "output", "expected"),
+    [
+        (0, "session\n", OriginAnswer.SESSION),
+        (0, "add\n", OriginAnswer.ADD),
+        (0, "refuse\n", OriginAnswer.REFUSED),
+        (0, "", OriginAnswer.REFUSED),
+        (0, "add the origin\n", OriginAnswer.REFUSED),
+        (0, "ADD\n", OriginAnswer.REFUSED),
+        (1, "", OriginAnswer.REFUSED),
+        (1, "add\n", OriginAnswer.REFUSED),
+        (2, "session\n", OriginAnswer.REFUSED),
+        (255, "add\n", OriginAnswer.REFUSED),
+    ],
+)
+async def test_kdialog_origin_answers_only_by_the_tag_it_prints_on_a_good_exit(
+    tools: FakeTools, code: int, output: str, expected: OriginAnswer
+) -> None:
+    tools.install("kdialog", code=code, output=output)
+    assert await channel(tools).ask_origin("x") is expected
+
+
+@pytest.mark.parametrize(
+    ("code", "output", "expected"),
+    [
+        (0, "", OriginAnswer.ADD),
+        (1, "Cette séance\n", OriginAnswer.SESSION),
+        (1, "", OriginAnswer.REFUSED),
+        (1, "Ajouter à la liste\n", OriginAnswer.REFUSED),
+        (1, "cette séance", OriginAnswer.REFUSED),
+        (5, "", OriginAnswer.EXPIRED),
+        (127, "", OriginAnswer.REFUSED),
+        (255, "Cette séance\n", OriginAnswer.REFUSED),
+    ],
+)
+async def test_zenity_origin_answers(tools: FakeTools, code: int, output: str, expected: OriginAnswer) -> None:
+    tools.install("zenity", code=code, output=output)
+    assert await channel(tools).ask_origin("x") is expected
+
+
+@pytest.mark.parametrize("name", ["kdialog", "zenity"])
+async def test_an_origin_window_left_open_expires_and_its_process_is_killed(tools: FakeTools, name: str) -> None:
+    tools.install(name, sleep=30)
+    assert await channel(tools, timeout_s=0.5).ask_origin("x") is OriginAnswer.EXPIRED
+    [call] = tools.calls()
+    with pytest.raises(ProcessLookupError):
+        os.kill(call["pid"], 0)
+
+
+async def test_no_tool_or_no_display_shows_no_origin_window(tools: FakeTools) -> None:
+    assert await channel(tools).ask_origin("x") is OriginAnswer.UNAVAILABLE
+    tools.install("zenity")
+    assert await channel(tools, environ={"PATH": "/bin"}).ask_origin("x") is OriginAnswer.UNAVAILABLE
+    assert tools.calls() == []
 
 
 # --- the text reaches the window as one argument, never through a shell ------------------------------
@@ -234,7 +387,7 @@ async def text_reaches_window_untouched(tools: FakeTools, tmp_path: Path, factor
     arguments = calls[0]["args"]
     if name == "zenity":
         return arguments.count("--text=" + text) == 1
-    return arguments[-1] == text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return arguments.count(text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")) == 1
 
 
 class ShellChannel(NativeDialogChannel):

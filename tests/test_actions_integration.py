@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 from conftest import FAKE_PASSWORD, FakeMount, VolumePaths, mounted_volume, write_credential
-from fixtures.action_support import FakeChannel, FakeClock, make_profile
+from fixtures.action_support import FakeChannel, FakeClock, FakeOriginWindow, make_profile
 from fixtures.browser_launcher import SKIP_REASON, LaunchedBrowser, launch_browser
 from fixtures.download_probe import holds
 from fixtures.page_server import LATE_FILE_BODY, SLOW_FILE_SIZE, PageServer
@@ -30,6 +30,7 @@ from mcp_server_diwall_browser.journal import Journal
 from mcp_server_diwall_browser.mount import Volume
 from mcp_server_diwall_browser.operator_profile import Profile
 from mcp_server_diwall_browser.output import ToolError, ToolOutput, tool
+from mcp_server_diwall_browser.origin_policy import OriginPolicy
 from mcp_server_diwall_browser.perception import Perception, Snapshot
 
 pytestmark = pytest.mark.browser
@@ -110,12 +111,14 @@ async def rig(launched: LaunchedBrowser, pages: PageServer, other_pages: PageSer
     def profile() -> Profile:
         return holder["rig"].profile
 
-    perception = Perception(registry, allowed_origins=lambda: profile().allowed_origins)
+    policy = OriginPolicy(profile=profile, window=lambda: FakeOriginWindow(available=False))
+    perception = Perception(registry, admit=policy.admit)
     channel = FakeChannel()
     context = ActionContext(
         profile=profile,
         registry=registry,
         perception=perception,
+        origin_policy=policy,
         pacer=Pacer(lambda: profile().limits, clock=clock, sleep=clock.sleep),
         channel=channel,
         journal=Journal(volume, lambda: ("test-client", "1.0")),

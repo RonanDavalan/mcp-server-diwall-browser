@@ -36,7 +36,8 @@ from .evidence import DownloadManager, EvidenceWriter
 from .gate import Pacer
 from .journal import CONFIRMATION_STATES, INTENT_LIMIT, ClientInfo, Journal, JournalEntry
 from .mount import MountChecker, Volume
-from .operator_profile import Limits, Profile, load_profile
+from .operator_profile import DEFAULT_ORIGIN_POLICY, Limits, Profile, load_profile
+from .origin_policy import OriginPolicy
 from .output import EXIT_POINT_ATTRIBUTE, ToolError, ToolOutput, ToolResult, bounded_text, tool
 from .perception import MaskDrawer, Perception, draw_mask
 from .profile_watch import ProfileTrace
@@ -142,6 +143,7 @@ class ServerState:
         self._client_info: ClientInfo | None = None
         self._profile_trace = ProfileTrace()
         self.pacer = Pacer(self._limits, clock=deps.clock, sleep=deps.sleep)
+        self.origin_policy = OriginPolicy(profile=self.profile, window=self.native_channel, record=self._record_event)
 
     @property
     def deps(self) -> Dependencies:
@@ -193,6 +195,22 @@ class ServerState:
         if info is not None:
             self._client_info = (getattr(info, "name", None), getattr(info, "version", None))
 
+    # --- la fenêtre native et les événements du serveur -----------------------------
+
+    def native_channel(self) -> NativeDialogChannel:
+        """La fenêtre native, construite de la même façon pour une confirmation et pour une origine hors liste."""
+        deps = self._deps
+        if deps.environ is None:
+            return NativeDialogChannel(which=deps.which, timeout_s=deps.confirmation_timeout_s)
+        return NativeDialogChannel(which=deps.which, environ=deps.environ, timeout_s=deps.confirmation_timeout_s)
+
+    def _record_event(self, event: str, changes: Mapping[str, str]) -> None:
+        """Une ligne d'événement au journal : sans profil lisible ou volume fermé, le journal la compte et se tait."""
+        try:
+            self.journal(self.profile()).write_event(event, changes)
+        except ToolError:
+            self._not_journaled += 1
+
     # --- le journal de chaque appel -------------------------------------------------
 
     @property
@@ -216,6 +234,7 @@ class ServerState:
             intent=journal_intent(intent, server.get("typed")),
             red_list=gate.get("red_list") is True,
             confirmation=confirmation if confirmation in CONFIRMATION_STATES else "none",
+            origin_policy=self._origin_policy_name(),
             touched=touched,
         )
         try:
@@ -228,6 +247,12 @@ class ServerState:
                 _log.warning("audit journal unavailable (%s); operations are not journaled", exc.code)
             return
         journal.write(entry)
+
+    def _origin_policy_name(self) -> str:
+        try:
+            return self.profile().origin_policy
+        except ToolError:
+            return DEFAULT_ORIGIN_POLICY
 
     # --- la trace d'un changement des origines du profil ----------------------------
 
@@ -268,7 +293,7 @@ class ServerState:
             registry = TabRegistry(attachment.connection, state=TabState(volume))
             perception = Perception(
                 registry,
-                allowed_origins=lambda: self.profile().allowed_origins,
+                admit=self.origin_policy.admit,
                 mask_drawer=self._deps.mask_drawer,
             )
             self._session = BrowserSession(
@@ -353,6 +378,7 @@ class ToolContext:
                 profile=self._state.profile,
                 registry=session.registry,
                 perception=session.perception,
+                origin_policy=self._state.origin_policy,
                 pacer=self._state.pacer,
                 channel=self.channel(profile),
                 journal=self._state.journal(profile),
@@ -367,13 +393,10 @@ class ToolContext:
 
     def channel(self, profile: Profile) -> Channel:
         """Où une confirmation serait demandée pour cet appel, choisi comme le décide le module de confirmation."""
-        deps = self._state.deps
-        if deps.environ is None:
-            native = NativeDialogChannel(which=deps.which, timeout_s=deps.confirmation_timeout_s)
-        else:
-            native = NativeDialogChannel(which=deps.which, environ=deps.environ, timeout_s=deps.confirmation_timeout_s)
-        elicitation = ElicitationChannel(self._elicit, announced=self.client_elicits(), timeout_s=deps.confirmation_timeout_s)
-        return choose_channel(profile, native, elicitation)
+        elicitation = ElicitationChannel(
+            self._elicit, announced=self.client_elicits(), timeout_s=self._state.deps.confirmation_timeout_s
+        )
+        return choose_channel(profile, self._state.native_channel(), elicitation)
 
     def channel_name(self, profile: Profile) -> str:
         channel = self.channel(profile)

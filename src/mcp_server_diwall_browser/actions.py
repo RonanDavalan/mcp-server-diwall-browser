@@ -28,6 +28,7 @@ from .journal import Journal, JournalEntry
 from .mount import Volume
 from .operator_profile import Profile
 from .origin import Origin, OriginError, form_target_origin, origin_allowed, origin_of_url
+from .origin_policy import OriginPolicy, origin_not_allowed
 from .output import ToolError, bounded_text, current_operation_id, new_operation_id
 from .perception import LIGHT_SNAPSHOT_PARAMS, NAME_LIMIT, Dom, ElementRef, Perception, Snapshot, name_hash
 
@@ -63,7 +64,6 @@ _UNKNOWN_MARK = "ce repère n'existe pas dans l'instantané : observer à nouvea
 _OBSCURED = "un autre élément recouvre la cible à cet endroit : rien n'a été cliqué"
 _NO_OFFSET = "la position de la page n'a pas pu être lue : ce qui recouvre la cible n'est pas connu, rien n'a été cliqué"
 _FOCUS_MOVED = "le curseur n'est pas dans l'élément visé : rien n'a été saisi"
-_ORIGIN_REFUSED = "cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite"
 _SENSITIVE = (
     "ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), "
     "jamais par un texte"
@@ -87,6 +87,7 @@ class ActionContext:
     profile: Callable[[], Profile]
     registry: TabRegistry
     perception: Perception
+    origin_policy: OriginPolicy
     pacer: Pacer
     channel: Channel
     journal: Journal
@@ -150,7 +151,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        run.origin = self._require_allowed(profile, verified.frame)
+        run.origin = await self._require_allowed(verified.frame)
         decision = classify(ref, action_kind="click", intent_category=intent_category, snapshot=snapshot)
         await self._guard(run, tab, profile, "click", ref, verified, decision)
         if run.gate["confirmation"] == "granted":
@@ -264,7 +265,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        run.origin = self._require_allowed(profile, verified.frame)
+        run.origin = await self._require_allowed(verified.frame)
         if ref.editable:
             if credential_ref is not None:
                 raise ToolError("unsupported_element", _EDITABLE_NO_SECRET)
@@ -301,7 +302,7 @@ class Actions:
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         profile = context.profile()
         verified = await self.verify_element(tab, snapshot, ref)
-        run.origin = self._require_allowed(profile, verified.frame)
+        run.origin = await self._require_allowed(verified.frame)
         if ref.tag != "select":
             raise ToolError("unsupported_element", "seule une liste de choix native (select) se règle ainsi")
         await self._guard(run, tab, profile, "select_option", ref, verified, NOT_ARMED)
@@ -335,14 +336,14 @@ class Actions:
         context.registry.ensure_no_dialog(tab)
         profile = context.profile()
         if key != "Enter":
-            run.origin = self._require_allowed(profile, await self._frame(tab))
+            run.origin = await self._require_allowed(await self._frame(tab))
             await self._with_gate(run, self._key(run, tab, key))
             return await self._finish(run, tab, mark=None)
         if snapshot_id is None or mark is None:
             raise ToolError("unsupported_element", "la touche Entrée exige un repère (snapshot_id et mark)")
         tab, snapshot, ref = self._target(tab_id, snapshot_id, mark)
         verified = await self.verify_element(tab, snapshot, ref)
-        run.origin = self._require_allowed(profile, verified.frame)
+        run.origin = await self._require_allowed(verified.frame)
         await self._focus_into(tab, ref, verified.object_id, select=False)
         decision = classify(ref, action_kind="enter_key", intent_category=intent_category, snapshot=snapshot)
         await self._guard(run, tab, profile, "enter_key", ref, verified, decision)
@@ -450,8 +451,8 @@ class Actions:
         except OriginError:
             origin = None
         profile = context.profile()
-        if not origin_allowed(origin, profile.allowed_origins):
-            raise ToolError("origin_not_allowed", _ORIGIN_REFUSED, extra_server={"origin": None if origin is None else origin.canonical})
+        if not await context.origin_policy.admit(origin):
+            raise origin_not_allowed(None if origin is None else origin.canonical)
         assert origin is not None
         run.origin = origin.canonical
         message = dialog.get("message", "")
@@ -475,7 +476,7 @@ class Actions:
         run = self._start("save_evidence", "")
         tab = context.registry.get(tab_id)
         context.registry.ensure_no_dialog(tab)
-        run.origin = self._require_allowed(context.profile(), await self._frame(tab))
+        run.origin = await self._require_allowed(await self._frame(tab))
         png = await context.perception.capture_masked_png(tab)
         path = context.evidence.manual(run.operation_id, label, png)
         outcome = await self._finish(run, tab, mark=None, settle=False)
@@ -534,9 +535,9 @@ class Actions:
             raise ToolError("element_stale", _UNKNOWN_MARK)
         return tab, snapshot, ref
 
-    def _require_allowed(self, profile: Profile, frame: FrameInfo) -> str:
-        if frame.origin is None or not origin_allowed(frame.origin, profile.allowed_origins):
-            raise ToolError("origin_not_allowed", _ORIGIN_REFUSED, extra_server={"origin": origin_label(frame)})
+    async def _require_allowed(self, frame: FrameInfo) -> str:
+        if frame.origin is None or not await self._context.origin_policy.admit(frame.origin):
+            raise origin_not_allowed(origin_label(frame))
         return frame.origin.canonical
 
     async def _guard(
@@ -602,6 +603,7 @@ class Actions:
                 intent=run.intent,
                 red_list=red_list,
                 confirmation="requested",
+                origin_policy=context.profile().origin_policy,
             )
         )
         if red_list:

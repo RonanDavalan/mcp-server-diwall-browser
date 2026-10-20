@@ -238,3 +238,54 @@ def test_a_fingerprint_is_replaced_whole_and_stays_private(tmp_path: Any) -> Non
     assert target.read_bytes() == b"second"
     assert stat.S_IMODE(os.lstat(target).st_mode) == 0o600
     assert [entry.name for entry in target.parent.iterdir()] == ["profile-origins.json"]
+
+
+# --- the origin policy is compared like the lists ---------------------------------------------------------------------
+
+
+async def test_a_change_of_the_origin_policy_leaves_the_same_trace_as_a_change_of_a_list(rig: Rig) -> None:
+    async with connected(rig) as client:
+        before = await client.call("status")
+        assert notices_of(before) == []
+        rig.write_profile(origin_policy="open")
+        status = await client.call("status")
+    [line] = changes_in(rig)
+    assert line["changes"] == {"origin_policy": {"added": ["open"], "removed": ["strict"]}}
+    [notice] = notices_of(status)
+    assert "origin_policy" in notice and "+open" in notice and "-strict" in notice
+
+
+async def test_a_fingerprint_written_before_the_policy_existed_is_read_as_strict(rig: Rig) -> None:
+    async with connected(rig) as client:
+        await client.call("status")
+    path = rig.paths.project.joinpath(*FINGERPRINT)
+    document = json.loads(path.read_text())
+    assert document.pop("origin_policy") == ["strict"]
+    path.write_text(json.dumps(document))
+    rig.write_profile(origin_policy="open")
+    async with connected(rig) as client:
+        status = await client.call("status")
+    [line] = changes_in(rig)
+    assert line["changes"] == {"origin_policy": {"added": ["open"], "removed": ["strict"]}}
+    assert len(notices_of(status)) == 1
+
+
+def test_the_lists_of_an_old_document_carry_the_default_policy() -> None:
+    old = {"allowed_origins": [], "confirm_each_change": [], "local_model_origins": []}
+    lists = OriginLists.of_document(old)
+    assert lists is not None and lists.origin_policy == ("strict",)
+    assert compare(lists, OriginLists(origin_policy=("discovery",))) == {"origin_policy": {"added": ["discovery"], "removed": ["strict"]}}
+
+
+async def test_the_server_adding_an_origin_after_the_window_leaves_its_trace_too(rig: Rig) -> None:
+    rig.write_profile(origin_policy="discovery")
+    rig.browser.site["https://dropped.example.test/page"] = rig.browser.site[ORIGIN + "/page"]
+    rig.window.answer(choice="add")
+    async with connected(rig) as client:
+        await client.call("status")
+        opened = await client.call("open_tab", url="https://dropped.example.test/page")
+        await client.call("observe", tab_id=opened["server"]["tab_id"])
+        status = await client.call("status")
+    [line] = changes_in(rig)
+    assert line["changes"] == {"allowed_origins": {"added": ["https://dropped.example.test"], "removed": []}}
+    assert len(notices_of(status)) == 1

@@ -75,7 +75,7 @@ The trial lives under `$XDG_RUNTIME_DIR`, which is memory, and the assistant ref
             ├── credentials/                       mode 700: credential files (mode 600), written by the operator
             ├── browser-profile/chrome/            the dedicated browser profile
             ├── journal/operations.jsonl           the audit journal, one line per tool call
-            ├── journal/profile-origins.json       mode 600: the origin lists of the profile as the server last saw them
+            ├── journal/profile-origins.json       mode 600: the origin lists and the origin policy of the profile as the server last saw them
             ├── run/tabs.json                      mode 600: the tabs the server holds, for the next run to close
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   captures taken around a locked action
             └── downloads/<operation_id>/          files that pages downloaded
@@ -459,6 +459,7 @@ cat > ~/.config/mcp-server-diwall-browser/profile.json <<EOF
   "allowed_origins": ["https://account.example.invalid", "https://shop.example.invalid"],
   "confirm_each_change": ["https://account.example.invalid"],
   "local_model_origins": [],
+  "origin_policy": "strict",
   "declarations": {"local_model_client": false, "client_does_not_auto_confirm": false},
   "browser": {
     "family": "chrome",
@@ -478,7 +479,11 @@ chmod 700 ~/.config/mcp-server-diwall-browser
   closed encrypted directory from one that was never created; without it, a closed one reads
   `closed_or_absent`.
 - `allowed_origins`: the sites the server reads and acts on, each an origin (scheme, host, port) or
-  a subdomain wildcard (below), at most 200. Of any other page, only the origin is returned.
+  a subdomain wildcard (below), at most 200. Under the `strict` policy, of any other page only the
+  origin is returned; the other two policies admit more (below).
+- `origin_policy` (optional): `strict`, `discovery` or `open`; `strict` when the key is missing. Any
+  other value is refused (`profile_invalid`), never read as one of the three. What each does is
+  in "The origin policy", below.
 - `confirm_each_change`: origins of `allowed_origins`, or wildcards, where every `click`, `fill`,
   `select_option`, Enter key and accepted dialog asks for a confirmation, not only payments,
   deletions and secret changes.
@@ -511,12 +516,67 @@ A key that is not in this list is refused, and a key that would configure the lo
 as `payment` or `deletion`) is refused with `redlist_in_profile`: only the code decides what is
 locked.
 
+### The origin policy
+
+The list of sites bounds what the model reads and acts on, never where it navigates: the model can
+open a page of any site, and of a site that is not admitted it receives the origin and nothing else
+(`origin_not_allowed`). `origin_policy` chooses how an origin that the list does not hold is treated.
+It is your choice, written in the profile; the server reads it again on every call, and no tool of
+the model changes it.
+
+| Policy | An origin that is not in the list | What it exposes |
+|---|---|---|
+| `strict` (the default, and what a profile without the key does) | Refused: `origin_not_allowed` | Only the sites you listed |
+| `discovery` | The server asks you in a window, once per origin | The sites you listed, and those you answer for |
+| `open` | Read and acted on, except this machine and its network | Every public site the model visits |
+
+**`discovery`.** When the server meets an origin that the list does not hold, to read it or act on it
+(after a link or a redirection too), it opens a window on your screen with `kdialog` or `zenity`.
+The window is the server's: the client and the model cannot answer it. It holds the origin and
+three fixed sentences, and nothing that a page or the model wrote. Three answers:
+
+- `Refuser`: the default answer, and the one a closed window gives; nothing of the origin is read.
+- `Cette séance`: the origin is read and acted on until the server stops; nothing is written.
+- `Ajouter à la liste`: the server writes that exact origin, with no wildcard, at the end of
+  `allowed_origins`. It writes the profile in mode 600 through a file next to it, put in place in one
+  step, and changes nothing else in it.
+
+A refusal, no answer within 90 seconds, or a window that cannot be shown (no `kdialog` or `zenity`, no
+display) leaves the origin refused, and the same origin is not asked again until the server restarts.
+A process shows at most five windows: after that, an origin that was not asked is refused without a
+window. An origin added this way binds no credential (section 6). `status` lists the origins admitted
+for the session in `session_origins`, and each answer is a line `origin_decision` in the journal.
+
+The risk that remains: a page, or a text in a page, that leads the model to an origin at the right
+moment gets a window, and answering by habit admits it. That is why the default answer is `Refuser`,
+the origin written is exact, the window never holds a word of a page, and the locked actions keep
+their confirmation on every admitted origin.
+
+**`open`.** Every `http` or `https` origin is read and acted on, those you never listed included. It is
+the freest policy and the riskiest, and it is yours to choose: the content of every page the model
+visits goes to the provider of the model, and a page can carry a text written for the model. What
+stays on the list even then: this machine and its network, that is `localhost`, the names that end in
+`.local` or `.localhost`, and the numeric addresses that are not routable on the Internet (this machine,
+a private network, a link-local address, a shared address, a documentation address). A public name that
+resolves to a private address is not detected. `status` says in `origin_policy_note` that every page goes
+to the provider.
+
+In the three policies: only `http` and `https` are admitted (no `file:`, no `chrome:`); a credential is
+typed only on the exact origin its file binds (section 6); a payment, an irreversible deletion and a
+change of secret keep their confirmation window on every admitted origin (section 9); the ceilings hold;
+the journal carries the policy on every line (`gates.origin_policy`).
+
+To add an origin by hand, edit `profile.json`: add it to `allowed_origins` (`"https://account.example.invalid"`),
+or a subdomain wildcard; the server reads it on its next call. To change the policy, write the key,
+for example `"origin_policy": "discovery"`; the next call follows it, without a restart.
+
 ### What a change of the origin lists leaves
 
 Because the profile is read again on every call, anyone who can write the file can add a site to
-`allowed_origins`. The server cannot prevent that; it leaves a trace after the fact. When
-`allowed_origins`, `confirm_each_change` or `local_model_origins` differ from what the server saw at
-the previous call, or, at its first call, from what the last run saved, one line is added to
+`allowed_origins`; so does the server, when you answer `Ajouter à la liste` in the window of the
+`discovery` policy. The server cannot prevent the first; it leaves a trace after the fact, in both cases. When
+`allowed_origins`, `confirm_each_change`, `local_model_origins` or `origin_policy` differ from what the
+server saw at the previous call, or, at its first call, from what the last run saved, one line is added to
 `journal/operations.jsonl` and `status` carries the same change in `server.notices`:
 
 ```
@@ -527,8 +587,9 @@ the previous call, or, at its first call, from what the last run saved, one line
 "notices": ["profile_changed : allowed_origins +https://shop.example.invalid"]
 ```
 
-The line names the origins added and removed, as written in the profile (a wildcard stays a wildcard),
-and no other field of the profile: no path, no port, no ceiling, no declaration. A second `status`
+The line names the origins added and removed, as written in the profile (a wildcard stays a wildcard);
+for the policy it names the value that comes in and the one that goes out (`"origin_policy":{"added":["open"],"removed":["strict"]}`).
+It names no other field of the profile: no path, no port, no ceiling, no declaration. A second `status`
 without a change adds nothing, and a change of the order of the entries is not a change. The origins
 the server last saw are kept in `journal/profile-origins.json`, next to the journal (mode 600, in a
 directory in mode 700). With the encrypted directory closed, nothing is read or written and the server
@@ -724,8 +785,8 @@ To leave no secret in the shell history, never read the source file with `cat`, 
 |---|---|---|
 | Nothing of the secrets | Resolved in memory in the server's process at typing time, sent to the browser over the local debugging connection; never in a tool output, a log, a report, an address or a command argument | Nobody: hard lock |
 | Nothing of the sensitive fields on screen | Masked in every capture; values redacted in the tree; if masking fails, the capture is not published | Nobody: hard lock |
-| The content of the pages of the allowed origins | Capture, accessibility tree and elements, read by the model; its provider receives them if the model is hosted | The operator: through the allowed origins and the choice of the model |
-| The content of pages outside the allowed origins | Nothing: only the origin is returned | Nobody: hard lock |
+| The content of the pages of the origins the policy admits (under `strict`, the allowed origins) | Capture, accessibility tree and elements, read by the model; its provider receives them if the model is hosted | The operator: through the origin policy, the allowed origins and the choice of the model |
+| The content of the pages the policy does not admit | Nothing: only the origin is returned | The operator: through the origin policy |
 | The addresses of the pages | Origin and path; values of sensitive parameters redacted; fragment redacted; never credentials in the address | Nobody: hard lock |
 | The titles and addresses of the browser's other tabs | Nothing | Nobody: hard lock |
 | Error and exception messages | The same exit point as everything else | Nobody: hard lock |
@@ -734,7 +795,7 @@ To leave no secret in the shell history, never read the source file with `cat`, 
 | Any other emission to a third party | None exists | The operator: a new emission is an explicit choice |
 
 What the model's provider keeps of what it receives is not confirmed by this project. A frame of
-another origin embedded in a page of the allowed origins is transmitted with that page: the server
+another origin embedded in a page of an admitted origin is transmitted with that page: the server
 masks frames in the image, but it cannot filter what a model receives from elsewhere.
 
 ### Where to read an observation
@@ -947,14 +1008,15 @@ tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromi
 - It does not start or close the browser (the setup command does, when you ask it to); its tabs stay open
   when it stops, and the next run can close them, not work in them (the part below).
 - It never pays, deletes or changes a secret without a confirmation.
-- It never changes the operator profile or the allowed origins.
+- It changes the operator profile in one case only: under `discovery`, when you answer `Ajouter à la liste`,
+  it writes that one origin in `allowed_origins`. No tool that the model calls changes the profile.
 
 What it does not stop: a model that has a shell under your account. The list of sites, the locked
 actions and the binding of credentials hold a model that has only the fourteen tools. A model with
 a shell can edit `profile.json` (an origin was added to `allowed_origins` that way by an OpenCode
 session, and `status` read it on its next call), start the server from a script of its own, and,
 with the encrypted directory open, read the credential files. A change of the three origin lists
-leaves a line `profile_changed` in the journal and a notice in `status` (section 5), found after the
+or of the origin policy leaves a line `profile_changed` in the journal and a notice in `status` (section 5), found after the
 fact, and the same actor can edit the journal. What bounds that model is the client's configuration
 (section 2.1): give the tools to an agent whose shell asks.
 
@@ -997,9 +1059,12 @@ is not driving. The identifier of the browser is never in a result or in the jou
 
 Before a payment, an irreversible deletion or a change of secret (and before every change on an
 origin of `confirm_each_change`), the server opens a window on your screen, titled
-`Confirmation du serveur MCP`, with two buttons, `Autoriser` and `Refuser`. Refusal is the default
-button when the window tool offers that choice. The window waits 90 seconds, then counts as no
-answer (`confirmation_expired`). One answer covers one action only.
+`Confirmation du serveur MCP`, with two answers, `Refuser` and `Autoriser`. Refusal is the default
+answer, and the one a closed window gives: with `zenity` it is the focused button, with `kdialog` the
+checked entry of a short list (that tool has no option for a default button). A `zenity` that cannot
+place the default on the refusal shows no window, and the action is refused (`confirmation_unavailable`).
+The window waits 90 seconds, then counts as no answer (`confirmation_expired`). One answer covers one
+action only.
 
 Its text is built by `confirm.build_text` from what the server reads in the browser at that
 moment. For a click on a payment button, this project's session produced:
@@ -1024,8 +1089,10 @@ What to read before answering:
 - `Montants détectés`: amounts found on the page by a heuristic; it can miss or misread one.
 - `Catégories` and `Signaux`: why the server asks.
 
-A real `kdialog` or `zenity` window was shown and answered by a person on 15 October 2026 (a refusal,
-an acceptance and an expiry: `README.md`); the automated tests use fake programs in their place.
+The windows were shown by the real `kdialog` and `zenity` in a virtual screen and answered by keystrokes
+(Enter, Escape and the arrow keys): Enter and Escape give the refusal. A person answered the earlier form
+of the window on 15 October 2026 (a refusal, an acceptance and an expiry: `README.md`); no person has answered
+the present form yet. The automated tests use fake programs in their place.
 
 The window belongs to the server, not to the MCP client: the client acts for the model and could
 answer by itself, while the server's window is answered by a person, outside the conversation. The
@@ -1127,10 +1194,10 @@ directories mode 700 (`chmod 700 ~/Vaults/Main/mcp-server-diwall-browser`, and t
 for the subdirectory named in `mount_reason`), and replace any symbolic link with a real
 directory.
 
-`origin_not_allowed`: `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
-or for an action `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Add the origin, or a subdomain wildcard (section 5), to `allowed_origins` if you want the server to
-work there.
+`origin_not_allowed`: `https://other.example.invalid n'est pas dans les sites autorisés par l'opérateur : le serveur n'en lit rien et n'y agit pas. L'opérateur peut ajouter https://other.example.invalid à allowed_origins dans son profil, ou choisir la politique d'origines (origin_policy : discovery ou open)`,
+the same text for a reading and for an action, with the origin the page has. Add the origin, or a
+subdomain wildcard (section 5), to `allowed_origins` if you want the server to work there, or choose the
+policy `discovery` or `open` (section 5, "The origin policy").
 
 `forbidden_scheme`: `seules les adresses http et https peuvent être ouvertes`. Nothing to do: the
 server opens no `file:`, `javascript:` or other address.
@@ -1317,9 +1384,13 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   `Valider mon panier`, `Reset your password` and `Regenerate API key`. A label that says the same
   thing in other words is not locked: the guard is a list of words, not a reading of the page.
 - A client that gives the model a shell lifts the guard of the profile: the model can edit the
-  operator profile and read credential files of the open encrypted directory. The server does not
-  stop it; it only writes `profile_changed` after the change of an origin list (section 5), which
-  that same shell can erase from the journal. Use the dedicated agent of section 2.1.
+  operator profile, `origin_policy` included, and read credential files of the open encrypted directory. The
+  server does not stop it; it only writes `profile_changed` after the change of an origin list or of the
+  policy (section 5), which that same shell can erase from the journal. Use the dedicated agent of section 2.1.
+- The window of the `discovery` policy needs `kdialog` or `zenity` and a display; the client's own confirmation is not
+  used for it, because it cannot offer three named answers with the refusal as the default. Under `open`, a public
+  name that resolves to a private address is not detected, and the provider of a hosted model receives every page
+  the model reads.
 - The messages of the setup assistant are in French. It was played on Linux only, with `gocryptfs`; a
   LUKS, eCryptfs, EncFS or CryFS volume is reported and not used, and Windows and macOS have no
   mechanism in its table. It was played in a pseudo-terminal on a throw-away volume and in a clean Debian 13

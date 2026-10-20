@@ -22,6 +22,7 @@ from typing import Any
 
 from .credentials import Secret
 from .mount import Volume
+from .operator_profile import DEFAULT_ORIGIN_POLICY, ORIGIN_POLICIES
 from .origin import OriginError, origin_of_url
 from .output import ToolError, redact_text, sanitize_url
 
@@ -64,6 +65,7 @@ class JournalEntry:
     intent: str | Secret = ""
     red_list: bool = False
     confirmation: str = "none"
+    origin_policy: str = DEFAULT_ORIGIN_POLICY
     # Ce que le refus a rencontré (balise ou type de pseudo-élément) : du texte court, jamais le contenu de la page.
     touched: Mapping[str, str | None] | None = None
 
@@ -144,6 +146,8 @@ class Journal:
     def _line(self, entry: JournalEntry) -> bytes:
         if entry.confirmation not in CONFIRMATION_STATES:
             raise ValueError("unknown confirmation state")
+        if entry.origin_policy not in ORIGIN_POLICIES:
+            raise ValueError("unknown origin policy")
         if not isinstance(entry.mutating, bool) or not isinstance(entry.red_list, bool):
             raise ValueError("mutating and red_list are booleans")
         name, version = self._client_info()
@@ -155,7 +159,7 @@ class Journal:
             "result": _text(entry.result),
             "mutating": entry.mutating,
             "intent": _text(entry.intent)[:INTENT_LIMIT],
-            "gates": {"red_list": entry.red_list, "confirmation": entry.confirmation},
+            "gates": {"red_list": entry.red_list, "confirmation": entry.confirmation, "origin_policy": entry.origin_policy},
             "client": {"name": _text(name), "version": _text(version)},
             "host": _text(socket.gethostname()),
             "user": _text(_user_name()),

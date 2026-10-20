@@ -24,6 +24,8 @@ from .output import ToolError, bounded_text
 WINDOW_TITLE = "Confirmation du serveur MCP"
 GRANT_LABEL = "Autoriser"
 DENY_LABEL = "Refuser"
+SESSION_LABEL = "Cette séance"
+ADD_LABEL = "Ajouter à la liste"
 TIMEOUT_S = 90.0
 HELP_TIMEOUT_S = 5.0
 NAME_LIMIT = 120
@@ -49,6 +51,22 @@ class ConfirmationDecision(enum.Enum):
     DENIED = "denied"
     EXPIRED = "expired"
     UNAVAILABLE = "unavailable"
+
+
+class OriginAnswer(enum.Enum):
+    """La réponse de l'opérateur à la fenêtre d'une origine hors liste (``discovery``)."""
+
+    REFUSED = "refused"
+    SESSION = "session"
+    ADD = "add"
+    EXPIRED = "expired"
+    UNAVAILABLE = "unavailable"
+
+
+# Les réponses d'une fenêtre : le repère que la fenêtre rend et son étiquette. La première est le refus, réponse par
+# défaut et réponse de la fenêtre fermée ; la dernière est celle que zenity place sur le bouton « valider ».
+CONFIRM_CHOICES = (("deny", DENY_LABEL), ("grant", GRANT_LABEL))
+ORIGIN_CHOICES = (("refuse", DENY_LABEL), ("session", SESSION_LABEL), ("add", ADD_LABEL))
 
 
 @dataclass(frozen=True)
@@ -110,6 +128,19 @@ def build_text(request: ConfirmRequest) -> str:
     return "\n".join(lines)
 
 
+def build_origin_text(origin: str) -> str:
+    """Le texte de la fenêtre d'une origine hors liste : l'origine, lue par le serveur, et des phrases fixes."""
+    return "\n".join(
+        [
+            f"Origine : {origin}",
+            "Cette origine n'est pas dans votre liste de sites autorisés ; le modèle veut la lire ou y agir.",
+            f"« {DENY_LABEL} » (réponse par défaut) : rien n'en est lu.",
+            f"« {SESSION_LABEL} » : lue jusqu'à l'arrêt du serveur, rien n'est écrit.",
+            f"« {ADD_LABEL} » : ajoutée à allowed_origins de votre profil.",
+        ]
+    )
+
+
 class Channel(Protocol):
     def available(self) -> bool: ...
 
@@ -147,55 +178,79 @@ class NativeDialogChannel:
         return has_display and self._tool() is not None
 
     async def ask(self, text: str) -> ConfirmationDecision:
+        ended = await self._show(text, CONFIRM_CHOICES)
+        if ended.kind == "unavailable":
+            return ConfirmationDecision.UNAVAILABLE
+        if ended.kind == "expired":
+            return ConfirmationDecision.EXPIRED
+        return ConfirmationDecision.GRANTED if ended.tag == "grant" else ConfirmationDecision.DENIED
+
+    async def ask_origin(self, text: str) -> OriginAnswer:
+        ended = await self._show(text, ORIGIN_CHOICES)
+        if ended.kind == "unavailable":
+            return OriginAnswer.UNAVAILABLE
+        if ended.kind == "expired":
+            return OriginAnswer.EXPIRED
+        return {"session": OriginAnswer.SESSION, "add": OriginAnswer.ADD}.get(ended.tag or "", OriginAnswer.REFUSED)
+
+    async def _show(self, text: str, choices: tuple[tuple[str, str], ...]) -> _Ended:
+        """Montrer la fenêtre, attendre la réponse, tuer la fenêtre à l'échéance. Tout ce qui n'est pas une réponse
+        nette est le refus : la fenêtre fermée, un code de sortie inattendu, un repère inconnu."""
         tool = self._tool()
         if tool is None or not self.available():
-            return ConfirmationDecision.UNAVAILABLE
+            return _Ended("unavailable")
         name, path = tool
-        arguments = await self._command(name, path, text)
+        arguments = await self._command(name, path, text, choices)
+        if arguments is None:
+            return _Ended("unavailable")
         try:
             process = await self._spawn(
                 *arguments,
                 stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.DEVNULL,
                 env=dict(self._environ),
             )
         except OSError:
-            return ConfirmationDecision.UNAVAILABLE
+            return _Ended("unavailable")
         try:
-            code = await asyncio.wait_for(process.wait(), self._timeout_s)
+            output, _ = await asyncio.wait_for(process.communicate(), self._timeout_s)
         except TimeoutError:
             await _kill(process)
-            return ConfirmationDecision.EXPIRED
+            return _Ended("expired")
         except BaseException:
             await _kill(process)
             raise
-        if code == 0:
-            return ConfirmationDecision.GRANTED
-        if name == "zenity" and code == 5:
-            return ConfirmationDecision.EXPIRED
-        return ConfirmationDecision.DENIED
+        return _ended(name, process.returncode, (output or b"").decode("utf-8", errors="replace"), choices)
 
-    async def _command(self, name: str, path: str, text: str) -> list[str]:
+    async def _command(
+        self, name: str, path: str, text: str, choices: tuple[tuple[str, str], ...] = CONFIRM_CHOICES
+    ) -> list[str] | None:
+        """La ligne de commande de la fenêtre, ou ``None`` quand l'outil ne sait pas placer le refus par défaut.
+
+        kdialog n'a pas d'option de bouton par défaut (``--defaultno`` y est inconnue) et son ``--yesno`` donne le
+        focus à « Oui » : la liste à choix unique, dont la première entrée est cochée, est la seule de ses fenêtres où
+        Entrée comme Échap rendent le refus. Son texte y est du texte riche, où un saut de ligne n'est qu'une espace :
+        les lignes sont jointes par ``<br>``, ce que la page a écrit étant échappé d'abord, montré et jamais lu
+        comme balisage.
+        """
         if name == "kdialog":
-            command = [path, "--title", WINDOW_TITLE, "--yes-label", GRANT_LABEL, "--no-label", DENY_LABEL]
-            if await self._help_mentions(path, ["--help"], "--defaultno"):
-                command.append("--defaultno")
-            # kdialog lit son texte comme du texte riche : ce que la page a écrit est montré, jamais interprété.
-            return [*command, "--yesno", _escape_markup(text)]
+            command = [path, "--title", WINDOW_TITLE, "--radiolist", "<br>".join(_escape_markup(line) for line in text.split("\n"))]
+            for index, (tag, label) in enumerate(choices):
+                command += [tag, label, "on" if index == 0 else "off"]
+            return command
+        if not await self._help_mentions(path, ["--help-question"], "--default-cancel"):
+            return None
         command = [
             path,
             "--question",
             f"--title={WINDOW_TITLE}",
             "--text=" + text,
-            f"--ok-label={GRANT_LABEL}",
-            f"--cancel-label={DENY_LABEL}",
-            "--no-markup",
-            f"--timeout={int(self._timeout_s)}",
+            f"--ok-label={choices[-1][1]}",
+            f"--cancel-label={choices[0][1]}",
         ]
-        if await self._help_mentions(path, ["--help-question"], "--default-cancel"):
-            command.append("--default-cancel")
-        return command
+        command += [f"--extra-button={label}" for _, label in choices[1:-1]]
+        return [*command, "--no-markup", f"--timeout={int(self._timeout_s)}", "--default-cancel"]
 
     async def _help_mentions(self, path: str, arguments: list[str], option: str) -> bool:
         try:
@@ -215,6 +270,32 @@ class NativeDialogChannel:
             await _kill(process)
             return False
         return option.encode() in (output or b"")
+
+
+@dataclass(frozen=True)
+class _Ended:
+    """Comment une fenêtre s'est terminée : un choix (son repère), l'échéance, ou aucune fenêtre."""
+
+    kind: str
+    tag: str | None = None
+
+
+def _ended(name: str, code: int | None, output: str, choices: tuple[tuple[str, str], ...]) -> _Ended:
+    refusal = _Ended("chosen", choices[0][0])
+    if name == "zenity":
+        # Code 0 : le bouton « valider » ; code 1 : « Refuser », Échap, ou un bouton supplémentaire dont
+        # l'étiquette est écrite sur la sortie ; code 5 : l'échéance de zenity.
+        if code == 5:
+            return _Ended("expired")
+        if code == 0:
+            return _Ended("chosen", choices[-1][0])
+        if code == 1:
+            label = output.rstrip("\n")
+            return next((_Ended("chosen", tag) for tag, extra in choices[1:-1] if extra == label), refusal)
+        return refusal
+    tags = {tag for tag, _ in choices}
+    tag = output.strip()
+    return _Ended("chosen", tag) if code == 0 and tag in tags else refusal
 
 
 async def _kill(process: Any) -> None:

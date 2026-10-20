@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 from conftest import FAKE_PASSWORD, FAKE_USERNAME, ROOT_LINE, FakeMount, VolumePaths, mounted_volume, write_credential
-from fixtures.action_support import FakeChannel, FakeClock
+from fixtures.action_support import FakeChannel, FakeClock, FakeOriginWindow
 from fixtures.action_support import make_profile as shared_profile
 from fixtures.fake_cdp import NO_REPLY, FakeBrowser, FakeCdp
 from fixtures.action_pages import (
@@ -41,6 +41,7 @@ from mcp_server_diwall_browser.journal import Journal
 from mcp_server_diwall_browser.mount import Volume
 from mcp_server_diwall_browser.operator_profile import Limits, Profile
 from mcp_server_diwall_browser.output import ToolError, ToolOutput, tool
+from mcp_server_diwall_browser.origin_policy import OriginPolicy
 from mcp_server_diwall_browser.perception import Perception, Snapshot
 
 ORIGIN = "https://shop.example.test"
@@ -132,13 +133,15 @@ async def bench(tmp_path: Path) -> AsyncIterator[Bench]:
     def profile() -> Profile:
         return holder["bench"].profile
 
-    perception = Perception(registry, allowed_origins=lambda: profile().allowed_origins)
+    policy = OriginPolicy(profile=profile, window=lambda: FakeOriginWindow(available=False))
+    perception = Perception(registry, admit=policy.admit)
     pacer = Pacer(lambda: profile().limits, clock=clock, sleep=clock.sleep)
     channel = FakeChannel()
     context = ActionContext(
         profile=profile,
         registry=registry,
         perception=perception,
+        origin_policy=policy,
         pacer=pacer,
         channel=channel,
         journal=Journal(volume, lambda: ("test-client", "1.0")),
@@ -440,7 +443,7 @@ async def test_the_journal_line_is_written_before_the_question(bench: Bench) -> 
     bench.channel.on_ask = lambda: seen.append(bench.journal_lines())
     await check_payment_click_is_confirmed(bench, None)
     [[line]] = seen
-    assert line["result"] == "requested" and line["gates"] == {"red_list": True, "confirmation": "requested"}
+    assert line["result"] == "requested" and line["gates"] == {"red_list": True, "confirmation": "requested", "origin_policy": "strict"}
     assert line["origin"] == ORIGIN and line["tool"] == "click" and line["mutating"] is True
 
 

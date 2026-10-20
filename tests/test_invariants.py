@@ -183,6 +183,10 @@ VOLUME_MODULE = "mount.py"
 # L'assistant d'installation crée le volume que le serveur utilisera ensuite : avant qu'il existe, aucun volume monté ne peut
 # servir de passage. C'est un programme que l'humain lance ; aucun module du serveur ne l'importe (test plus bas).
 SETUP_MODULE = "setup.py"
+# Le profil de l'opérateur n'est pas sous le volume : l'ajout d'une origine, sur la réponse de l'opérateur à la fenêtre
+# de la politique ``discovery``, est la seule écriture que le serveur y fait, et elle vit dans une fonction nommée.
+PROFILE_MODULE = "operator_profile.py"
+PROFILE_WRITERS = {"add_allowed_origin", "_sync_directory"}
 
 
 def _names_in(node: ast.AST) -> set[str]:
@@ -238,7 +242,7 @@ def writes_outside_the_volume_module(package: Path) -> dict[str, list[str]]:
     result = {}
     for path in sorted(package.rglob("*.py")):
         relative = path.relative_to(package).as_posix()
-        if relative in (VOLUME_MODULE, SETUP_MODULE):
+        if relative in (VOLUME_MODULE, SETUP_MODULE, PROFILE_MODULE):
             continue
         calls = write_calls(path.read_text())
         if calls:
@@ -248,6 +252,24 @@ def writes_outside_the_volume_module(package: Path) -> dict[str, list[str]]:
 
 def test_no_module_but_mount_opens_a_file_for_writing() -> None:
     assert writes_outside_the_volume_module(PACKAGE_DIR) == {}
+
+
+def functions_that_write(source: str) -> set[str]:
+    return {
+        node.name
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and write_calls(ast.get_source_segment(source, node) or "")
+    }
+
+
+def test_the_profile_is_written_by_the_one_function_that_adds_an_origin_and_nothing_else_in_its_module() -> None:
+    source = (PACKAGE_DIR / PROFILE_MODULE).read_text()
+    assert functions_that_write(source) == PROFILE_WRITERS
+
+
+def test_the_profile_write_scan_catches_a_second_writer_in_the_profile_module() -> None:
+    source = (PACKAGE_DIR / PROFILE_MODULE).read_text() + "\n\ndef rewrite(path, data):\n    path.write_text(data)\n"
+    assert functions_that_write(source) == PROFILE_WRITERS | {"rewrite"}
 
 
 def test_volume_module_is_where_the_writes_are() -> None:

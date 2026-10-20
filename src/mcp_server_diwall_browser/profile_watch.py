@@ -1,10 +1,11 @@
-"""Trace d'un changement des listes d'origines du profil : la comparaison, l'empreinte, l'avis.
+"""Trace d'un changement des listes d'origines du profil et de la politique d'origines : la comparaison, l'empreinte, l'avis.
 
 Pourquoi ce module existe :
     Le profil est relu à chaque appel, et un client qui a un shell peut l'éditer. Le serveur ne peut pas
     l'en empêcher ; il laisse une trace après coup (``profile_changed`` au journal, un avis dans
-    ``status``). La comparaison des trois listes vit ici, à un seul endroit, comme celle de l'empreinte
-    gardée dans le volume chiffré à côté du journal. Aucun autre champ du profil n'est lu ici.
+    ``status``). La comparaison des trois listes et de ``origin_policy`` vit ici, à un seul endroit, comme
+    celle de l'empreinte gardée dans le volume chiffré à côté du journal. Aucun autre champ du profil n'est
+    lu ici.
 """
 
 from __future__ import annotations
@@ -16,21 +17,25 @@ from typing import Any
 
 from .journal import Journal
 from .mount import Volume, VolumeFileError
-from .operator_profile import Profile
+from .operator_profile import DEFAULT_ORIGIN_POLICY, Profile
 from .output import ToolError
 
 LIST_NAMES = ("allowed_origins", "confirm_each_change", "local_model_origins")
+POLICY_NAME = "origin_policy"
+COMPARED_NAMES = (*LIST_NAMES, POLICY_NAME)
 
 Changes = dict[str, dict[str, list[str]]]
 
 
 @dataclass(frozen=True)
 class OriginLists:
-    """Les trois listes d'origines du profil, chacune triée et sans doublon, en texte canonique."""
+    """Les trois listes d'origines du profil, chacune triée et sans doublon, en texte canonique, et la politique
+    d'origines, comparée de la même façon (une valeur seule)."""
 
     allowed_origins: tuple[str, ...] = ()
     confirm_each_change: tuple[str, ...] = ()
     local_model_origins: tuple[str, ...] = ()
+    origin_policy: tuple[str, ...] = (DEFAULT_ORIGIN_POLICY,)
 
     @classmethod
     def of_profile(cls, profile: Profile) -> OriginLists:
@@ -38,6 +43,7 @@ class OriginLists:
             allowed_origins=_canonical(profile.allowed_origins),
             confirm_each_change=_canonical(profile.confirm_each_change),
             local_model_origins=_canonical(profile.local_model_origins),
+            origin_policy=(profile.origin_policy,),
         )
 
     @classmethod
@@ -51,10 +57,14 @@ class OriginLists:
             if not isinstance(entries, list) or not all(isinstance(entry, str) for entry in entries):
                 return None
             values[name] = tuple(sorted(set(entries)))
-        return cls(**values)
+        # Une empreinte d'avant la politique d'origines n'a pas la clé : le profil d'alors était ``strict``.
+        policy = document.get(POLICY_NAME, [DEFAULT_ORIGIN_POLICY])
+        if not isinstance(policy, list) or len(policy) != 1 or not isinstance(policy[0], str):
+            return None
+        return cls(**values, origin_policy=(policy[0],))
 
     def as_document(self) -> dict[str, list[str]]:
-        return {name: list(getattr(self, name)) for name in LIST_NAMES}
+        return {name: list(getattr(self, name)) for name in COMPARED_NAMES}
 
 
 def _canonical(entries: Any) -> tuple[str, ...]:
@@ -62,9 +72,10 @@ def _canonical(entries: Any) -> tuple[str, ...]:
 
 
 def compare(previous: OriginLists, current: OriginLists) -> Changes:
-    """Pour chaque liste qui diffère, les origines ajoutées et retirées ; vide quand rien n'a changé."""
+    """Pour chaque liste qui diffère, les origines ajoutées et retirées, et pour la politique la valeur qui entre et
+    celle qui sort ; vide quand rien n'a changé."""
     changes: Changes = {}
-    for name in LIST_NAMES:
+    for name in COMPARED_NAMES:
         before, after = set(getattr(previous, name)), set(getattr(current, name))
         if before != after:
             changes[name] = {"added": sorted(after - before), "removed": sorted(before - after)}

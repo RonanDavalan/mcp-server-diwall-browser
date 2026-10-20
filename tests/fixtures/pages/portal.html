@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Portail</title>
+<style>
+  body { margin: 16px; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<h1>Portail</h1>
+<p>Une page de la liste qui renvoie vers une seconde origine.</p>
+<a id="second" href="#">Aller à la seconde origine</a>
+<script>
+  document.getElementById("second").href = new URLSearchParams(location.search).get("to") || "#";
+</script>
+</body>
+</html>

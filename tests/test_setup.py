@@ -355,6 +355,8 @@ def test_create_makes_the_volume_then_the_profile_that_the_server_reads(poste: P
     profile = load(poste)
     assert (profile.secrets_dir, profile.secrets_crypt_dir) == (mount_dir, crypt)
     assert profile.allowed_origins == () and profile.confirm_each_change == () and profile.local_model_origins == ()
+    assert profile.origin_policy == "strict" and json.loads(profile_path(poste).read_text())["origin_policy"] == "strict"
+    assert "origin_policy" in out and "discovery" in out and "open" in out
     assert profile.browser.family == "chrome" and profile.browser.debug_port == 9222
     assert Path(profile.browser.profile_dir) == project / "browser-profile" / "chrome"
     assert (profile_path(poste).stat().st_mode & 0o777) == 0o600 and (profile_path(poste).parent.stat().st_mode & 0o777) == 0o700
@@ -465,6 +467,7 @@ def test_closing_a_temporary_session_leaves_no_volume_and_the_next_create_keeps_
     assert play(poste, "create", "--temporary")[0] == 0
     document = json.loads(profile_path(poste).read_text())
     document["allowed_origins"] = ["https://example.invalid"]
+    document["origin_policy"] = "discovery"
     profile_path(poste).write_text(json.dumps(document))
     assert play(poste, "close")[0] == 0
     assert not (poste.runtime / SESSION_DIR).exists() and os.listdir(poste.runtime) == []
@@ -474,6 +477,7 @@ def test_closing_a_temporary_session_leaves_no_volume_and_the_next_create_keeps_
     assert code == 0, err
     profile = load(poste)
     assert [entry.canonical for entry in profile.allowed_origins] == ["https://example.invalid"]
+    assert profile.origin_policy == "discovery"
     assert profile.secrets_dir == poste.tmp / "Main"
 
 

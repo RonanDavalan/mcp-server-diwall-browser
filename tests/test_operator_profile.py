@@ -423,3 +423,91 @@ def test_the_environment_directories_are_read_here(tmp_path: Path) -> None:
     home, config_home = str(tmp_path), str(tmp_path / ".cfg")
     assert environment_dirs({"HOME": home, "XDG_CONFIG_HOME": config_home}) == EnvironmentDirs(home=home, config_home=config_home)
     assert environment_dirs({"HOME": home, "XDG_CONFIG_HOME": ""}).config_home is None
+
+
+# --- adding an origin the operator answered "Ajouter à la liste" to ---------------------------------------------
+
+
+def listed_profile(tmp_path: Path, **overrides: Any) -> tuple[Path, Profile]:
+    path = write_profile(tmp_path, **overrides)
+    return path, load_profile(env_for(tmp_path))
+
+
+def test_add_allowed_origin_adds_the_exact_origin_at_the_end_and_changes_nothing_else(tmp_path: Path) -> None:
+    path, profile = listed_profile(
+        tmp_path,
+        allowed_origins=["https://first.example.test", "https://*.wild.example.test"],
+        confirm_each_change=["https://first.example.test"],
+        origin_policy="discovery",
+        declarations={"client_does_not_auto_confirm": True},
+    )
+    before = json.loads(path.read_text())
+    operator_profile.add_allowed_origin(profile, Origin("https", "added.example.test", 443))
+    after = json.loads(path.read_text())
+    assert after["allowed_origins"] == [*before["allowed_origins"], "https://added.example.test"]
+    assert {key: value for key, value in after.items() if key != "allowed_origins"} == {
+        key: value for key, value in before.items() if key != "allowed_origins"
+    }
+    assert [entry.canonical for entry in load_profile(env_for(tmp_path)).allowed_origins][-1] == "https://added.example.test"
+
+
+def test_add_allowed_origin_keeps_the_rights_and_leaves_no_temporary_file(tmp_path: Path) -> None:
+    path, profile = listed_profile(tmp_path)
+    operator_profile.add_allowed_origin(profile, Origin("http", "added.example.test", 8080))
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert path.parent.stat().st_mode & 0o777 == 0o700
+    assert [entry.name for entry in path.parent.iterdir()] == ["profile.json"]
+    assert json.loads(path.read_text())["allowed_origins"][-1] == "http://added.example.test:8080"
+
+
+def test_add_allowed_origin_twice_writes_it_once(tmp_path: Path) -> None:
+    path, profile = listed_profile(tmp_path)
+    for _ in range(2):
+        operator_profile.add_allowed_origin(profile, Origin("https", "added.example.test", 443))
+    assert json.loads(path.read_text())["allowed_origins"].count("https://added.example.test") == 1
+
+
+def test_add_allowed_origin_refuses_a_profile_that_others_can_read_and_does_not_touch_it(tmp_path: Path) -> None:
+    path, profile = listed_profile(tmp_path)
+    os.chmod(path, 0o644)
+    before = path.read_bytes()
+    with pytest.raises(ToolError) as caught:
+        operator_profile.add_allowed_origin(profile, Origin("https", "added.example.test", 443))
+    assert caught.value.code == "profile_invalid"
+    assert path.read_bytes() == before and path.stat().st_mode & 0o777 == 0o644
+
+
+def test_add_allowed_origin_refuses_a_list_at_its_ceiling_and_does_not_touch_the_file(tmp_path: Path) -> None:
+    full = [f"https://site{number}.example.test" for number in range(200)]
+    path, profile = listed_profile(tmp_path, allowed_origins=full)
+    before = path.read_bytes()
+    with pytest.raises(ToolError) as caught:
+        operator_profile.add_allowed_origin(profile, Origin("https", "added.example.test", 443))
+    assert caught.value.code == "profile_invalid"
+    assert path.read_bytes() == before
+
+
+def test_add_allowed_origin_follows_the_file_the_profile_was_read_from(tmp_path: Path) -> None:
+    designated = tmp_path / "elsewhere"
+    designated.mkdir(mode=0o700)
+    standard = write_profile(tmp_path, allowed_origins=["https://standard.example.test"])
+    other = write_profile(designated, allowed_origins=["https://designated.example.test"])
+    profile = load_profile(env_for(tmp_path, **{ENV_VAR: str(other)}))
+    operator_profile.add_allowed_origin(profile, Origin("https", "added.example.test", 443))
+    assert "https://added.example.test" in json.loads(other.read_text())["allowed_origins"]
+    assert "https://added.example.test" not in json.loads(standard.read_text())["allowed_origins"]
+
+
+def test_no_tool_of_the_mcp_surface_writes_the_profile() -> None:
+    # The list is never changed by a tool the model calls: the one writer is the operator's window, in the policy.
+    root = Path(__file__).resolve().parent.parent / "src" / "mcp_server_diwall_browser"
+    writers = sorted(
+        path.name
+        for path in root.rglob("*.py")
+        if "add_allowed_origin" in path.read_text() and path.name not in {"operator_profile.py", "origin_policy.py"}
+    )
+    assert writers == []
+    primitives = ("add_allowed_origin", "write_text", "write_bytes", "os.replace", "os.rename", "os.open", "open(", ".write(")
+    for path in sorted((root / "tools").glob("*.py")):
+        text = path.read_text()
+        assert not [primitive for primitive in primitives if primitive in text], path.name

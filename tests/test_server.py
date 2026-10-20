@@ -539,7 +539,7 @@ async def test_an_armed_action_writes_its_request_then_its_result_and_every_stat
     clicks = [line for line in lines if line["tool"] == "click"]
     first_request, first_result = clicks[0], clicks[1]
     assert first_request["operation_id"] == first_result["operation_id"]
-    assert (first_request["result"], first_request["gates"]) == ("requested", {"red_list": True, "confirmation": "requested"})
+    assert (first_request["result"], first_request["gates"]) == ("requested", {"red_list": True, "confirmation": "requested", "origin_policy": "strict"})
     assert (first_result["result"], first_result["gates"]["confirmation"]) == ("ok", "granted")
     finals = [line["gates"]["confirmation"] for line in clicks if line["result"] != "requested"]
     assert finals == ["granted", "denied", "expired", "unavailable"]

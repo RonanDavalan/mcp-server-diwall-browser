@@ -607,6 +607,7 @@ def _profile_document(
         "allowed_origins": [],
         "confirm_each_change": [],
         "local_model_origins": [],
+        "origin_policy": "strict",
         "browser": {"family": family, "profile_dir": os.fspath(profile_dir), "debug_port": 9222},
     }
 
@@ -719,7 +720,8 @@ def _finish_create(env: Environment, crypt: Path, mount: Path, family: str, carr
     target = _write_profile(env, _profile_document(mount, crypt, family, carried))
     out.write(f"Volume ouvert. Profil écrit : {_shown(env, target)}.\n")
     out.write(
-        "Aucun site n'est autorisé : le serveur n'agit sur aucun site tant que vous n'en avez pas ajouté à allowed_origins (guide, section 5).\n"
+        "Aucun site n'est autorisé et la politique d'origines est strict : le serveur n'agit sur aucun site tant que vous n'en avez pas ajouté à "
+        "allowed_origins, ou choisi la politique discovery ou open dans origin_policy (guide, section 5).\n"
     )
     if not _browser_names(env):
         out.write("Aucun navigateur de la famille Chromium n'est installé : installez-en un (guide, section 1) avant l'étape suivante.\n")

@@ -23,7 +23,7 @@ import math
 import os
 import time
 import unicodedata
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Awaitable, Callable, Iterable, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -31,7 +31,8 @@ from PIL import Image, ImageDraw, ImageFile, ImageFont
 
 from . import observation_filter
 from .browser import DialogBlocking, FrameInfo, Tab, TabRegistry, origin_label
-from .origin import Origin, OriginEntry, OriginError, origin_allowed, origin_of_url
+from .origin import Origin, OriginError, origin_of_url
+from .origin_policy import origin_not_allowed
 from .output import ToolError, ToolOutput, bounded_text, redact_text
 from .sensitive_field import ATTRIBUTE_ARGUMENTS, is_sensitive
 
@@ -113,7 +114,6 @@ FRAME_NOTICE = "cadre non montré au modèle"
 FRAME_NOTICE_PLAIN = "cadre non montre au modele"
 NOTICE_FONTS = ("DejaVuSans.ttf", "LiberationSans-Regular.ttf")
 
-_ORIGIN_MESSAGE = "cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas"
 _CHANGED_MESSAGE = "la page a changé d'adresse pendant la lecture : rien n'en est publié ; observer à nouveau"
 _STALE_MESSAGE = "cet instantané n'existe plus ou n'est pas le dernier : observer à nouveau la page"
 _CAPTURE_MESSAGE = "l'image n'est pas publiée : un masque n'a pas pu être posé"
@@ -1171,7 +1171,7 @@ def _overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool
 
 # --- Le module qu'utilisent les outils ----------------------------------------------------
 
-AllowedOrigins = Callable[[], Iterable[OriginEntry]]
+Admit = Callable[[Origin | None], Awaitable[bool]]
 
 
 class _PageChanged(Exception):
@@ -1199,12 +1199,12 @@ class Perception:
         self,
         registry: TabRegistry,
         *,
-        allowed_origins: AllowedOrigins,
+        admit: Admit,
         mask_drawer: MaskDrawer = draw_mask,
         tree_builder: Callable[..., list[str]] | None = None,
     ) -> None:
         self._registry = registry
-        self._allowed_origins = allowed_origins
+        self._admit = admit
         self._mask_drawer = mask_drawer
         self._tree_builder = tree_builder
         self._snapshots: dict[str, collections.deque[Snapshot]] = {}
@@ -1221,7 +1221,7 @@ class Perception:
             try:
                 reading = await self._read(tab, image=image, full=True)
             except DialogBlocking:
-                return self._dialog_observation(tab)
+                return await self._dialog_observation(tab)
             except _PageChanged:
                 continue
             return self._observation(tab, reading, image=image, region=region, contains=contains)
@@ -1326,10 +1326,10 @@ class Perception:
     # --- lecture ------------------------------------------------------------------------------
 
     async def _gate(self, tab: Tab) -> tuple[FrameInfo, Origin]:
-        """L'origine du cadre principal, refusée sauf si l'opérateur l'a autorisée."""
+        """L'origine du cadre principal, refusée sauf si la politique d'origines l'admet."""
         frame = await self._registry.main_frame_info(tab, stop_on_dialog=True)
-        if not origin_allowed(frame.origin, self._allowed_origins()):
-            raise ToolError("origin_not_allowed", _ORIGIN_MESSAGE, extra_server={"origin": origin_label(frame)})
+        if not await self._admit(frame.origin):
+            raise origin_not_allowed(origin_label(frame))
         return frame, frame.origin
 
     async def _read(self, tab: Tab, *, image: bool, full: bool) -> _Reading:
@@ -1464,13 +1464,13 @@ class Perception:
         }
         return Observation(server=server, page_content=page_content, image_png=published, snapshot=snapshot)
 
-    def _dialog_observation(self, tab: Tab) -> Observation:
+    async def _dialog_observation(self, tab: Tab) -> Observation:
         dialog = tab.dialog or {}
         try:
             origin: Origin | None = origin_of_url(tab.dialog_url or "")
         except OriginError:
             origin = None
-        allowed = origin_allowed(origin, self._allowed_origins())
+        allowed = await self._admit(origin)
         server: dict[str, Any] = {
             "tab_id": tab.tab_id,
             "capture": "unavailable",

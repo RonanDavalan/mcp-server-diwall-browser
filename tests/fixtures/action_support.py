@@ -13,13 +13,13 @@ import inspect
 import json
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any
 
-from mcp_server_diwall_browser.confirm import ConfirmationDecision
+from mcp_server_diwall_browser.confirm import ConfirmationDecision, OriginAnswer
 from mcp_server_diwall_browser.operator_profile import BrowserSettings, Declarations, Limits, Profile
-from mcp_server_diwall_browser.origin import parse_origin_pattern
+from mcp_server_diwall_browser.origin import Origin, OriginEntry, origin_allowed, parse_origin_pattern
 
 
 class FakeChannel:
@@ -43,6 +43,15 @@ class FakeChannel:
         return self.decision
 
 
+def strict_admit(allowed: Callable[[], Iterable[OriginEntry]]) -> Callable[[Origin | None], Any]:
+    """The list alone decides: all that the perception tests ask of the origin policy."""
+
+    async def admit(origin: Origin | None) -> bool:
+        return origin_allowed(origin, allowed())
+
+    return admit
+
+
 class FakeClock:
     """Time that passes only when the code under test sleeps."""
 
@@ -64,6 +73,7 @@ def make_profile(
     allowed: tuple[str, ...],
     confirm: tuple[str, ...] = (),
     limits: Limits | None = None,
+    origin_policy: str = "strict",
 ) -> Profile:
     return Profile(
         source=tmp_path / "profile.json",
@@ -76,15 +86,13 @@ def make_profile(
         declarations=Declarations(),
         browser=BrowserSettings(family="chromium", profile_dir="/srv/vaults/Main/browser-profile"),
         limits=limits or Limits(),
+        origin_policy=origin_policy,
     )
 
 
 _WINDOW_TOOL = """#!{python}
 import json, sys
 arguments = sys.argv[1:]
-if arguments and arguments[0] == "--help":
-    sys.stdout.write("--defaultno")
-    sys.exit(0)
 with open({record!r}, "a") as handle:
     handle.write(json.dumps(arguments) + "\\n")
 with open({answer!r}) as handle:
@@ -92,12 +100,16 @@ with open({answer!r}) as handle:
 if answer == "wait":
     import time
     time.sleep(60)
-sys.exit(int(answer) if answer.isdigit() else 1)
+tags = arguments[arguments.index("--radiolist") + 2 :: 3] if "--radiolist" in arguments else []
+if answer in tags:
+    sys.stdout.write(answer + "\\n")
+    sys.exit(0)
+sys.exit(1)
 """
 
 
 class FakeWindow:
-    """A kdialog the test writes: it records what it was asked and exits with the answer the test sets."""
+    """A kdialog the test writes: it records what it was asked and answers with the tag the test sets."""
 
     def __init__(self, directory: Path) -> None:
         directory.mkdir(mode=0o700, exist_ok=True)
@@ -109,14 +121,43 @@ class FakeWindow:
         os.chmod(self.path, 0o700)
         self.present = True
 
-    def answer(self, *, granted: bool = False, wait: bool = False) -> None:
-        """Yes, no, or nobody there: the window stays open until the server gives up."""
-        self.answer_file.write_text("wait" if wait else "0" if granted else "1")
+    def answer(self, *, granted: bool = False, wait: bool = False, choice: str | None = None) -> None:
+        """The tag the operator picks (``grant``, ``deny``, ``session``, ``add``), nobody there (the window stays open
+        until the server gives up), or a window closed without an answer (``choice="closed"``)."""
+        if choice is not None:
+            self.answer_file.write_text(choice)
+        else:
+            self.answer_file.write_text("wait" if wait else "grant" if granted else "deny")
 
     def which(self, name: str) -> str | None:
         return str(self.path) if self.present and name == "kdialog" else None
 
-    def questions(self) -> list[str]:
+    def asked(self) -> list[list[str]]:
         if not self.record.exists():
             return []
-        return [json.loads(line)[-1] for line in self.record.read_text().splitlines()]
+        return [json.loads(line) for line in self.record.read_text().splitlines()]
+
+    def questions(self) -> list[str]:
+        """The text of each window, as the tool received it."""
+        return [arguments[arguments.index("--radiolist") + 1] for arguments in self.asked()]
+
+
+class FakeOriginWindow:
+    """The window of an origin the list does not hold, in the unit tests: scripted answers, every text kept."""
+
+    def __init__(self, *answers: OriginAnswer, available: bool = True) -> None:
+        self.answers = list(answers)
+        self.is_available = available
+        self.texts: list[str] = []
+        self.on_ask: Callable[[], Any] | None = None
+
+    def available(self) -> bool:
+        return self.is_available
+
+    async def ask_origin(self, text: str) -> OriginAnswer:
+        self.texts.append(text)
+        if self.on_ask is not None:
+            outcome = self.on_ask()
+            if inspect.isawaitable(outcome):
+                await outcome
+        return self.answers.pop(0) if self.answers else OriginAnswer.REFUSED

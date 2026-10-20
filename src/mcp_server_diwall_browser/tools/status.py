@@ -28,13 +28,19 @@ PROFILE_ENCRYPTED_NOTE = (
 )
 
 
+OPEN_POLICY_NOTE = (
+    "origin_policy open: every page the model visits is read, and goes to the model's provider with the rest of "
+    "what the model sees; local addresses and names stay on the list. This is the operator's choice."
+)
+
+
 class Arguments(ToolArguments):
     pass
 
 
 @tool(NAME)
 async def run(ctx: ToolContext) -> ToolOutput:
-    """State of the server: profile, encrypted directory, browser, allowed sites, ceilings, confirmation.
+    """State of the server: profile, encrypted directory, browser, allowed sites and origin policy, ceilings, confirmation.
 
     Works even when nothing is configured: then it says what is missing and the ways to provide it.
     When something blocks, next_command names the sub-command of the setup assistant that lifts it.
@@ -96,6 +102,10 @@ async def run(ctx: ToolContext) -> ToolOutput:
         }
         for origin in profile.allowed_origins
     ]
+    server["origin_policy"] = profile.origin_policy
+    if profile.origin_policy == "open":
+        server["origin_policy_note"] = OPEN_POLICY_NOTE
+    server["session_origins"] = list(state.origin_policy.session_origins)
     server["declarations"] = {
         "local_model_client": profile.declarations.local_model_client,
         "client_does_not_auto_confirm": profile.declarations.client_does_not_auto_confirm,
