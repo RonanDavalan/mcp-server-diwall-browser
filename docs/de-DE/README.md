@@ -28,6 +28,21 @@ melden Sie sich selbst an, in dem Browser, den er startet. Haben Sie den Server 
 den Client neu: Eine bereits offene Sitzung sieht ihn nicht. Die Schritte, die Ablehnungen und der manuelle Weg stehen im
 Abschnitt „Erster Start“ von [docs/de-DE/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+## Welche Websites das Modell liest
+
+Die Liste der Websites im Profil des Bedieners begrenzt, was das Modell liest und worauf es handelt, nie, wohin es navigiert. Der Schlüssel
+`origin_policy` wählt, was der Server mit einem Ursprung tut, den die Liste nicht enthält:
+
+- `strict` (der Standard, auch wenn der Schlüssel fehlt): Der Ursprung wird abgelehnt, und nur der Ursprung wird zurückgegeben.
+- `discovery`: Der Server fragt Sie in einem Fenster, einmal je Ursprung: `Refuser` (die Standardantwort), `Cette séance` oder
+  `Ajouter à la liste`, was genau diesen Ursprung in Ihr Profil schreibt.
+- `open`: Jede öffentliche Website wird gelesen und darauf gehandelt, und ihr Inhalt geht an den Anbieter des Modells; lokale Adressen und Namen
+  bleiben auf der Liste. Es ist die freieste Richtlinie und die riskanteste, und die Wahl liegt bei Ihnen.
+
+Zahlungen, unwiderrufliche Löschungen und Änderungen eines Geheimnisses behalten ihre Bestätigung, und Zugangsdaten werden in allen drei
+Richtlinien nur auf dem genauen Ursprung getippt, an den sie gebunden sind. Die Einzelheiten stehen in Abschnitt 5 von
+[docs/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Installieren
 
 Unter Linux wird der Server als natives Paket geliefert. Laden Sie das Paket Ihres Systems von der Seite

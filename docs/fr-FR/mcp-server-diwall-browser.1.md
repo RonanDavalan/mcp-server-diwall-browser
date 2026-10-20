@@ -127,7 +127,10 @@ aucun secret.
 :   Le répertoire chiffré sur le disque (facultatif).
 
 `allowed_origins`
-:   Les sites que le serveur lit et sur lesquels il agit : des origines, ou des jokers de sous-domaine comme `https://*.example.invalid`. D'une autre page, seule l'origine est rendue.
+:   Les sites que le serveur lit et sur lesquels il agit : des origines, ou des jokers de sous-domaine comme `https://*.example.invalid`. Avec la politique `strict`, d'une autre page seule l'origine est rendue.
+
+`origin_policy`
+:   `strict` (le défaut), `discovery` (l'opérateur répond à une fenêtre pour chaque origine que la liste ne contient pas : `Refuser`, `Cette séance` ou `Ajouter à la liste`) ou `open` (tout site public ; les adresses et les noms locaux restent sur la liste). Toute autre valeur est refusée.
 
 `confirm_each_change`
 :   Origines de `allowed_origins` où chaque changement demande une confirmation.
@@ -148,8 +151,8 @@ code décide de ce qui est verrouillé. Le guide de l'opérateur donne un exempl
 
 Avant un paiement, une suppression irréversible ou un changement de secret, et avant chaque
 changement sur une origine de `confirm_each_change`, le serveur ouvre, par **kdialog** ou
-**zenity**, une fenêtre intitulée « Confirmation du serveur MCP » avec les boutons « Autoriser » et
-« Refuser ». La fenêtre attend 90 secondes, puis compte comme une absence de réponse ; une réponse
+**zenity**, une fenêtre intitulée « Confirmation du serveur MCP » avec les réponses « Refuser » (la réponse par défaut) et
+« Autoriser ». La fenêtre attend 90 secondes, puis compte comme une absence de réponse ; une réponse
 couvre une seule action. Elle exige un affichage dans l'environnement du serveur (`DISPLAY` ou
 `WAYLAND_DISPLAY`) ; **status** indique le canal dans `confirmation_channel`.
 

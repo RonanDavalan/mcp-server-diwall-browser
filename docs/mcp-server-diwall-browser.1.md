@@ -152,7 +152,10 @@ holds no secret.
 :   The encrypted directory on disk (optional).
 
 `allowed_origins`
-:   The sites the server reads and acts on: origins, or subdomain wildcards such as `https://*.example.invalid`. Of any other page, only the origin is returned.
+:   The sites the server reads and acts on: origins, or subdomain wildcards such as `https://*.example.invalid`. Under the `strict` policy, of any other page only the origin is returned.
+
+`origin_policy`
+:   `strict` (the default), `discovery` (the operator answers a window for each origin the list does not hold: `Refuser`, `Cette séance` or `Ajouter à la liste`) or `open` (every public site; local addresses and names stay on the list). Any other value is refused.
 
 `confirm_each_change`
 :   Origins of `allowed_origins` where every change asks for a confirmation.
@@ -173,7 +176,7 @@ decides what is locked. A complete example is in the operator guide.
 
 Before a payment, an irreversible deletion or a change of secret, and before every change on an
 origin of `confirm_each_change`, the server opens a window titled "Confirmation du serveur MCP"
-with the buttons "Autoriser" and "Refuser", by **kdialog** or **zenity**. The window waits 90
+with the answers "Refuser" (the default) and "Autoriser", by **kdialog** or **zenity**. The window waits 90
 seconds, then counts as no answer; one answer covers one action. It needs a display in the
 environment of the server (`DISPLAY` or `WAYLAND_DISPLAY`); **status** reports the channel in
 `confirmation_channel`.

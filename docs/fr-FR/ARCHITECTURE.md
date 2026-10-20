@@ -27,7 +27,7 @@ du jugement du modèle.
    agir, dessine les repères et les masques sur l'image, et rend l'image, l'arbre, les éléments et un `snapshot_id`.
 3. Le modèle nomme un repère de cet instantané dans `click`, `fill`, `select_option` ou `press_key`.
 4. Le serveur compte l'action dans les plafonds, trouve le nœud du navigateur derrière le repère, vérifie que c'est le même
-   nœud, toujours dans la page, au point qu'il touchera, et que la page est sur une origine autorisée. Le garde-fou décide
+   nœud, toujours dans la page, au point qu'il touchera, et que la page est sur une origine que la politique d'origines admet. Le garde-fou décide
    si l'action est verrouillée (paiement, suppression, changement de secret). Une action verrouillée est d'abord consignée
    au journal et capturée, puis la fenêtre de confirmation interroge l'opérateur ; l'identité est vérifiée de nouveau, le
    geste est fait, le serveur attend le chargement qu'il a lancé, et capture de nouveau.
@@ -49,7 +49,8 @@ du jugement du modèle.
 | `setup` | un programme de l'opérateur, hors du serveur et importé par aucun de ses modules : lit la machine, crée ou ouvre le volume gocryptfs, écrit le profil de l'opérateur, lance le navigateur sur son profil et ferme les deux ; le terminal va à gocryptfs, qui seul lit le mot de passe |
 | `journal` | le journal d'audit, une ligne JSON par appel |
 | `operator_profile` | lecture du profil de l'opérateur ; avec `confirm`, les seuls modules du serveur qui lisent l'environnement |
-| `profile_watch` | la trace d'un changement des listes d'origines du profil : la comparaison, les origines vues en dernier, l'avis |
+| `origin_policy` | l'unique endroit qui décide si une origine est lue et agie : la liste, la politique `strict`, `discovery` ou `open`, la fenêtre d'une origine que la liste ne contient pas, ce qu'une séance a admis ou refusé |
+| `profile_watch` | la trace d'un changement des listes d'origines ou de la politique d'origines du profil : la comparaison, les origines vues en dernier, l'avis |
 | `cdp` | le client DevTools, sa liste de méthodes autorisées et ses scripts constants |
 | `browser` | contrôles d'attachement, onglets que le serveur possède, navigation, boîtes de dialogue |
 | `perception` | instantané, repères, arbre, image, masques, ce qui est gardé sous les plafonds, attente d'un texte ou d'un élément |
@@ -71,7 +72,9 @@ tests vérifient cela, et qu'aucun outil ne contourne le point de sortie.
 - Boucle locale : le serveur ne s'attache que si chaque socket du port de débogage écoute sur la boucle locale (lu dans
   `/proc/net` à chaque attachement), si le profil déclaré n'est pas celui par défaut du navigateur, et si le navigateur
   annonce une adresse de débogage sur ce même port de la boucle locale.
-- Origines autorisées : une page hors d'elles n'est ni lue ni touchée par une action ; seule son origine est rendue. Une
+- Origines autorisées et politique d'origines : avec `strict`, une page hors de la liste n'est ni lue ni touchée par une action ; seule
+  son origine est rendue. Avec `discovery`, l'opérateur répond à une fenêtre pour chaque origine nouvelle, et avec `open` toute origine
+  publique est admise, adresses et noms locaux exceptés. Une
   entrée est une origine ou un joker de sous-domaine (`https://*.example.invalid`), écrit par l'opérateur ; un joker élargit
   la lecture et l'action, jamais la saisie. Un identifiant n'est saisi que sur l'origine exacte que nomme son fichier, et un
   fichier qui liste un joker est refusé.

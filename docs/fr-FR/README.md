@@ -28,6 +28,21 @@ vos sessions sur vos sites, dans le navigateur qu'il lance. Après avoir ajouté
 redémarrez le client : une session déjà ouverte ne le voit pas. Les étapes, les refus et la voie manuelle sont dans la
 section « Premier lancement » de [docs/fr-FR/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+## Les sites que le modèle lit
+
+La liste des sites du profil de l'opérateur borne ce que le modèle lit et sur quoi il agit, jamais où il navigue. La clé `origin_policy`
+choisit ce que fait le serveur d'une origine que la liste ne contient pas :
+
+- `strict` (le défaut, aussi quand la clé manque) : l'origine est refusée, et seule l'origine est rendue.
+- `discovery` : le serveur vous interroge dans une fenêtre, une fois par origine : `Refuser` (la réponse par défaut), `Cette séance` ou
+  `Ajouter à la liste`, qui écrit cette origine exacte dans votre profil.
+- `open` : tout site public est lu et agi, et son contenu part chez le fournisseur du modèle ; les adresses et les noms locaux restent sur la
+  liste. C'est la politique la plus libre et la plus risquée, et le choix vous appartient.
+
+Les paiements, les suppressions irréversibles et les changements de secret gardent leur confirmation, et un identifiant n'est saisi que sur
+l'origine exacte à laquelle il est lié, dans les trois politiques. Le détail est dans la section 5 de
+[docs/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Installer
 
 Sous Linux, le serveur est livré en paquets natifs. Téléchargez celui de votre système sur la page

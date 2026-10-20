@@ -125,7 +125,10 @@ archivo no contiene ningún secreto.
 :   El directorio cifrado en el disco (opcional).
 
 `allowed_origins`
-:   Los sitios que el servidor lee y en los que actúa: orígenes, o comodines de subdominio como `https://*.example.invalid`. De cualquier otra página solo se devuelve el origen.
+:   Los sitios que el servidor lee y en los que actúa: orígenes, o comodines de subdominio como `https://*.example.invalid`. Con la política `strict`, de cualquier otra página solo se devuelve el origen.
+
+`origin_policy`
+:   `strict` (el valor por defecto), `discovery` (el operador responde a una ventana por cada origen que la lista no contiene: `Refuser`, `Cette séance` o `Ajouter à la liste`) u `open` (todo sitio público; las direcciones y los nombres locales siguen en la lista). Cualquier otro valor se rechaza.
 
 `confirm_each_change`
 :   Orígenes de `allowed_origins` en los que cada cambio pide una confirmación.
@@ -146,7 +149,7 @@ decide qué está bloqueado. La guía del operador da un ejemplo completo.
 
 Antes de un pago, una eliminación irreversible o un cambio de secreto, y antes de cada cambio en un
 origen de `confirm_each_change`, el servidor abre, mediante **kdialog** o **zenity**, una ventana
-titulada «Confirmation du serveur MCP» con los botones «Autoriser» y «Refuser». La ventana espera
+titulada «Confirmation du serveur MCP» con las respuestas «Refuser» (la respuesta por defecto) y «Autoriser». La ventana espera
 90 segundos y después cuenta como falta de respuesta; una respuesta cubre una sola acción. Necesita
 una pantalla en el entorno del servidor (`DISPLAY` o `WAYLAND_DISPLAY`); **status** indica el canal
 en `confirmation_channel`.

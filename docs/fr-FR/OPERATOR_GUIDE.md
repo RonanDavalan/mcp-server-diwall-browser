@@ -75,7 +75,7 @@ L'essai vit sous `$XDG_RUNTIME_DIR`, qui est de la mémoire, et l'assistant refu
             ├── credentials/                       mode 700, fichiers d'identifiants (mode 600) écrits par l'opérateur
             ├── browser-profile/chrome/            le profil dédié du navigateur
             ├── journal/operations.jsonl           le journal d'audit, une ligne par appel d'outil
-            ├── journal/profile-origins.json       mode 600, les listes d'origines du profil telles que le serveur les a vues en dernier
+            ├── journal/profile-origins.json       mode 600, les listes d'origines et la politique d'origines du profil telles que le serveur les a vues en dernier
             ├── run/tabs.json                      mode 600, les onglets que le serveur tient, pour que la prochaine exécution les ferme
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   captures prises autour d'une action verrouillée
             └── downloads/<operation_id>/          fichiers que des pages ont téléchargés
@@ -437,6 +437,7 @@ cat > ~/.config/mcp-server-diwall-browser/profile.json <<EOF
   "allowed_origins": ["https://account.example.invalid", "https://shop.example.invalid"],
   "confirm_each_change": ["https://account.example.invalid"],
   "local_model_origins": [],
+  "origin_policy": "strict",
   "declarations": {"local_model_client": false, "client_does_not_auto_confirm": false},
   "browser": {
     "family": "chrome",
@@ -454,8 +455,10 @@ chmod 700 ~/.config/mcp-server-diwall-browser
 - `secrets_dir` : l'endroit où le répertoire chiffré est ouvert (chemin absolu).
 - `secrets_crypt_dir` (facultatif) : le répertoire chiffré sur le disque. Avec lui, le serveur distingue un répertoire
   chiffré fermé d'un répertoire jamais créé ; sans lui, un répertoire fermé se lit `closed_or_absent`.
-- `allowed_origins` : les sites que le serveur lit et sur lesquels il agit, chacun une origine (schéma, hôte, port) ou un
-  joker de sous-domaine (plus bas), 200 au plus. De toute autre page, seule l'origine est rendue.
+- `allowed_origins` : les sites que le serveur lit et sur lesquels il agit, chacun une origine (schéma, hôte, port) ou un joker de sous-domaine (plus bas), 200 au plus. Avec la politique `strict`, de toute autre page seule l'origine est rendue ;
+  les deux autres politiques en admettent davantage (plus bas).
+- `origin_policy` (facultative) : `strict`, `discovery` ou `open` ; `strict` quand la clé manque. Toute autre valeur est
+  refusée (`profile_invalid`), jamais lue comme l'une des trois. Ce que fait chacune est dans « La politique d'origines », plus bas.
 - `confirm_each_change` : des origines de `allowed_origins`, ou des jokers, où chaque `click`, `fill`, `select_option`,
   touche Entrée et boîte de dialogue acceptée demande une confirmation, et pas seulement les paiements, les suppressions
   et les changements de secret.
@@ -485,11 +488,58 @@ d'atteindre le navigateur ne compte pas dans les plafonds. Relancer le serveur (
 Une clé qui n'est pas dans cette liste est refusée, et une clé qui configurerait les actions verrouillées (comme `payment`
 ou `deletion`) est refusée avec `redlist_in_profile` : seul le code décide de ce qui est verrouillé.
 
-### Ce que laisse un changement des listes d'origines
+### La politique d'origines
 
-Comme le profil est relu à chaque appel, quiconque peut écrire le fichier peut ajouter un site à `allowed_origins`. Le
-serveur ne peut pas l'empêcher ; il laisse une trace après coup. Quand `allowed_origins`, `confirm_each_change` ou
-`local_model_origins` diffèrent de ce que le serveur a vu à l'appel précédent, ou, à son premier appel, de ce que la
+La liste des sites borne ce que le modèle lit et sur quoi il agit, jamais où il navigue : le modèle peut ouvrir une page de
+n'importe quel site, et d'un site qui n'est pas admis il ne reçoit que l'origine (`origin_not_allowed`). `origin_policy` choisit
+comment est traitée une origine que la liste ne contient pas. C'est votre choix, écrit dans le profil ; le serveur le relit à
+chaque appel, et aucun outil du modèle ne le change.
+
+| Politique | Une origine qui n'est pas dans la liste | Ce qu'elle expose |
+|---|---|---|
+| `strict` (le défaut, et ce que fait un profil sans la clé) | Refusée : `origin_not_allowed` | Les seuls sites que vous avez listés |
+| `discovery` | Le serveur vous interroge dans une fenêtre, une fois par origine | Les sites listés, et ceux auxquels vous répondez |
+| `open` | Lue et agie, sauf cette machine et son réseau | Tout site public que le modèle visite |
+
+**`discovery`.** Quand le serveur rencontre une origine que la liste ne contient pas, pour la lire ou y agir (après un lien ou
+une redirection aussi), il ouvre sur votre écran une fenêtre, par `kdialog` ou `zenity`. La fenêtre est celle du serveur : le
+client et le modèle ne peuvent pas y répondre. Elle porte l'origine et trois phrases fixes, et rien de ce qu'une page ou le
+modèle a écrit. Trois réponses :
+
+- `Refuser` : la réponse par défaut, et celle que donne une fenêtre fermée ; rien de l'origine n'est lu.
+- `Cette séance` : l'origine est lue et agie jusqu'à l'arrêt du serveur ; rien n'est écrit.
+- `Ajouter à la liste` : le serveur écrit cette origine exacte, sans joker, à la fin de `allowed_origins`. Il écrit le profil en
+  mode 600 par un fichier voisin, mis en place en une seule étape, et n'y change rien d'autre.
+
+Un refus, l'absence de réponse en 90 secondes ou une fenêtre qui ne peut pas être montrée (ni `kdialog` ni `zenity`, pas d'affichage)
+laissent l'origine refusée, et la même origine n'est pas redemandée avant le redémarrage du serveur. Un processus montre au plus
+cinq fenêtres : ensuite, une origine qui n'a pas été demandée est refusée sans fenêtre. Une origine ajoutée ainsi ne lie aucun
+identifiant (section 6). `status` liste les origines admises pour la séance dans `session_origins`, et chaque réponse est une ligne
+`origin_decision` du journal.
+
+Le risque qui reste : une page, ou un texte dans une page, qui conduit le modèle vers une origine au bon moment obtient une fenêtre,
+et répondre par habitude l'admet. C'est pourquoi la réponse par défaut est `Refuser`, l'origine écrite est exacte, la fenêtre ne porte
+jamais un mot d'une page, et les actions verrouillées gardent leur confirmation sur toute origine admise.
+
+**`open`.** Toute origine `http` ou `https` est lue et agie, celles que vous n'avez jamais listées comprises. C'est la politique la plus
+libre et la plus risquée, et le choix vous appartient : le contenu de chaque page que le modèle visite part chez le fournisseur du modèle,
+et une page peut porter un texte écrit pour le modèle. Restent sur la liste même alors : cette machine et son réseau, c'est-à-dire
+`localhost`, les noms qui finissent par `.local` ou `.localhost`, et les adresses numériques qui ne sont pas routables sur Internet (cette
+machine, un réseau privé, une adresse de lien local, une adresse partagée, une adresse de documentation). Un nom public qui résout vers une
+adresse privée n'est pas détecté. `status` dit dans `origin_policy_note` que chaque page va chez le fournisseur.
+
+Dans les trois politiques : seules `http` et `https` sont admises (ni `file:`, ni `chrome:`) ; un identifiant n'est saisi que sur l'origine
+exacte à laquelle son fichier le lie (section 6) ; un paiement, une suppression irréversible et un changement de secret gardent leur fenêtre de
+confirmation sur toute origine admise (section 9) ; les plafonds tiennent ; le journal porte la politique sur chaque ligne (`gates.origin_policy`).
+
+Pour ajouter une origine à la main, éditez `profile.json` : ajoutez-la à `allowed_origins` (`"https://account.example.invalid"`), ou un joker de
+sous-domaine ; le serveur la lit à son prochain appel. Pour changer la politique, écrivez la clé, par exemple `"origin_policy": "discovery"` ;
+l'appel suivant la suit, sans redémarrage.
+
+### Ce que laisse un changement des listes d'origines
+Comme le profil est relu à chaque appel, quiconque peut écrire le fichier peut ajouter un site à `allowed_origins` ; le serveur
+aussi, quand vous répondez `Ajouter à la liste` dans la fenêtre de la politique `discovery`. Le serveur ne peut pas empêcher le premier ;
+il laisse une trace après coup, dans les deux cas. Quand `allowed_origins`, `confirm_each_change`, `local_model_origins` ou `origin_policy` diffèrent de ce que le serveur a vu à l'appel précédent, ou, à son premier appel, de ce que la
 dernière exécution a enregistré, une ligne est ajoutée à `journal/operations.jsonl` et `status` porte le même changement
 dans `server.notices` :
 
@@ -501,8 +551,8 @@ dans `server.notices` :
 "notices": ["profile_changed : allowed_origins +https://shop.example.invalid"]
 ```
 
-La ligne nomme les origines ajoutées et retirées, telles qu'écrites dans le profil (un joker reste un joker), et aucun
-autre champ du profil : ni chemin, ni port, ni plafond, ni déclaration. Un second `status` sans changement n'ajoute rien,
+La ligne nomme les origines ajoutées et retirées, telles qu'écrites dans le profil (un joker reste un joker) ; pour la politique, elle nomme la valeur qui entre et celle qui sort (`"origin_policy":{"added":["open"],"removed":["strict"]}`).
+Elle ne nomme aucun autre champ du profil : ni chemin, ni port, ni plafond, ni déclaration. Un second `status` sans changement n'ajoute rien,
 et un changement de l'ordre des entrées n'est pas un changement. Les origines que le serveur a vues en dernier sont gardées
 dans `journal/profile-origins.json`, à côté du journal (mode 600, dans un répertoire en mode 700). Avec le répertoire
 chiffré fermé, rien n'est lu ni écrit et le serveur fonctionne comme avant ; le changement est écrit une fois le
@@ -686,8 +736,8 @@ Pour ne laisser aucun secret dans l'historique du shell, ne lisez jamais le fich
 |---|---|---|
 | Rien des secrets | Résolus en mémoire dans le processus du serveur au moment de la saisie, envoyés au navigateur par la connexion locale de débogage ; jamais dans la sortie d'un outil, un journal, un rapport, une adresse ou un argument de commande | Personne : verrou dur |
 | Rien des champs sensibles à l'écran | Masqués dans toute capture ; valeurs retirées de l'arbre ; si le masquage échoue, la capture n'est pas publiée | Personne : verrou dur |
-| Le contenu des pages des origines autorisées | Capture, arbre d'accessibilité et éléments, lus par le modèle ; son fournisseur les reçoit si le modèle est hébergé | L'opérateur : par les origines autorisées et le choix du modèle |
-| Le contenu des pages hors des origines autorisées | Rien : seule l'origine est rendue | Personne : verrou dur |
+| Le contenu des pages des origines que la politique admet (avec `strict`, les origines autorisées) | Capture, arbre d'accessibilité et éléments, lus par le modèle ; son fournisseur les reçoit si le modèle est hébergé | L'opérateur : par la politique d'origines, les origines autorisées et le choix du modèle |
+| Le contenu des pages que la politique n'admet pas | Rien : seule l'origine est rendue | L'opérateur : par la politique d'origines |
 | Les adresses des pages | Origine et chemin ; valeurs des paramètres sensibles retirées ; fragment retiré ; jamais d'identifiants dans l'adresse | Personne : verrou dur |
 | Les titres et adresses des autres onglets du navigateur | Rien | Personne : verrou dur |
 | Les messages d'erreur et d'exception | Le même point de sortie que tout le reste | Personne : verrou dur |
@@ -896,7 +946,8 @@ de zoom des parties précédentes, ont passé sous Google Chrome 155.0.8059.79 e
 - Il ne lance ni ne ferme le navigateur (la commande d'installation le fait, quand vous le lui demandez) ; ses onglets restent
   ouverts quand il s'arrête, et l'exécution suivante peut les fermer, pas y travailler (la partie ci-dessous).
 - Il ne paie, ne supprime ni ne change jamais un secret sans confirmation.
-- Il ne modifie jamais le profil de l'opérateur ni les origines autorisées.
+- Il ne modifie le profil de l'opérateur que dans un cas : avec `discovery`, quand vous répondez `Ajouter à la liste`, il écrit cette
+  seule origine dans `allowed_origins`. Aucun outil que le modèle appelle ne modifie le profil.
 
 Ce qu'il n'arrête pas : un modèle qui a un shell sous votre compte. La liste de sites, les actions verrouillées et la
 liaison des identifiants retiennent un modèle qui n'a que les quatorze outils. Un modèle doté d'un shell peut modifier
@@ -944,7 +995,9 @@ piloter. L'identifiant du navigateur n'est jamais dans un résultat ni dans le j
 
 Avant un paiement, une suppression irréversible ou un changement de secret (et avant chaque changement sur une origine de
 `confirm_each_change`), le serveur ouvre sur votre écran une fenêtre intitulée `Confirmation du serveur MCP`, avec deux
-boutons, `Autoriser` et `Refuser`. Le refus est le bouton par défaut quand l'outil de fenêtre offre ce choix. La fenêtre
+réponses, `Refuser` et `Autoriser`. Le refus est la réponse par défaut, et celle que donne une fenêtre fermée : avec `zenity` c'est le
+bouton qui a le focus, avec `kdialog` l'entrée cochée d'une courte liste (cet outil n'a pas d'option de bouton par défaut). Un `zenity` qui
+ne peut pas placer le défaut sur le refus ne montre aucune fenêtre, et l'action est refusée (`confirmation_unavailable`). La fenêtre
 attend 90 secondes, puis compte pour une absence de réponse (`confirmation_expired`). Une réponse ne couvre qu'une seule
 action.
 
@@ -971,8 +1024,9 @@ Ce qu'il faut lire avant de répondre :
 - `Montants détectés` : les montants trouvés sur la page par une heuristique ; elle peut en manquer un ou le mal lire.
 - `Catégories` et `Signaux` : pourquoi le serveur demande.
 
-Une vraie fenêtre `kdialog` ou `zenity` a été affichée et une personne y a répondu le 15 octobre 2026 (un refus, un accord
-et une expiration : `README.md`) ; les tests automatiques emploient de faux programmes à sa place.
+Les vrais `kdialog` et `zenity` ont montré les fenêtres dans un écran virtuel, et des frappes y ont répondu (Entrée, Échap et les flèches) :
+Entrée et Échap donnent le refus. Une personne a répondu à la forme précédente de la fenêtre le 15 octobre 2026 (un refus, un accord et une
+expiration : `README.md`) ; aucune personne n'a encore répondu à la forme actuelle. Les tests automatiques emploient de faux programmes à sa place.
 
 La fenêtre appartient au serveur, pas au client MCP : le client agit pour le modèle et pourrait répondre seul, alors que la
 fenêtre du serveur reçoit la réponse d'une personne, hors de la conversation. Le serveur ne demande par le client que si
@@ -1060,9 +1114,9 @@ La commande est `mkdir -m 700 ~/Vaults/Main/mcp-server-diwall-browser`, et la m�
 (`chmod 700 ~/Vaults/Main/mcp-server-diwall-browser`, et de même pour le sous-répertoire nommé dans `mount_reason`), et
 remplacez tout lien symbolique par un vrai répertoire.
 
-`origin_not_allowed` : `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
-ou, pour une action, `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Ajoutez l'origine, ou un joker de sous-domaine (section 5), à `allowed_origins` si vous voulez que le serveur y travaille.
+`origin_not_allowed` : `https://other.example.invalid n'est pas dans les sites autorisés par l'opérateur : le serveur n'en lit rien et n'y agit pas. L'opérateur peut ajouter https://other.example.invalid à allowed_origins dans son profil, ou choisir la politique d'origines (origin_policy : discovery ou open)`,
+le même texte pour une lecture et pour une action, avec l'origine de la page. Ajoutez l'origine, ou un joker de sous-domaine (section 5), à
+`allowed_origins` si vous voulez que le serveur y travaille, ou choisissez la politique `discovery` ou `open` (section 5, « La politique d'origines »).
 
 `forbidden_scheme` : `seules les adresses http et https peuvent être ouvertes`. Rien à faire : le serveur n'ouvre aucune
 adresse `file:`, `javascript:` ou autre.
@@ -1225,10 +1279,13 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
   n'aurait pas verrouillés (`Effacer le formulaire`, `Supprimer le filtre`). Elle verrouille aussi `Finaliser l'achat`,
   `Valider mon panier`, `Reset your password` et `Regenerate API key`. Un libellé qui dit la même chose avec d'autres mots
   n'est pas verrouillé : le garde-fou est une liste de mots, pas une lecture de la page.
-- Un client qui donne un shell au modèle lève la garde du profil : le modèle peut modifier le profil de l'opérateur et lire
+- Un client qui donne un shell au modèle lève la garde du profil : le modèle peut modifier le profil de l'opérateur, `origin_policy` comprise, et lire
   les fichiers d'identifiants du répertoire chiffré ouvert. Le serveur ne l'en empêche pas ; il écrit seulement
-  `profile_changed` après le changement d'une liste d'origines (section 5), que ce même shell peut effacer du journal.
+  `profile_changed` après le changement d'une liste d'origines ou de la politique (section 5), que ce même shell peut effacer du journal.
   Employez l'agent dédié de la section 2.1.
+- La fenêtre de la politique `discovery` exige `kdialog` ou `zenity` et un affichage ; la confirmation propre du client n'y sert pas, parce
+  qu'elle ne peut pas offrir trois réponses nommées avec le refus par défaut. Avec `open`, un nom public qui résout vers une adresse privée
+  n'est pas détecté, et le fournisseur d'un modèle hébergé reçoit chaque page que le modèle lit.
 - Les messages de l'assistant d'installation sont en français. Il a été joué sous Linux seulement, avec `gocryptfs` ; un volume LUKS, eCryptfs, EncFS ou CryFS est signalé et non utilisé, et Windows et macOS n'ont aucun mécanisme dans sa table. Il a été joué dans un pseudo-terminal sur un volume jetable et dans un conteneur Debian 13 propre (où il signale et installe `gocryptfs`). Le rapport de l'espace d'échange a été essayé sur une liste simulée d'espaces d'échange, non sur une machine qui en a un.
 - `local_model_origins` et les deux déclarations sont montrées dans `status` et ne changent rien d'autre.
 - `profile_encrypted` dans `status` dit où se trouve le profil déclaré, pas où le navigateur garde ses données.

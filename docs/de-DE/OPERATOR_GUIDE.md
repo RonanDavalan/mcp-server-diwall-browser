@@ -77,7 +77,7 @@ Der Versuch lebt unter `$XDG_RUNTIME_DIR`, das Arbeitsspeicher ist, und der Assi
             ├── credentials/                       Modus 700: Zugangsdatendateien (Modus 600), vom Bediener geschrieben
             ├── browser-profile/chrome/            das eigene Browserprofil
             ├── journal/operations.jsonl           das Prüfprotokoll, eine Zeile je Werkzeugaufruf
-            ├── journal/profile-origins.json       Modus 600: die Ursprungslisten des Profils, wie der Server sie zuletzt sah
+            ├── journal/profile-origins.json       Modus 600: die Ursprungslisten und die Ursprungsrichtlinie des Profils, wie der Server sie zuletzt sah
             ├── run/tabs.json                      Modus 600: die Tabs, die der Server hält, damit der nächste Lauf sie schließt
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   Aufnahmen rund um eine gesperrte Aktion
             └── downloads/<operation_id>/          Dateien, die Seiten heruntergeladen haben
@@ -462,6 +462,7 @@ cat > ~/.config/mcp-server-diwall-browser/profile.json <<EOF
   "allowed_origins": ["https://account.example.invalid", "https://shop.example.invalid"],
   "confirm_each_change": ["https://account.example.invalid"],
   "local_model_origins": [],
+  "origin_policy": "strict",
   "declarations": {"local_model_client": false, "client_does_not_auto_confirm": false},
   "browser": {
     "family": "chrome",
@@ -481,8 +482,10 @@ chmod 700 ~/.config/mcp-server-diwall-browser
   Server ein geschlossenes verschlüsseltes Verzeichnis von einem, das nie angelegt wurde; ohne es lautet
   ein geschlossenes `closed_or_absent`.
 - `allowed_origins`: die Websites, die der Server liest und auf denen er handelt, jede ein Ursprung
-  (Schema, Host, Port) oder ein Subdomain-Platzhalter (unten), höchstens 200. Von jeder anderen Seite
-  wird nur der Ursprung zurückgegeben.
+  (Schema, Host, Port) oder ein Subdomain-Platzhalter (unten), höchstens 200. Mit der Richtlinie `strict` wird von jeder anderen Seite
+  nur der Ursprung zurückgegeben; die beiden anderen Richtlinien lassen mehr zu (unten).
+- `origin_policy` (optional): `strict`, `discovery` oder `open`; `strict`, wenn der Schlüssel fehlt. Jeder andere Wert wird
+  abgelehnt (`profile_invalid`), nie als eine der drei gelesen. Was jede tut, steht unten unter „Die Ursprungsrichtlinie“.
 - `confirm_each_change`: Ursprünge aus `allowed_origins` oder Platzhalter, bei denen jeder `click`,
   `fill`, `select_option`, jede Eingabetaste und jeder angenommene Dialog eine Bestätigung verlangt,
   nicht nur Zahlungen, Löschungen und Änderungen eines Geheimnisses.
@@ -517,11 +520,61 @@ Ein Schlüssel, der nicht in dieser Liste steht, wird abgelehnt, und ein Schlüs
 Aktionen konfigurieren würde (wie `payment` oder `deletion`), wird mit `redlist_in_profile` abgelehnt:
 Nur der Code entscheidet, was gesperrt ist.
 
+### Die Ursprungsrichtlinie
+
+Die Liste der Websites begrenzt, was das Modell liest und worauf es handelt, nie, wohin es navigiert: Das Modell kann eine Seite jeder
+Website öffnen, und von einer Website, die nicht zugelassen ist, erhält es den Ursprung und sonst nichts (`origin_not_allowed`).
+`origin_policy` wählt, wie ein Ursprung behandelt wird, den die Liste nicht enthält. Es ist Ihre Wahl, im Profil geschrieben; der Server
+liest sie bei jedem Aufruf neu, und kein Werkzeug des Modells ändert sie.
+
+| Richtlinie | Ein Ursprung, der nicht in der Liste steht | Was sie preisgibt |
+|---|---|---|
+| `strict` (der Standard, und was ein Profil ohne den Schlüssel tut) | Abgelehnt: `origin_not_allowed` | Nur die Websites, die Sie aufgeführt haben |
+| `discovery` | Der Server fragt Sie in einem Fenster, einmal je Ursprung | Die aufgeführten Websites und die, für die Sie antworten |
+| `open` | Gelesen und darauf gehandelt, außer diesem Rechner und seinem Netz | Jede öffentliche Website, die das Modell besucht |
+
+**`discovery`.** Trifft der Server auf einen Ursprung, den die Liste nicht enthält, um ihn zu lesen oder darauf zu handeln (auch nach einem
+Link oder einer Weiterleitung), öffnet er mit `kdialog` oder `zenity` ein Fenster auf Ihrem Bildschirm. Das Fenster gehört dem Server: Der
+Client und das Modell können es nicht beantworten. Es enthält den Ursprung und drei feste Sätze und nichts, was eine Seite oder das Modell
+geschrieben hat. Drei Antworten:
+
+- `Refuser`: die Standardantwort und die, die ein geschlossenes Fenster gibt; vom Ursprung wird nichts gelesen.
+- `Cette séance`: Der Ursprung wird bis zum Anhalten des Servers gelesen und darauf gehandelt; es wird nichts geschrieben.
+- `Ajouter à la liste`: Der Server schreibt genau diesen Ursprung, ohne Platzhalter, ans Ende von `allowed_origins`. Er schreibt das Profil im
+  Modus 600 über eine Nachbardatei, die in einem Schritt an ihre Stelle gesetzt wird, und ändert nichts sonst darin.
+
+Eine Ablehnung, keine Antwort innerhalb von 90 Sekunden oder ein Fenster, das nicht gezeigt werden kann (weder `kdialog` noch `zenity`, keine
+Anzeige), lassen den Ursprung abgelehnt, und derselbe Ursprung wird bis zum Neustart des Servers nicht erneut gefragt. Ein Prozess zeigt
+höchstens fünf Fenster: Danach wird ein Ursprung, der nicht gefragt wurde, ohne Fenster abgelehnt. Ein so hinzugefügter Ursprung bindet keine
+Zugangsdaten (Abschnitt 6). `status` listet die für die Sitzung zugelassenen Ursprünge in `session_origins` auf, und jede Antwort ist eine
+Zeile `origin_decision` im Journal.
+
+Das Risiko, das bleibt: Eine Seite oder ein Text in einer Seite, der das Modell im richtigen Augenblick zu einem Ursprung führt, erhält ein
+Fenster, und aus Gewohnheit zu antworten lässt ihn zu. Darum ist die Standardantwort `Refuser`, der geschriebene Ursprung genau, das Fenster
+enthält nie ein Wort einer Seite, und die gesperrten Aktionen behalten ihre Bestätigung auf jedem zugelassenen Ursprung.
+
+**`open`.** Jeder `http`- oder `https`-Ursprung wird gelesen und darauf gehandelt, auch die, die Sie nie aufgeführt haben. Es ist die freieste
+Richtlinie und die riskanteste, und die Wahl liegt bei Ihnen: Der Inhalt jeder Seite, die das Modell besucht, geht an den Anbieter des Modells,
+und eine Seite kann einen für das Modell geschriebenen Text tragen. Auf der Liste bleiben auch dann: dieser Rechner und sein Netz, das heißt
+`localhost`, die Namen, die auf `.local` oder `.localhost` enden, und die numerischen Adressen, die im Internet nicht routbar sind (dieser
+Rechner, ein privates Netz, eine Link-Local-Adresse, eine geteilte Adresse, eine Dokumentationsadresse). Ein öffentlicher Name, der auf eine
+private Adresse auflöst, wird nicht erkannt. `status` sagt in `origin_policy_note`, dass jede Seite an den Anbieter geht.
+
+In allen drei Richtlinien: Nur `http` und `https` werden zugelassen (kein `file:`, kein `chrome:`); Zugangsdaten werden nur auf dem genauen
+Ursprung getippt, an den ihre Datei sie bindet (Abschnitt 6); eine Zahlung, eine unwiderrufliche Löschung und eine Änderung eines Geheimnisses
+behalten ihr Bestätigungsfenster auf jedem zugelassenen Ursprung (Abschnitt 9); die Obergrenzen gelten; das Journal trägt die Richtlinie in jeder
+Zeile (`gates.origin_policy`).
+
+Um einen Ursprung von Hand hinzuzufügen, bearbeiten Sie `profile.json`: Fügen Sie ihn zu `allowed_origins` hinzu
+(`"https://account.example.invalid"`) oder einen Subdomain-Platzhalter; der Server liest ihn bei seinem nächsten Aufruf. Um die Richtlinie zu
+ändern, schreiben Sie den Schlüssel, zum Beispiel `"origin_policy": "discovery"`; der nächste Aufruf folgt ihm ohne Neustart.
+
 ### Was eine Änderung der Ursprungslisten hinterlässt
 
 Weil das Profil bei jedem Aufruf neu gelesen wird, kann jeder, der die Datei schreiben kann, eine
-Website zu `allowed_origins` hinzufügen. Der Server kann das nicht verhindern; er hinterlässt im
-Nachhinein eine Spur. Weichen `allowed_origins`, `confirm_each_change` oder `local_model_origins` von
+Website zu `allowed_origins` hinzufügen; der Server auch, wenn Sie im Fenster der Richtlinie `discovery` `Ajouter à la liste` antworten. Der
+Server kann das Erste nicht verhindern; er hinterlässt in beiden Fällen im Nachhinein eine Spur. Weichen `allowed_origins`, `confirm_each_change`,
+`local_model_origins` oder `origin_policy` von
 dem ab, was der Server beim vorigen Aufruf sah, oder bei seinem ersten Aufruf von dem, was der letzte
 Lauf gespeichert hat, wird eine Zeile zu `journal/operations.jsonl` hinzugefügt, und `status` trägt
 dieselbe Änderung in `server.notices`:
@@ -535,7 +588,8 @@ dieselbe Änderung in `server.notices`:
 ```
 
 Die Zeile nennt die hinzugefügten und entfernten Ursprünge, wie im Profil geschrieben (ein Platzhalter
-bleibt ein Platzhalter), und kein anderes Feld des Profils: keinen Pfad, keinen Port, keine Obergrenze,
+bleibt ein Platzhalter); für die Richtlinie nennt sie den Wert, der hinzukommt, und den, der geht (`"origin_policy":{"added":["open"],"removed":["strict"]}`).
+Sie nennt kein anderes Feld des Profils: keinen Pfad, keinen Port, keine Obergrenze,
 keine Erklärung. Ein zweites `status` ohne Änderung fügt nichts hinzu, und eine geänderte Reihenfolge
 der Einträge ist keine Änderung. Die Ursprünge, die der Server zuletzt sah, liegen in
 `journal/profile-origins.json`, neben dem Journal (Modus 600, in einem Verzeichnis im Modus 700). Bei
@@ -742,8 +796,8 @@ oder `grep`.
 |---|---|---|
 | Nichts von den Geheimnissen | Im Speicher des Serverprozesses beim Tippen aufgelöst, über die lokale Debugging-Verbindung an den Browser gesendet; nie in einer Werkzeugausgabe, einem Log, einem Bericht, einer Adresse oder einem Befehlsargument | Niemand: harte Sperre |
 | Nichts von den sensiblen Feldern auf dem Bildschirm | In jeder Aufnahme verdeckt; Werte im Baum geschwärzt; scheitert das Verdecken, wird die Aufnahme nicht veröffentlicht | Niemand: harte Sperre |
-| Der Inhalt der Seiten der erlaubten Ursprünge | Aufnahme, Barrierefreiheitsbaum und Elemente, vom Modell gelesen; sein Anbieter erhält sie, wenn das Modell gehostet ist | Der Bediener: durch die erlaubten Ursprünge und die Wahl des Modells |
-| Der Inhalt von Seiten außerhalb der erlaubten Ursprünge | Nichts: Nur der Ursprung wird zurückgegeben | Niemand: harte Sperre |
+| Der Inhalt der Seiten der Ursprünge, die die Richtlinie zulässt (mit `strict` die erlaubten Ursprünge) | Aufnahme, Barrierefreiheitsbaum und Elemente, vom Modell gelesen; sein Anbieter erhält sie, wenn das Modell gehostet ist | Der Bediener: durch die Ursprungsrichtlinie, die erlaubten Ursprünge und die Wahl des Modells |
+| Der Inhalt der Seiten, die die Richtlinie nicht zulässt | Nichts: Nur der Ursprung wird zurückgegeben | Der Bediener: durch die Ursprungsrichtlinie |
 | Die Adressen der Seiten | Ursprung und Pfad; Werte sensibler Parameter geschwärzt; Fragment geschwärzt; nie Zugangsdaten in der Adresse | Niemand: harte Sperre |
 | Die Titel und Adressen der anderen Tabs des Browsers | Nichts | Niemand: harte Sperre |
 | Fehler- und Ausnahmemeldungen | Dieselbe Ausgabestelle wie alles andere | Niemand: harte Sperre |
@@ -986,7 +1040,8 @@ Chromium 155.0.8059.39.
 - Er startet oder schließt den Browser nicht (der Einrichtungsbefehl tut es, wenn Sie ihn darum bitten); seine Tabs
   bleiben offen, wenn er anhält, und der nächste Lauf kann sie schließen, nicht darin arbeiten (der Teil unten).
 - Er bezahlt, löscht oder ändert nie ein Geheimnis ohne eine Bestätigung.
-- Er ändert nie das Bedienerprofil oder die erlaubten Ursprünge.
+- Er ändert das Bedienerprofil nur in einem Fall: Mit `discovery` schreibt er, wenn Sie `Ajouter à la liste` antworten, genau diesen Ursprung in
+  `allowed_origins`. Kein Werkzeug, das das Modell aufruft, ändert das Profil.
 
 Was er nicht aufhält: ein Modell, das eine Shell unter Ihrem Konto hat. Die Liste der Websites, die
 gesperrten Aktionen und die Bindung der Zugangsdaten halten ein Modell, das nur die vierzehn Werkzeuge
@@ -1043,8 +1098,10 @@ einem Ergebnis oder im Journal.
 
 Vor einer Zahlung, einer unwiderruflichen Löschung oder einer Änderung eines Geheimnisses (und vor
 jeder Änderung auf einem Ursprung aus `confirm_each_change`) öffnet der Server ein Fenster auf Ihrem
-Bildschirm mit dem Titel `Confirmation du serveur MCP` und zwei Buttons, `Autoriser` und `Refuser`. Die
-Ablehnung ist der Standardbutton, wenn das Fensterwerkzeug diese Wahl bietet. Das Fenster wartet
+Bildschirm mit dem Titel `Confirmation du serveur MCP` und zwei Antworten, `Refuser` und `Autoriser`. Die
+Ablehnung ist die Standardantwort und die, die ein geschlossenes Fenster gibt: Mit `zenity` ist es der Button mit dem Fokus, mit `kdialog` der
+angekreuzte Eintrag einer kurzen Liste (dieses Werkzeug hat keine Option für einen Standardbutton). Ein `zenity`, das den Standard nicht auf die
+Ablehnung legen kann, zeigt kein Fenster, und die Aktion wird abgelehnt (`confirmation_unavailable`). Das Fenster wartet
 90 Sekunden und zählt dann als nicht beantwortet (`confirmation_expired`). Eine Antwort gilt für genau
 eine Aktion.
 
@@ -1073,9 +1130,10 @@ Was Sie vor der Antwort lesen sollten:
   oder falsch lesen.
 - `Catégories` und `Signaux`: warum der Server fragt.
 
-Ein echtes Fenster von `kdialog` oder `zenity` wurde am 15. Oktober 2026 gezeigt und von einer Person
-beantwortet (eine Ablehnung, eine Zustimmung und ein Ablauf: `README.md`); die automatischen Tests
-verwenden an dessen Stelle Attrappenprogramme.
+Die echten `kdialog` und `zenity` haben die Fenster in einem virtuellen Bildschirm gezeigt, und Tastendrücke haben geantwortet (Eingabe, Escape und
+Pfeiltasten): Eingabe und Escape geben die Ablehnung. Eine Person hat am 15. Oktober 2026 die frühere Form des Fensters beantwortet (eine Ablehnung,
+eine Zustimmung und ein Ablauf: `README.md`); auf die jetzige Form hat noch keine Person geantwortet. Die automatischen Tests verwenden an dessen
+Stelle Attrappenprogramme.
 
 Das Fenster gehört dem Server, nicht dem MCP-Client: Der Client handelt für das Modell und könnte von
 selbst antworten, während das Fenster des Servers von einer Person beantwortet wird, außerhalb der
@@ -1172,10 +1230,9 @@ Verzeichnissen des Servers den Modus 700 (`chmod 700 ~/Vaults/Main/mcp-server-di
 dasselbe für das Unterverzeichnis, das in `mount_reason` genannt wird), und ersetzen Sie jeden
 symbolischen Link durch ein echtes Verzeichnis.
 
-`origin_not_allowed`: `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
-oder bei einer Aktion `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Fügen Sie den Ursprung oder einen Subdomain-Platzhalter (Abschnitt 5) zu `allowed_origins` hinzu, wenn
-der Server dort arbeiten soll.
+`origin_not_allowed`: `https://other.example.invalid n'est pas dans les sites autorisés par l'opérateur : le serveur n'en lit rien et n'y agit pas. L'opérateur peut ajouter https://other.example.invalid à allowed_origins dans son profil, ou choisir la politique d'origines (origin_policy : discovery ou open)`,
+derselbe Text für ein Lesen und für eine Aktion, mit dem Ursprung der Seite. Fügen Sie den Ursprung oder einen Subdomain-Platzhalter (Abschnitt 5) zu
+`allowed_origins` hinzu, wenn der Server dort arbeiten soll, oder wählen Sie die Richtlinie `discovery` oder `open` (Abschnitt 5, „Die Ursprungsrichtlinie“).
 
 `forbidden_scheme`: `seules les adresses http et https peuvent être ouvertes`. Nichts zu tun: Der
 Server öffnet weder `file:` noch `javascript:` noch eine andere Adresse.
@@ -1352,10 +1409,13 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
   `Regenerate API key`. Eine Beschriftung, die dasselbe mit anderen Worten sagt, wird nicht gesperrt:
   Der Schutz ist eine Liste von Wörtern, kein Lesen der Seite.
 - Ein Client, der dem Modell eine Shell gibt, hebt den Schutz des Profils auf: Das Modell kann das
-  Bedienerprofil bearbeiten und Zugangsdatendateien des geöffneten verschlüsselten Verzeichnisses
+  Bedienerprofil, `origin_policy` eingeschlossen, bearbeiten und Zugangsdatendateien des geöffneten verschlüsselten Verzeichnisses
   lesen. Der Server hält es nicht auf; er schreibt nur `profile_changed` nach der Änderung einer
-  Ursprungsliste (Abschnitt 5), was dieselbe Shell aus dem Journal löschen kann. Verwenden Sie den
+  Ursprungsliste oder der Richtlinie (Abschnitt 5), was dieselbe Shell aus dem Journal löschen kann. Verwenden Sie den
   eigenen Agenten aus Abschnitt 2.1.
+- Das Fenster der Richtlinie `discovery` braucht `kdialog` oder `zenity` und eine Anzeige; die eigene Bestätigung des Clients dient dafür nicht, weil
+  sie nicht drei benannte Antworten mit der Ablehnung als Standard bieten kann. Mit `open` wird ein öffentlicher Name, der auf eine private Adresse
+  auflöst, nicht erkannt, und der Anbieter eines gehosteten Modells erhält jede Seite, die das Modell liest.
 - Die Meldungen des Einrichtungsassistenten sind auf Französisch. Er wurde nur unter Linux gespielt, mit `gocryptfs`; ein LUKS-, eCryptfs-, EncFS- oder CryFS-Volume wird gemeldet und nicht benutzt, und Windows und macOS haben keinen Mechanismus in seiner Tabelle. Er wurde in einem Pseudoterminal auf einem Wegwerf-Volume und in einem sauberen Debian-13-Container gespielt (wo er `gocryptfs` meldet und installiert). Der Bericht über den Auslagerungsspeicher wurde an einer simulierten Liste von Auslagerungsspeichern erprobt, nicht an einem Rechner, der einen hat.
 - `local_model_origins` und die beiden Erklärungen werden in `status` angezeigt und ändern sonst nichts.
 - `profile_encrypted` in `status` sagt, wo das deklarierte Profil liegt, nicht, wo der Browser seine

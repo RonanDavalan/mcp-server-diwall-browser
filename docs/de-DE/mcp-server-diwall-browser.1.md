@@ -126,7 +126,10 @@ Die Datei enthält kein Geheimnis.
 :   Das verschlüsselte Verzeichnis auf der Platte (optional).
 
 `allowed_origins`
-:   Die Seiten, die der Server liest und auf denen er handelt: Ursprünge oder Subdomain-Platzhalter wie `https://*.example.invalid`. Von jeder anderen Seite wird nur der Ursprung zurückgegeben.
+:   Die Seiten, die der Server liest und auf denen er handelt: Ursprünge oder Subdomain-Platzhalter wie `https://*.example.invalid`. Mit der Richtlinie `strict` wird von jeder anderen Seite nur der Ursprung zurückgegeben.
+
+`origin_policy`
+:   `strict` (der Standard), `discovery` (der Bediener beantwortet für jeden Ursprung, den die Liste nicht enthält, ein Fenster: `Refuser`, `Cette séance` oder `Ajouter à la liste`) oder `open` (jede öffentliche Website; lokale Adressen und Namen bleiben auf der Liste). Jeder andere Wert wird abgelehnt.
 
 `confirm_each_change`
 :   Ursprünge aus `allowed_origins`, auf denen jede Änderung eine Bestätigung verlangt.
@@ -148,8 +151,8 @@ Bedienerhandbuch.
 
 Vor einer Zahlung, einer unwiderruflichen Löschung oder einer Änderung eines Geheimnisses und vor
 jeder Änderung auf einem Ursprung aus `confirm_each_change` öffnet der Server mit **kdialog** oder
-**zenity** ein Fenster mit dem Titel „Confirmation du serveur MCP“ und den Schaltflächen
-„Autoriser“ und „Refuser“. Das Fenster wartet 90 Sekunden und zählt dann als nicht beantwortet;
+**zenity** ein Fenster mit dem Titel „Confirmation du serveur MCP“ und den Antworten
+„Refuser“ (die Standardantwort) und „Autoriser“. Das Fenster wartet 90 Sekunden und zählt dann als nicht beantwortet;
 eine Antwort gilt für genau eine Aktion. Es braucht eine Anzeige in der Umgebung des Servers
 (`DISPLAY` oder `WAYLAND_DISPLAY`); **status** nennt den Kanal in `confirmation_channel`.
 

@@ -76,7 +76,7 @@ El ensayo vive bajo `$XDG_RUNTIME_DIR`, que es memoria, y el asistente se niega 
             ├── credentials/                       modo 700: archivos de credenciales (modo 600), escritos por el operador
             ├── browser-profile/chrome/            el perfil dedicado del navegador
             ├── journal/operations.jsonl           el diario de auditoría, una línea por llamada a una herramienta
-            ├── journal/profile-origins.json       modo 600: las listas de orígenes del perfil tal como el servidor las vio por última vez
+            ├── journal/profile-origins.json       modo 600: las listas de orígenes y la política de orígenes del perfil tal como el servidor las vio por última vez
             ├── run/tabs.json                      modo 600: las pestañas que tiene el servidor, para que la siguiente ejecución las cierre
             ├── evidence/<YYYY-MM-DD>/<operation_id>/   capturas tomadas alrededor de una acción bloqueada
             └── downloads/<operation_id>/          archivos que descargaron las páginas
@@ -449,6 +449,7 @@ cat > ~/.config/mcp-server-diwall-browser/profile.json <<EOF
   "allowed_origins": ["https://account.example.invalid", "https://shop.example.invalid"],
   "confirm_each_change": ["https://account.example.invalid"],
   "local_model_origins": [],
+  "origin_policy": "strict",
   "declarations": {"local_model_client": false, "client_does_not_auto_confirm": false},
   "browser": {
     "family": "chrome",
@@ -468,7 +469,9 @@ chmod 700 ~/.config/mcp-server-diwall-browser
   directorio cifrado cerrado de uno que nunca se creó; sin él, uno cerrado se lee como
   `closed_or_absent`.
 - `allowed_origins`: los sitios que el servidor lee y en los que actúa, cada uno un origen (esquema, host, puerto) o
-  un comodín de subdominio (más abajo), como máximo 200. De cualquier otra página solo se devuelve el origen.
+  un comodín de subdominio (más abajo), como máximo 200. Con la política `strict`, de cualquier otra página solo se devuelve el origen; las otras dos políticas admiten más (más abajo).
+- `origin_policy` (opcional): `strict`, `discovery` u `open`; `strict` cuando falta la clave. Cualquier otro valor se rechaza
+  (`profile_invalid`), nunca se lee como una de las tres. Lo que hace cada una está más abajo, en «La política de orígenes».
 - `confirm_each_change`: orígenes de `allowed_origins`, o comodines, donde cada `click`, `fill`,
   `select_option`, tecla Intro y diálogo aceptado pide una confirmación, y no solo los pagos,
   las eliminaciones y los cambios de secreto.
@@ -502,11 +505,57 @@ Una clave que no está en esta lista se rechaza, y una clave que configuraría l
 `payment` o `deletion`) se rechaza con `redlist_in_profile`: solo el código decide qué
 está bloqueado.
 
+### La política de orígenes
+
+La lista de sitios limita lo que el modelo lee y en lo que actúa, nunca adónde navega: el modelo puede abrir una página de cualquier sitio, y de un
+sitio que no está admitido recibe el origen y nada más (`origin_not_allowed`). `origin_policy` elige cómo se trata un origen que la lista no
+contiene. Es su elección, escrita en el perfil; el servidor la lee de nuevo en cada llamada, y ninguna herramienta del modelo la cambia.
+
+| Política | Un origen que no está en la lista | Qué expone |
+|---|---|---|
+| `strict` (el valor por defecto, y lo que hace un perfil sin la clave) | Rechazado: `origin_not_allowed` | Solo los sitios que usted enumeró |
+| `discovery` | El servidor le pregunta en una ventana, una vez por origen | Los sitios enumerados y aquellos a los que usted responde |
+| `open` | Se lee y se actúa en él, salvo esta máquina y su red | Todo sitio público que visite el modelo |
+
+**`discovery`.** Cuando el servidor encuentra un origen que la lista no contiene, para leerlo o actuar en él (también tras un enlace o una
+redirección), abre una ventana en su pantalla con `kdialog` o `zenity`. La ventana es del servidor: el cliente y el modelo no pueden responderla.
+Lleva el origen y tres frases fijas, y nada que una página o el modelo haya escrito. Tres respuestas:
+
+- `Refuser`: la respuesta por defecto, y la que da una ventana cerrada; no se lee nada del origen.
+- `Cette séance`: el origen se lee y se actúa en él hasta que el servidor se detiene; no se escribe nada.
+- `Ajouter à la liste`: el servidor escribe ese origen exacto, sin comodín, al final de `allowed_origins`. Escribe el perfil en modo 600
+  mediante un archivo vecino, puesto en su sitio en un solo paso, y no cambia nada más en él.
+
+Un rechazo, la falta de respuesta en 90 segundos o una ventana que no puede mostrarse (ni `kdialog` ni `zenity`, sin pantalla) dejan el origen
+rechazado, y el mismo origen no se vuelve a preguntar hasta que el servidor se reinicie. Un proceso muestra como máximo cinco ventanas: después, un
+origen que no se preguntó se rechaza sin ventana. Un origen añadido así no liga ninguna credencial (sección 6). `status` enumera los orígenes
+admitidos para la sesión en `session_origins`, y cada respuesta es una línea `origin_decision` del diario.
+
+El riesgo que queda: una página, o un texto en una página, que lleve al modelo a un origen en el momento oportuno obtiene una ventana, y responder por
+costumbre lo admite. Por eso la respuesta por defecto es `Refuser`, el origen escrito es exacto, la ventana nunca lleva una palabra de una página, y las
+acciones bloqueadas conservan su confirmación en todo origen admitido.
+
+**`open`.** Todo origen `http` o `https` se lee y se actúa en él, también los que usted nunca enumeró. Es la política más libre y la más arriesgada, y la
+elección es suya: el contenido de cada página que visite el modelo va al proveedor del modelo, y una página puede llevar un texto escrito para el modelo.
+Siguen en la lista incluso entonces: esta máquina y su red, es decir `localhost`, los nombres que terminan en `.local` o `.localhost`, y las
+direcciones numéricas que no son enrutables en Internet (esta máquina, una red privada, una dirección de enlace local, una dirección compartida, una
+dirección de documentación). Un nombre público que resuelve a una dirección privada no se detecta. `status` dice en `origin_policy_note` que cada página
+va al proveedor.
+
+En las tres políticas: solo se admiten `http` y `https` (ni `file:`, ni `chrome:`); una credencial se escribe solo en el origen exacto al que su archivo la
+liga (sección 6); un pago, una eliminación irreversible y un cambio de secreto conservan su ventana de confirmación en todo origen admitido (sección 9);
+los topes se mantienen; el diario lleva la política en cada línea (`gates.origin_policy`).
+
+Para añadir un origen a mano, edite `profile.json`: añádalo a `allowed_origins` (`"https://account.example.invalid"`), o un comodín de subdominio; el
+servidor lo lee en su próxima llamada. Para cambiar la política, escriba la clave, por ejemplo `"origin_policy": "discovery"`; la llamada siguiente la
+sigue, sin reinicio.
+
 ### Lo que deja un cambio de las listas de orígenes
 
 Como el perfil se lee de nuevo en cada llamada, cualquiera que pueda escribir el archivo puede añadir un sitio a
-`allowed_origins`. El servidor no puede impedirlo; deja una huella a posteriori. Cuando
-`allowed_origins`, `confirm_each_change` o `local_model_origins` difieren de lo que el servidor vio en
+`allowed_origins`; el servidor también, cuando usted responde `Ajouter à la liste` en la ventana de la política `discovery`. El servidor no puede
+impedir lo primero; deja una huella a posteriori, en ambos casos. Cuando
+`allowed_origins`, `confirm_each_change`, `local_model_origins` u `origin_policy` difieren de lo que el servidor vio en
 la llamada anterior o, en su primera llamada, de lo que guardó la última ejecución, se añade una línea
 a `journal/operations.jsonl` y `status` lleva el mismo cambio en `server.notices`:
 
@@ -518,8 +567,9 @@ a `journal/operations.jsonl` y `status` lleva el mismo cambio en `server.notices
 "notices": ["profile_changed : allowed_origins +https://shop.example.invalid"]
 ```
 
-La línea nombra los orígenes añadidos y quitados, tal como están escritos en el perfil (un comodín sigue siendo un comodín),
-y ningún otro campo del perfil: ni ruta, ni puerto, ni tope, ni declaración. Un segundo `status`
+La línea nombra los orígenes añadidos y quitados, tal como están escritos en el perfil (un comodín sigue siendo un comodín);
+para la política nombra el valor que entra y el que sale (`"origin_policy":{"added":["open"],"removed":["strict"]}`).
+No nombra ningún otro campo del perfil: ni ruta, ni puerto, ni tope, ni declaración. Un segundo `status`
 sin cambio no añade nada, y un cambio en el orden de las entradas no es un cambio. Los orígenes
 que el servidor vio por última vez se guardan en `journal/profile-origins.json`, junto al diario (modo 600, en un
 directorio en modo 700). Con el directorio cifrado cerrado, no se lee ni se escribe nada y el servidor
@@ -715,8 +765,8 @@ Para no dejar ningún secreto en el historial del shell, no lea nunca el archivo
 |---|---|---|
 | Nada de los secretos | Se resuelven en memoria en el proceso del servidor en el momento de escribirlos y se envían al navegador por la conexión local de depuración; nunca en la salida de una herramienta, un registro, un informe, una dirección ni un argumento de comando | Nadie: bloqueo estricto |
 | Nada de los campos sensibles en pantalla | Enmascarados en cada captura; valores censurados en el árbol; si el enmascarado falla, la captura no se publica | Nadie: bloqueo estricto |
-| El contenido de las páginas de los orígenes permitidos | Captura, árbol de accesibilidad y elementos, leídos por el modelo; su proveedor los recibe si el modelo está alojado | El operador: mediante los orígenes permitidos y la elección del modelo |
-| El contenido de las páginas fuera de los orígenes permitidos | Nada: solo se devuelve el origen | Nadie: bloqueo estricto |
+| El contenido de las páginas de los orígenes que la política admite (con `strict`, los orígenes permitidos) | Captura, árbol de accesibilidad y elementos, leídos por el modelo; su proveedor los recibe si el modelo está alojado | El operador: mediante la política de orígenes, los orígenes permitidos y la elección del modelo |
+| El contenido de las páginas que la política no admite | Nada: solo se devuelve el origen | El operador: mediante la política de orígenes |
 | Las direcciones de las páginas | Origen y ruta; valores de los parámetros sensibles censurados; fragmento censurado; nunca credenciales en la dirección | Nadie: bloqueo estricto |
 | Los títulos y las direcciones de las demás pestañas del navegador | Nada | Nadie: bloqueo estricto |
 | Los mensajes de error y de excepción | El mismo punto de salida que todo lo demás | Nadie: bloqueo estricto |
@@ -934,7 +984,8 @@ de las partes anteriores, pasaron en Google Chrome 155.0.8059.79 y en Chromium 1
 - No inicia ni cierra el navegador (el comando de instalación lo hace, cuando usted se lo pide); sus pestañas quedan
   abiertas cuando se detiene, y la siguiente ejecución puede cerrarlas, no trabajar en ellas (la parte siguiente).
 - Nunca paga, elimina ni cambia un secreto sin una confirmación.
-- Nunca cambia el perfil del operador ni los orígenes permitidos.
+- Cambia el perfil del operador en un solo caso: con `discovery`, cuando usted responde `Ajouter à la liste`, escribe ese único origen en
+  `allowed_origins`. Ninguna herramienta que el modelo llame cambia el perfil.
 
 Lo que no impide: un modelo que tenga un shell bajo su cuenta. La lista de sitios, las acciones bloqueadas
 y la vinculación de las credenciales contienen a un modelo que solo tiene las catorce herramientas. Un modelo con
@@ -984,8 +1035,10 @@ no es conducir. El identificador del navegador nunca está en un resultado ni en
 
 Antes de un pago, una eliminación irreversible o un cambio de secreto (y antes de cada cambio en un
 origen de `confirm_each_change`), el servidor abre una ventana en su pantalla, titulada
-`Confirmation du serveur MCP`, con dos botones, `Autoriser` y `Refuser`. El rechazo es el botón
-predeterminado cuando la herramienta de ventanas ofrece esa elección. La ventana espera 90 segundos y después cuenta
+`Confirmation du serveur MCP`, con dos respuestas, `Refuser` y `Autoriser`. El rechazo es la respuesta
+por defecto, y la que da una ventana cerrada: con `zenity` es el botón que tiene el foco, con `kdialog` la entrada marcada de una lista corta (esa herramienta
+no tiene opción de botón por defecto). Un `zenity` que no puede poner el valor por defecto en el rechazo no muestra ninguna ventana, y la acción se rechaza
+(`confirmation_unavailable`). La ventana espera 90 segundos y después cuenta
 como falta de respuesta (`confirmation_expired`). Una respuesta cubre una sola acción.
 
 Su texto lo construye `confirm.build_text` a partir de lo que el servidor lee en el navegador en ese
@@ -1011,8 +1064,9 @@ Lo que hay que leer antes de responder:
 - `Montants détectés`: importes que una heurística encontró en la página; puede dejar escapar uno o leerlo mal.
 - `Catégories` y `Signaux`: por qué pregunta el servidor.
 
-Una ventana real de `kdialog` o `zenity` se mostró y una persona la respondió el 15 de octubre de 2026 (un
-rechazo, una aceptación y una caducidad: `README.md`); las pruebas automáticas usan programas simulados en su lugar.
+Los `kdialog` y `zenity` reales mostraron las ventanas en una pantalla virtual, y pulsaciones de teclas las respondieron (Intro, Escape y las flechas):
+Intro y Escape dan el rechazo. Una persona respondió a la forma anterior de la ventana el 15 de octubre de 2026 (un rechazo, una aceptación y una
+caducidad: `README.md`); ninguna persona ha respondido todavía a la forma actual. Las pruebas automáticas usan programas simulados en su lugar.
 
 La ventana pertenece al servidor, no al cliente MCP: el cliente actúa por el modelo y podría
 responder por sí mismo, mientras que la ventana del servidor la responde una persona, fuera de la conversación. El
@@ -1107,10 +1161,9 @@ directorios del servidor el modo 700 (`chmod 700 ~/Vaults/Main/mcp-server-diwall
 para el subdirectorio nombrado en `mount_reason`), y reemplaza todo enlace simbólico por un directorio
 real.
 
-`origin_not_allowed`: `cette page n'est pas sur un site autorisé par le profil de l'opérateur : le serveur ne la lit pas`,
-o, para una acción, `cette page n'est pas sur un site autorisé par le profil : aucune action n'y est faite`.
-Añada el origen, o un comodín de subdominio (sección 5), a `allowed_origins` si quiere que el servidor
-trabaje allí.
+`origin_not_allowed`: `https://other.example.invalid n'est pas dans les sites autorisés par l'opérateur : le serveur n'en lit rien et n'y agit pas. L'opérateur peut ajouter https://other.example.invalid à allowed_origins dans son profil, ou choisir la politique d'origines (origin_policy : discovery ou open)`,
+el mismo texto para una lectura y para una acción, con el origen de la página. Añada el origen, o un comodín de subdominio (sección 5), a `allowed_origins` si
+quiere que el servidor trabaje allí, o elija la política `discovery` u `open` (sección 5, «La política de orígenes»).
 
 `forbidden_scheme`: `seules les adresses http et https peuvent être ouvertes`. Nada que hacer: el
 servidor no abre ninguna dirección `file:`, `javascript:` ni de otro tipo.
@@ -1279,9 +1332,12 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
   `Valider mon panier`, `Reset your password` y `Regenerate API key`. Una etiqueta que dice lo mismo
   con otras palabras no se bloquea: la compuerta es una lista de palabras, no una lectura de la página.
 - Un cliente que da un shell al modelo levanta la protección del perfil: el modelo puede editar el
-  perfil del operador y leer los archivos de credenciales del directorio cifrado abierto. El servidor no
-  lo impide; solo escribe `profile_changed` tras el cambio de una lista de orígenes (sección 5), que
+  perfil del operador, `origin_policy` incluida, y leer los archivos de credenciales del directorio cifrado abierto. El servidor no
+  lo impide; solo escribe `profile_changed` tras el cambio de una lista de orígenes o de la política (sección 5), que
   ese mismo shell puede borrar del diario. Use el agente dedicado de la sección 2.1.
+- La ventana de la política `discovery` exige `kdialog` o `zenity` y una pantalla; la confirmación propia del cliente no sirve para ella, porque no puede
+  ofrecer tres respuestas con nombre y el rechazo por defecto. Con `open`, un nombre público que resuelve a una dirección privada no se detecta, y el
+  proveedor de un modelo alojado recibe cada página que el modelo lee.
 - Los mensajes del asistente de instalación están en francés. Se ejecutó solo en Linux, con `gocryptfs`; un volumen LUKS, eCryptfs, EncFS o CryFS se señala y no se usa, y Windows y macOS no tienen ningún mecanismo en su tabla. Se ejecutó en un pseudoterminal sobre un volumen desechable y en un contenedor Debian 13 limpio (donde señala e instala `gocryptfs`). El informe del área de intercambio se probó sobre una lista simulada de áreas de intercambio, no en una máquina que tenga una.
 - `local_model_origins` y las dos declaraciones se muestran en `status` y no cambian nada más.
 - `profile_encrypted` en `status` dice dónde está el perfil declarado, no dónde

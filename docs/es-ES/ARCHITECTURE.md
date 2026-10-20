@@ -29,7 +29,7 @@ rechazos que no dependen del criterio del modelo.
 3. El modelo nombra una marca de esa instantánea en `click`, `fill`, `select_option` o `press_key`.
 4. El servidor cuenta la acción contra los topes, encuentra el nodo del navegador que hay tras la marca,
    comprueba que es el mismo nodo, todavía en la página, en el punto que va a tocar, y que la
-   página está en un origen permitido. La compuerta decide si la acción está bloqueada (pago, eliminación,
+   página está en un origen que la política de orígenes admite. La compuerta decide si la acción está bloqueada (pago, eliminación,
    cambio de secreto). Una acción bloqueada se anota primero en el diario y se captura, después la ventana de confirmación
    pregunta al operador; la identidad se comprueba de nuevo, se hace el gesto, el servidor espera la
    carga que él inició y vuelve a capturar.
@@ -51,7 +51,8 @@ rechazos que no dependen del criterio del modelo.
 | `setup` | un programa del operador, fuera del servidor e importado por ninguno de sus módulos: lee la máquina, crea o abre el volumen gocryptfs, escribe el perfil del operador, inicia el navegador sobre su perfil y cierra ambos; la terminal pasa a gocryptfs, que es el único que lee la contraseña |
 | `journal` | el diario de auditoría, una línea JSON por llamada |
 | `operator_profile` | lectura del perfil del operador; junto con `confirm`, los únicos módulos del servidor que leen el entorno |
-| `profile_watch` | la huella de un cambio de las listas de orígenes del perfil: la comparación, los orígenes vistos por última vez, el aviso |
+| `origin_policy` | el único lugar que decide si un origen se lee y se actúa en él: la lista, la política `strict`, `discovery` u `open`, la ventana de un origen que la lista no contiene, lo que una sesión admitió o rechazó |
+| `profile_watch` | la huella de un cambio de las listas de orígenes o de la política de orígenes del perfil: la comparación, los orígenes vistos por última vez, el aviso |
 | `cdp` | el cliente de DevTools, su lista de métodos permitidos y sus scripts constantes |
 | `browser` | comprobaciones de la conexión, pestañas que posee el servidor, navegación, diálogos |
 | `perception` | instantánea, marcas, árbol, imagen, máscaras, lo que se conserva bajo los topes, espera de un texto o de un elemento |
@@ -73,8 +74,9 @@ Las pruebas lo comprueban, y también que ninguna herramienta evita el punto de 
 - Bucle local: el servidor se conecta solo si todos los sockets del puerto de depuración escuchan en el bucle local
   (se lee en `/proc/net` en cada conexión), si el perfil declarado no es el predeterminado del
   navegador, y si el navegador anuncia una dirección de depuración en ese mismo puerto del bucle local.
-- Orígenes permitidos: una página fuera de ellos no se lee ni se actúa en ella; solo se devuelve su origen.
-  Una entrada es un origen o un comodín de subdominio (`https://*.example.invalid`), escrito por el
+- Orígenes permitidos y política de orígenes: con `strict`, una página fuera de la lista no se lee ni se actúa en ella; solo se devuelve
+  su origen. Con `discovery`, el operador responde a una ventana por cada origen nuevo, y con `open` se admite todo origen público,
+  salvo las direcciones y los nombres locales. Una entrada es un origen o un comodín de subdominio (`https://*.example.invalid`), escrito por el
   operador; un comodín amplía la lectura y la acción, nunca la escritura. Una credencial se escribe solo en el
   origen exacto que nombra su archivo, y un archivo que enumera un comodín se rechaza.
 - Acciones bloqueadas: el pago, la eliminación irreversible y el cambio de secreto se detectan a partir de un vocabulario

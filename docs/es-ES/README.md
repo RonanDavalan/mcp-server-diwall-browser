@@ -27,6 +27,20 @@ sitios, en el navegador que él inicia. Tras añadir el servidor a su cliente MC
 abierta no lo ve. Los pasos, los rechazos y el camino manual están en la sección «Primer arranque» de
 [docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+## Los sitios que lee el modelo
+
+La lista de sitios del perfil del operador limita lo que el modelo lee y en lo que actúa, nunca adónde navega. La clave `origin_policy` elige lo
+que hace el servidor con un origen que la lista no contiene:
+
+- `strict` (el valor por defecto, también cuando falta la clave): el origen se rechaza, y solo se devuelve el origen.
+- `discovery`: el servidor le pregunta en una ventana, una vez por origen: `Refuser` (la respuesta por defecto), `Cette séance` o
+  `Ajouter à la liste`, que escribe ese origen exacto en su perfil.
+- `open`: todo sitio público se lee y se actúa en él, y su contenido va al proveedor del modelo; las direcciones y los nombres locales siguen en
+  la lista. Es la política más libre y la más arriesgada, y la elección es suya.
+
+Los pagos, las eliminaciones irreversibles y los cambios de secreto conservan su confirmación, y una credencial se escribe solo en el origen
+exacto al que está ligada, en las tres políticas. El detalle está en la sección 5 de [docs/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
+
 ## Instalar
 
 En Linux, el servidor se entrega en paquetes nativos. Descargue el de su sistema desde la página

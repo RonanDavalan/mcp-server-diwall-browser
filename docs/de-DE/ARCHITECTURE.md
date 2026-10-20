@@ -30,7 +30,7 @@ Bedieners und die Ablehnungen, die nicht vom Urteil des Modells abhängen.
    `press_key`.
 4. Der Server rechnet die Aktion auf die Obergrenzen an, findet den Knoten des Browsers hinter der
    Markierung, prüft, dass es derselbe Knoten ist, noch in der Seite, an dem Punkt, den er berühren
-   wird, und dass die Seite auf einem erlaubten Ursprung liegt. Die Sperre entscheidet, ob die Aktion
+   wird, und dass die Seite auf einem Ursprung liegt, den die Ursprungsrichtlinie zulässt. Die Sperre entscheidet, ob die Aktion
    gesperrt ist (Zahlung, Löschung, Änderung eines Geheimnisses). Eine gesperrte Aktion wird zuerst ins
    Journal geschrieben und aufgenommen, dann fragt das Bestätigungsfenster den Bediener; die Identität
    wird erneut geprüft, die Geste ausgeführt, der Server wartet auf den Ladevorgang, den er ausgelöst
@@ -54,7 +54,8 @@ Bedieners und die Ablehnungen, die nicht vom Urteil des Modells abhängen.
 | `setup` | ein Bedienerprogramm, außerhalb des Servers und von keinem seiner Module importiert: liest den Rechner, legt das gocryptfs-Volume an oder öffnet es, schreibt das Bedienerprofil, startet den Browser auf seinem Profil und schließt beides; das Terminal geht an gocryptfs, das allein das Passwort liest |
 | `journal` | das Prüfprotokoll, eine JSON-Zeile je Aufruf |
 | `operator_profile` | Lesen des Bedienerprofils; zusammen mit `confirm` die einzigen Module des Servers, die die Umgebung lesen |
-| `profile_watch` | die Spur einer Änderung der Ursprungslisten des Profils: der Vergleich, die zuletzt gesehenen Ursprünge, der Hinweis |
+| `origin_policy` | die eine Stelle, die entscheidet, ob ein Ursprung gelesen wird und darauf gehandelt wird: die Liste, die Richtlinie `strict`, `discovery` oder `open`, das Fenster für einen Ursprung, den die Liste nicht enthält, was eine Sitzung zugelassen oder abgelehnt hat |
+| `profile_watch` | die Spur einer Änderung der Ursprungslisten oder der Ursprungsrichtlinie des Profils: der Vergleich, die zuletzt gesehenen Ursprünge, der Hinweis |
 | `cdp` | der DevTools-Client, seine Liste erlaubter Methoden und seine konstanten Skripte |
 | `browser` | Prüfungen der Anbindung, Tabs, die dem Server gehören, Navigation, Dialoge |
 | `perception` | Snapshot, Markierungen, Baum, Bild, Masken, was unter den Obergrenzen behalten wird, Warten auf einen Text oder ein Element |
@@ -76,8 +77,9 @@ auf. Tests prüfen das und dass kein Werkzeug die Ausgabestelle umgeht.
 - Loopback: Der Server verbindet sich nur, wenn jeder Socket am Debugging-Port auf Loopback lauscht
   (bei jeder Anbindung in `/proc/net` gelesen), wenn das deklarierte Profil nicht das Standardprofil des
   Browsers ist und wenn der Browser eine Debugging-Adresse auf demselben Loopback-Port ankündigt.
-- Erlaubte Ursprünge: Eine Seite außerhalb davon wird weder gelesen noch wird darauf gehandelt; nur ihr
-  Ursprung wird zurückgegeben. Ein Eintrag ist ein Ursprung oder ein Subdomain-Platzhalter
+- Erlaubte Ursprünge und Ursprungsrichtlinie: Mit `strict` wird eine Seite außerhalb der Liste weder gelesen noch wird darauf gehandelt;
+  nur ihr Ursprung wird zurückgegeben. Mit `discovery` beantwortet der Bediener für jeden neuen Ursprung ein Fenster, und mit `open` wird
+  jeder öffentliche Ursprung zugelassen, lokale Adressen und Namen ausgenommen. Ein Eintrag ist ein Ursprung oder ein Subdomain-Platzhalter
   (`https://*.example.invalid`), vom Bediener geschrieben; ein Platzhalter weitet Lesen und Handeln aus,
   nie das Tippen. Zugangsdaten werden nur auf dem genauen Ursprung getippt, den ihre Datei nennt, und
   eine Datei, die einen Platzhalter aufführt, wird abgelehnt.

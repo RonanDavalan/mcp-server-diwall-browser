@@ -28,6 +28,21 @@ yourself, in the browser it starts. After adding the server to your MCP client, 
 that was already open does not see it. The steps, the refusals and the manual way are in the section "First launch" of
 [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md).
 
+## Which sites the model reads
+
+The list of sites in the operator profile bounds what the model reads and acts on, never where it navigates. The key
+`origin_policy` chooses what the server does with an origin that the list does not hold:
+
+- `strict` (the default, also when the key is missing): the origin is refused, and only the origin is returned.
+- `discovery`: the server asks you in a window, once per origin: `Refuser` (the default answer), `Cette séance` or
+  `Ajouter à la liste`, which writes that exact origin in your profile.
+- `open`: every public site is read and acted on, and its content goes to the provider of the model; local addresses and
+  names stay on the list. It is the freest policy and the riskiest, and it is yours to choose.
+
+Payments, irreversible deletions and secret changes keep their confirmation, and a credential is typed only on the exact
+origin it is bound to, in the three policies. The details are in section 5 of
+[docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md).
+
 ## Install
 
 On Linux the server ships as native packages. Download the one of your system from the
