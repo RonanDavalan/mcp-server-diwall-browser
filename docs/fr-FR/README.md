@@ -279,13 +279,13 @@ mcp-server-diwall-browser est construit dans une collaboration asymétrique huma
 tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIBUTORS.md](../../CONTRIBUTORS.md).
 
 - **Ronan Davalan** : architecte et arbitre. Vision, exigences de sécurité, décisions, validation et essais.
-- **Claude Code (Anthropic)** : ingénieur systèmes et développeur principal. Réalisation du serveur, tests, documentation et cadre de travail.
+- **Claude Code (Anthropic ; Opus 5.5, Sonnet 5.5 et Haiku 5.5)** : ingénieur systèmes et développeur principal. Réalisation du serveur, tests, documentation, cadre de travail, texte et entretien du site du projet, et rapport de terrain du premier lancement depuis le paquet Debian.
 - **Claude Cloud (Anthropic)** : a écrit une partie du code sur des branches, à partir de consignes, relue avant chaque fusion.
-- **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
-- **Space Bunny Free (opencode)** : nettoyage et élagage du cadre de travail du projet au début du projet.
-- **Muse Spark 1.3 Contributor (Meta, par OpenCode)** : premier usage du serveur par un modèle autre que Claude, sur une instance locale d'une application web ; son rapport de terrain a orienté les corrections suivantes.
+- **Muse Spark 1.3 Contributor (Meta, par OpenCode)** : premier usage du serveur par un modèle autre que Claude, sur une instance locale d'une application web, dont le rapport de terrain a orienté les corrections suivantes ; la feuille de style et la mise en page du site du projet, retenues parmi plusieurs essais, le texte et le comportement des pages restés intacts ; deux relectures du site, avec des propositions de formulation en quatre langues restées à l'état de brouillon et des défauts relevés, corrigés.
+- **DeepSeek V4 Pro (DeepSeek, par OpenCode)** : audit de sécurité indépendant du tag `v0.0.1`, sur une session vierge ; quatre de ses sept constats ont été confirmés au tri et corrigés.
+- **GLM 5.3 (Zhipu, par OpenCode)** : audit de sécurité indépendant du même tag, sur une session vierge, avec des reproductions sur un navigateur sans écran ; trois de ses sept constats ont été confirmés au tri et corrigés.
+- **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
 - **gemini-3.5-flash (Google, par OpenCode)** : a testé le branchement par un agent dédié : les outils n'atteignent que cet agent, et son shell demande avant d'exécuter.
-- **Muse Spark 1.3 Contributor (Meta, par OpenCode)**, de nouveau le 16 octobre 2026 : la feuille de style et la mise en page du site du projet, retenues parmi plusieurs essais ; le texte et le comportement des pages sont restés intacts.
-- **Muse Spark 1.3 Contributor (Meta, par OpenCode)**, encore le 18 octobre 2026 : une relecture des seize pages françaises du site du projet et des propositions de formulation en quatre langues, restées à l'état de brouillon.
+- **Space Bunny Free (opencode)** : nettoyage et élagage du cadre de travail du projet au début du projet.
 
 Licence : MIT, voir [LICENSE](../../LICENSE).

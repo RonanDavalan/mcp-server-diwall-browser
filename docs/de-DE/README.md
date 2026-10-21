@@ -282,13 +282,13 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 [CONTRIBUTORS.md](../../CONTRIBUTORS.md).
 
 - **Ronan Davalan**: Architekt und Schiedsrichter. Vision, Sicherheitsanforderungen, Entscheidungen, Abnahme und Tests.
-- **Claude Code (Anthropic)**: Systemingenieur und Hauptentwickler. Umsetzung des Servers, Tests, Dokumentation und Arbeitsrahmen.
+- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 und Haiku 5.5)**: Systemingenieur und Hauptentwickler. Umsetzung des Servers, Tests, Dokumentation, Arbeitsrahmen, Text und Pflege der Website des Projekts und ein Feldbericht zum ersten Start aus dem Debian-Paket.
 - **Claude Cloud (Anthropic)**: schrieb einen Teil des Codes auf Branches, nach Vorgaben, vor jeder Zusammenführung geprüft.
+- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**: erste Nutzung des Servers durch ein anderes Modell als Claude, auf einer lokalen Instanz einer Webanwendung, deren Feldbericht die folgenden Korrekturen geprägt hat; das Stylesheet und das Layout der Website des Projekts, unter mehreren Versuchen ausgewählt, Text und Verhalten der Seiten blieben unberührt; zwei Durchsichten der Website, mit Formulierungsvorschlägen in vier Sprachen, als Entwürfe belassen, und gefundenen Mängeln, die behoben wurden.
+- **DeepSeek V4 Pro (DeepSeek, über OpenCode)**: unabhängiges Sicherheitsaudit des Tags `v0.0.1` auf einer leeren Sitzung; vier seiner sieben Befunde wurden bei der Sichtung bestätigt und behoben.
+- **GLM 5.3 (Zhipu, über OpenCode)**: unabhängiges Sicherheitsaudit desselben Tags auf einer leeren Sitzung, mit Reproduktionen auf einem Browser ohne Bildschirm; drei seiner sieben Befunde wurden bei der Sichtung bestätigt und behoben.
 - **Gemini (Google)**: Architekturberater und Synthetisierer; gab dem Projekt seinen Namen, **Diwall**, „Deich“ auf Bretonisch.
-- **Space Bunny Free (opencode)**: Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
-- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**: erste Nutzung des Servers durch ein anderes Modell als Claude, auf einer lokalen Instanz einer Webanwendung; sein Feldbericht hat die folgenden Korrekturen geprägt.
 - **gemini-3.5-flash (Google, über OpenCode)**: hat die Anbindung über einen eigenen Agenten getestet: Die Werkzeuge erreichen nur diesen Agenten, und seine Shell fragt, bevor sie etwas ausführt.
-- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**, noch einmal am 16. Oktober 2026: das Stylesheet und das Layout der Website des Projekts, unter mehreren Versuchen ausgewählt; Text und Verhalten der Seiten blieben unberührt.
-- **Muse Spark 1.3 Contributor (Meta, über OpenCode)**, ein weiteres Mal am 18. Oktober 2026: eine Durchsicht der sechzehn französischen Seiten der Website des Projekts und Formulierungsvorschläge in vier Sprachen, als Entwürfe belassen.
+- **Space Bunny Free (opencode)**: Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
 
 Lizenz: MIT, siehe [LICENSE](../../LICENSE).

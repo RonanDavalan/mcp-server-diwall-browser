@@ -273,15 +273,13 @@ mcp-server-diwall-browser is built in an asymmetric human–LLM collaboration. T
 down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 - **Ronan Davalan**: architect and arbiter. Vision, security requirements, decisions, validation and testing.
-- **Claude Code (Anthropic)**: systems engineer and lead developer. Server implementation, tests, documentation, and the working framework.
+- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 and Haiku 5.5)**: systems engineer and lead developer. Server implementation, tests, documentation, the working framework, the text and upkeep of the project's website, and a field report of the first launch from the Debian package.
 - **Claude Cloud (Anthropic)**: wrote part of the code on branches, from prompts, reviewed before every merge.
+- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application, whose field report shaped the next fixes; the stylesheet and layout of the project's website, chosen among several trials, the text and the behaviour of the pages left untouched; two readings of the website, with wording proposals in four languages kept as drafts and defects found, which were corrected.
+- **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session; four of its seven findings were confirmed at triage and corrected.
+- **GLM 5.3 (Zhipu, through OpenCode)**: independent security audit of the same tag, from a blank session, with reproductions on a headless browser; three of its seven findings were confirmed at triage and corrected.
 - **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
-- **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
-- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application; its field report shaped the next fixes.
 - **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
-- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, again on 16 October 2026: the stylesheet and layout of the project's website, chosen among several trials; the text and the behaviour of the pages were left untouched.
-- **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, once more on 18 October 2026: a reading of the sixteen French pages of the project's website and wording proposals in four languages, kept as drafts.
-- **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session (21 October 2026).
-- **GLM 5.3 (Zhipu, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session, with reproductions on a headless browser (21 October 2026).
+- **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
 
 License: MIT, see [LICENSE](LICENSE).
