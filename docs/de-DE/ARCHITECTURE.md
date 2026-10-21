@@ -48,6 +48,7 @@ Bedieners und die Ablehnungen, die nicht vom Urteil des Modells abhängen.
 | `origin` | Parsen, Normalisieren und Vergleichen von Adressen und Ursprüngen; der Subdomain-Platzhalter, ein eigener Typ |
 | `output` | die einzige Ausgabestelle: Schwärzung, Umschlag, `server` und `page_content` getrennt gehalten |
 | `sensitive_field` | das Prädikat, das sagt, dass ein Feld sensibel ist |
+| `confusables` | die einzige Normalisierung eines Seitentexts, bevor er mit einem Wort verglichen wird: Kleinbuchstaben, ohne Akzente, Buchstaben eines anderen Alphabets, die einem lateinischen Buchstaben gleichen, als dieser Buchstabe gelesen |
 | `mount` | ob das verschlüsselte Verzeichnis wie erwartet eingehängt ist, und jeder Pfad darin |
 | `credentials` | Lesen von Zugangsdatendateien, Auflösen einer für einen genauen Ursprung und das Schema, das anderer Code erfragen darf |
 | `credential_import` | ein Bedienerbefehl, außerhalb des Servers: wandelt eine alte Zugangsdatendatei oder ein Verzeichnis davon in das Schema um, ohne einen Wert zu zeigen |

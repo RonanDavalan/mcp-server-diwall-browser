@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import origin as _origin
+from .confusables import fold
 
 REDACTED = "<redacted>"
 INVALID_URL = "<invalid-url>"
@@ -199,7 +200,7 @@ def _sanitize_query(query: str) -> str:
     pieces = []
     for piece in query.split("&"):
         name, eq, _value = piece.partition("=")
-        decoded = urllib.parse.unquote(name).lower()
+        decoded = fold(urllib.parse.unquote(name))
         if eq and any(word in decoded for word in SENSITIVE_QUERY_WORDS):
             pieces.append(f"{name}={REDACTED}")
         else:

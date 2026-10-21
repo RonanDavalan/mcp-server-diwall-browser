@@ -146,6 +146,13 @@ def test_the_reference_lists_every_tool_and_every_error_code() -> None:
         assert f"| {name} |" in reference, name
 
 
+def test_the_limits_say_what_the_press_the_focus_and_the_dialogs_ask() -> None:
+    reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
+    assert "confirm or a prompt dialog asks the operator in a window, whatever its message says" in reference
+    assert "A click is checked after the press" in reference and "guarded the same way" in reference
+    assert "a password enters only a field the server deems sensitive" in reference
+
+
 def test_the_limits_say_what_the_dialogs_and_the_downloads_cannot_do() -> None:
     reference = guide.INSTRUCTIONS.split(guide.MARKER, 1)[1]
     assert "capture_unavailable" in reference and "answer the dialog themselves" in reference

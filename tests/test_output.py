@@ -428,3 +428,7 @@ async def test_refused_arguments_have_their_own_code() -> None:
 
     envelope, _image = await run()
     assert envelope["ok"] is False and envelope["server"]["error"]["code"] == "invalid_arguments"
+
+
+def test_a_query_name_written_with_a_lookalike_letter_is_redacted() -> None:
+    assert sanitize_url("https://example.test/a?t\u043eken=abc&page=2") == "https://example.test/a?t\u043eken=<redacted>&page=2"

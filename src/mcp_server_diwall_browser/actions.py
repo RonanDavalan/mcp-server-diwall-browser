@@ -11,10 +11,11 @@ Pourquoi ce module existe :
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import math
 import re
 import time
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -48,6 +49,8 @@ KEYS: dict[str, tuple[str, int]] = {
     "Home": ("Home", 36),
     "End": ("End", 35),
 }
+# Un point hors de la vue : relâcher là un bouton pressé ailleurs que sur la cible ne clique aucun élément.
+OFF_VIEW = -10
 MAX_SCROLL = 5000
 SCROLL_TO_ATTEMPTS = 20
 SETTLE_START_S = 0.5
@@ -63,10 +66,22 @@ _STALE_ELEMENT = "cet élément n'est plus celui de l'observation : observer à 
 _UNKNOWN_MARK = "ce repère n'existe pas dans l'instantané : observer à nouveau avant d'agir"
 _OBSCURED = "un autre élément recouvre la cible à cet endroit : rien n'a été cliqué"
 _NO_OFFSET = "la position de la page n'a pas pu être lue : ce qui recouvre la cible n'est pas connu, rien n'a été cliqué"
+_PRESS_MISSED = (
+    "la page a changé sous le pointeur au moment de la pression : le bouton pressé n'est pas la cible, aucun clic n'a été "
+    "achevé ; la page a pu réagir à la pression elle-même, observer à nouveau"
+)
+_INPUT_MISSED = (
+    "le focus a quitté la cible au moment de la saisie : la touche ou le texte a été annulé avant d'atteindre un autre "
+    "élément, observer à nouveau"
+)
 _FOCUS_MOVED = "le curseur n'est pas dans l'élément visé : rien n'a été saisi"
 _SENSITIVE = (
     "ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), "
     "jamais par un texte"
+)
+_PASSWORD_ONLY_IN_SENSITIVE = (
+    "un mot de passe n'entre que dans un champ que le serveur reconnaît comme sensible (type password, autocomplete, nom) : "
+    "ce champ n'en est pas un, rien n'a été saisi"
 )
 _EDITABLE_NO_SECRET = "une zone éditable ne reçoit aucun identifiant : un secret n'entre que dans un champ de saisie"
 
@@ -181,12 +196,34 @@ class Actions:
         await self._gesture(
             run,
             tab,
-            [
-                ("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1}),
-                ("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1}),
-            ],
+            [("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1})],
             started=True,
         )
+        if run.dialog_opened:
+            return
+        # Entre la dernière vérification et la pression la page garde la main : elle peut échanger l'élément sous le
+        # pointeur. Seul ce que le navigateur a retenu à la pression le dit ; relâché ailleurs, le bouton ne clique rien.
+        reached = False
+        try:
+            reached = await self._press_reached(tab, backend)
+        finally:
+            at_x, at_y = (x, y) if reached else (OFF_VIEW, OFF_VIEW)
+            await self._gesture(
+                run,
+                tab,
+                [("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": at_x, "y": at_y, "button": "left", "clickCount": 1})],
+                started=True,
+            )
+        if not reached:
+            raise ToolError("element_obscured", _PRESS_MISSED)
+
+    async def _press_reached(self, tab: Tab, backend: int) -> bool:
+        """La pression a-t-elle atteint la cible ou l'un de ses descendants ? Une cible détachée ou illisible : non."""
+        try:
+            result = await self._script(tab, "is_pressed", object_id=await self._object(tab, backend))
+        except CdpError:
+            return False
+        return _script_value(result) is True
 
     async def _recheck_before_press(self, tab: Tab, backend: int, x: int, y: int) -> None:
         """Refuser la pression sauf si la cible, ou l'un de ses descendants, se trouve encore sous le pointeur.
@@ -276,6 +313,9 @@ class Actions:
         key = name = None
         if credential_ref is not None:
             key, name = _credential_reference(credential_ref)
+            # Dans un champ ordinaire la valeur resterait lisible, dans la page et dans l'image publiée.
+            if key == "password" and not ref.sensitive:
+                raise ToolError("sensitive_value_refused", _PASSWORD_ONLY_IN_SENSITIVE)
             # Refusé avant toute confirmation : le consentement ne rend pas bon un mauvais site.
             self._resolve(await self._frame(tab), key, name)
         await self._guard(run, tab, profile, "fill", ref, verified, NOT_ARMED)
@@ -285,11 +325,13 @@ class Actions:
         if key is not None:
             # L'origine lue dans le navigateur au moment de la frappe, pas celle de l'instantané ni celle que le modèle nomme.
             secret = self._resolve(await self._frame(tab), key, name)
-            await self._with_gate(run, self._read(tab, "Input.insertText", {"text": secret.reveal()}))
+            async with self._guard_input(tab, verified.object_id):
+                await self._with_gate(run, self._read(tab, "Input.insertText", {"text": secret.reveal()}))
             del secret
             marker = f"<secret:{key}>"
         else:
-            await self._with_gate(run, self._read(tab, "Input.insertText", {"text": text}))
+            async with self._guard_input(tab, verified.object_id):
+                await self._with_gate(run, self._read(tab, "Input.insertText", {"text": text}))
             marker = "<typed>"
         return await self._finish(run, tab, mark=mark, typed_marker=marker)
 
@@ -352,10 +394,40 @@ class Actions:
             await self._focus_into(tab, ref, verified.object_id, select=False)
         await self._with_gate(run, context.downloads.prepare(run.operation_id))
         try:
-            await self._with_gate(run, self._key(run, tab, key))
+            async with self._guard_input(tab, verified.object_id):
+                await self._with_gate(run, self._key(run, tab, key))
             return await self._finish(run, tab, mark=mark)
         finally:
             await context.downloads.forbid()
+
+    @contextlib.asynccontextmanager
+    async def _guard_input(self, tab: Tab, object_id: str) -> AsyncIterator[None]:
+        """Ne laisser entrer dans la page que ce qui passe par l'élément vérifié, le temps d'une saisie.
+
+        Le focus a été vérifié avant la porte, mais la page garde la main et peut le donner à un autre élément avant
+        que la touche ou le texte arrive ; aucun état du navigateur ne retient la cible d'une saisie comme il retient
+        celle d'une pression. Une garde posée dans la page pour la durée de la saisie annule donc ce qui n'est pas pour
+        la cible, et la saisie est refusée.
+        """
+        installed = await self._script(tab, "guard_input", object_id=object_id)
+        guard = (installed.get("result") or {}).get("objectId")
+        if not isinstance(guard, str):
+            raise ToolError("element_obscured", _FOCUS_MOVED)
+        blocked = False
+        try:
+            yield
+        finally:
+            blocked = await self._release_input_guard(tab, guard)
+        if blocked:
+            raise ToolError("element_obscured", _INPUT_MISSED)
+
+    async def _release_input_guard(self, tab: Tab, guard: str) -> bool:
+        """Lever la garde et dire si elle a annulé une entrée ; une page qu'on ne joint plus la laisse s'éteindre seule."""
+        try:
+            result = await self._script(tab, "release_input_guard", object_id=guard)
+        except (CdpError, ToolError):
+            return False
+        return _script_value(result) is True
 
     async def _key(self, run: _Run, tab: Tab, key: str) -> None:
         code, virtual = KEYS[key]
@@ -462,6 +534,7 @@ class Actions:
             intent_category=intent_category,
             snapshot=context.perception.latest_snapshot(tab.tab_id),
             dialog_message=message,
+            dialog_type=dialog.get("type"),
         )
         await self._guard_dialog(run, tab, profile, origin, dialog, decision)
         if tab.dialog != dialog:
@@ -572,7 +645,7 @@ class Actions:
     async def _guard_dialog(
         self, run: _Run, tab: Tab, profile: Profile, origin: Origin, dialog: dict[str, str], decision: GateDecision
     ) -> None:
-        if not decision.armed and not origin_allowed(origin, profile.confirm_each_change):
+        if not decision.armed and not decision.asks and not origin_allowed(origin, profile.confirm_each_change):
             return
         message = dialog.get("message", "")
         request = ConfirmRequest(
@@ -585,7 +658,7 @@ class Actions:
             amounts=find_amounts(message),
             categories=decision.categories,
             signals=decision.signals,
-            reason="armed" if decision.armed else "operator_setting",
+            reason="armed" if decision.armed else "dialog_question" if decision.asks else "operator_setting",
         )
         await self._ask(run, tab, request, red_list=decision.armed)
 

@@ -50,7 +50,8 @@ async def run(
     """Type into a marked text field of an allowed site: either text, or credential_ref for a credential.
 
     A sensitive field (password, card, code) refuses text: only credential_ref fills it, from the encrypted
-    directory, and only on the origin the credential is bound to. The value is never returned; the result
+    directory, and only on the origin the credential is bound to. A password enters only a field the server
+    deems sensitive, never a plain text field. The value is never returned; the result
     says <typed> or <secret:username>/<secret:password>. Refused at once while a dialog is open
     (element_obscured, action_expected handle_dialog).
     Errors: sensitive_value_refused, credential_not_bound, credential_ambiguous, credential_invalid,

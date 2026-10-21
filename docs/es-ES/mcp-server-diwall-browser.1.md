@@ -74,7 +74,7 @@ El servidor ofrece catorce herramientas al modelo.
 :   Devolver la imagen con marcas numeradas, el árbol de accesibilidad y la lista de elementos. Las marcas solo valen para esa observación.
 
 **click**, **fill**, **select_option**, **press_key**, **scroll**, **handle_dialog**
-:   Actuar sobre un elemento designado por su marca. Un campo sensible solo se rellena desde un archivo de credenciales (**fill** con *credential_ref*), nunca desde un texto.
+:   Actuar sobre un elemento designado por su marca. Un campo sensible solo se rellena desde un archivo de credenciales (**fill** con *credential_ref*), nunca desde un texto, y una contraseña solo entra en un campo sensible. Un clic, una tecla y un texto se anulan si la página cambia el objetivo en el último instante. Aceptar un diálogo **confirm** o **prompt** pide una confirmación al operador.
 
 **wait**
 :   Esperar la carga de la página, un texto o un elemento.

@@ -2386,3 +2386,36 @@ list of delivered files for the four families), and the Spanish README and manua
   12 tests of `tests/test_origin_policy_integration.py` (the server started by its entry point, a real browser, fake window programs).
   The real-data check of the repository refused the private addresses and `.local` names of the tests until they were written from parts.
 - Not measured. A person answering the new form of the windows on a real screen; `kdialog` under Wayland with the Plasma theme.
+
+## Independent audit of v0.0.1: eight corrections
+
+- What. An audit of the tag by two models of other families gave six confirmed findings; the search for the sisters of each
+  gave two more. All eight are corrected, each by a test seen to fail first.
+  - A password reference (`credential_ref` with `password`) is refused in a field the server does not deem sensitive
+    (`sensitive_value_refused`): a text field named "access code" took the password, and the published image showed it.
+  - A click is checked after the press. Between the last lookup and the press a page keeps running, and a script that swaps the
+    button under the pointer sent the press elsewhere. After `mousePressed` the server asks the browser which element the press
+    reached (the script `is_pressed`, `:active`); if it is not the target or one of its descendants, `mouseReleased` goes to a
+    point outside the view and the click is refused with `element_obscured`.
+  - Enter of `press_key` and the text of `fill` are guarded: sisters of the click, found by the search the closing protocol asks
+    for. The browser keeps nothing that names the target of a key or of a text, so a listener of the window, the first of the
+    capture phase, is put in the page for the time of the input (`guard_input`, lifted by `release_input_guard`) and cancels any
+    key or `beforeinput` whose path does not go through the checked element.
+  - A letter of another alphabet that looks like a Latin one (Cyrillic, Greek) is read as that letter before a text of the page
+    is compared with a word: one module, `confusables.py`, called by the gate, by the predicate of sensitive fields and by the
+    redaction of the names of address parameters.
+  - Accepting a `confirm` or a `prompt` dialog asks the operator, whatever its message says (`dialog_question`, no evidence, since
+    a dialog hides the page); `alert` and `beforeunload` are accepted without a window.
+  - `passcode`, `passphrase`, `passkey`, `codepin`, `numcarte` and `cardno` are sensitive names; `code` alone is not.
+  - The limit that a token in the path of an address is shown as written is stated in the four guides and in `SECURITY.md`.
+- Measured, Google Chrome 156.0.8078.47, 300 tries each. Swapped button under the pointer: 29 clicks on the other button before,
+  0 after, in three runs. Focus moved between a text field and a button: 137 Enter keys on the button before, 0 after; 178
+  passwords in a plain field before, 0 after.
+- Chosen against. Suspending the scripts of the page around the press (`Emulation.setScriptExecutionDisabled`): measured, the
+  handlers of `pointerdown` and `mousedown` no longer run for any click, which keeps menus and lists of many components from
+  opening, and a loop of `fetch` that was already running went on. Pausing virtual time: stops timers and messages but not the
+  network, and the time of the page does not return to real time.
+- Control. Without a browser: 2098 passed, 1 skipped, 589 deselected (2019 and 583 before). With Google Chrome 156.0.8078.47: 2687 passed, 1 skipped (2602 before), among them the 7 tests of `tests/test_click_swap_integration.py` and `tests/test_audit_integration.py`; the counter-proofs of the click checks now also neutralise the check after the press.
+- Not measured. A page that expects the guard of an input and stops the event before it, and the events of a frame, which the
+  guard does not see. The handlers of the press that a page attached to what it put under the pointer have run when the check of
+  the press ends.

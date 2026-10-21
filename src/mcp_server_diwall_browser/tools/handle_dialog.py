@@ -30,10 +30,12 @@ class Arguments(ToolArguments):
 async def run(ctx: ToolContext, *, tab_id: str, accept: bool) -> ToolOutput:
     """Answer the dialog open in a tab: accept false dismisses it, always allowed; accept true accepts it.
 
-    Accepting needs an allowed site. A dialog whose message is a payment, a deletion or a secret change
+    Accepting needs an allowed site, and asks the operator in a window when the dialog is a confirm or a
+    prompt, whatever its message says. A dialog whose message is a payment, a deletion or a secret change
     is never accepted here: the answer is capture_unavailable, as no evidence can be taken while it is
     open. Dismiss it, or tell the operator to answer the dialog themselves.
-    Errors: capture_unavailable, origin_not_allowed, unsupported_element (no dialog open), limit_reached.
+    Errors: capture_unavailable, origin_not_allowed, unsupported_element (no dialog open), confirmation_denied,
+    confirmation_expired, confirmation_unavailable, limit_reached.
     """
     actions = await ctx.actions()
     outcome = await actions.handle_dialog(tab_id, accept)

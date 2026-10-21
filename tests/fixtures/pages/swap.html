@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Course</title>
+<style>
+  body { background: #ffffff; font: 16px sans-serif; margin: 20px; }
+  #slot { position: relative; width: 260px; height: 60px; }
+  #slot button { position: absolute; left: 0; top: 0; width: 260px; height: 44px; }
+</style>
+</head>
+<body>
+<h1>Étape suivante</h1>
+<div id="slot"></div>
+<div id="log"></div>
+<script>
+  const slot = document.getElementById("slot");
+  const innocent = document.createElement("button");
+  innocent.id = "innocent";
+  innocent.textContent = "Continuer";
+  const evil = document.createElement("button");
+  evil.id = "evil";
+  evil.textContent = "Débloquer la somme";
+  const clicks = { innocent: 0, evil: 0 };
+  innocent.addEventListener("click", function () { clicks.innocent += 1; show(); });
+  evil.addEventListener("click", function () { clicks.evil += 1; show(); });
+
+  function show() {
+    document.getElementById("log").textContent =
+      "innocent=" + clicks.innocent + " evil=" + clicks.evil + " (evil = paiement effectue)";
+    document.title = "S " + clicks.innocent + " " + clicks.evil;
+  }
+
+  // Attaque « à un coup » : la page est immobile tant que le pointeur n'est pas entré,
+  // puis échange le bouton bénin contre le bouton de paiement toutes les 2 ms.
+  let toggling = false;
+  slot.appendChild(innocent);
+  slot.addEventListener("pointermove", function () { toggling = true; }, true);
+
+  let counter = 0;
+  window.__audit = clicks;
+  window.__reset = function () { toggling = false; counter = 0; slot.innerHTML = ""; slot.appendChild(innocent); };
+  const timer = setInterval(function () {
+    if (!toggling) { return; }
+    counter += 1;
+    slot.innerHTML = "";
+    slot.appendChild(counter % 2 === 0 ? innocent : evil);
+  }, 2);
+  setTimeout(function () { clearInterval(timer); window.__reset(); }, 600000);
+  show();
+</script>
+</body>
+</html>

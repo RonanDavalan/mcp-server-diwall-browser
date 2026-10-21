@@ -101,6 +101,11 @@ async def scroll_by_a_hundred_each_way(raw: RawSession) -> None:
 # --- the click, and what the page received ------------------------------------------------------
 
 
+async def press_always_reached(self: Actions, tab: Tab, backend: int) -> bool:
+    """Defective: the check after the press is neutralised too, so that only the check under test is missing."""
+    return True
+
+
 async def server_click(rig: Rig, tab: Tab, snapshot: Snapshot, raw: RawSession, target: str) -> str | None:
     """The click of the server, by its own entry point, on the mark of the button the observation names.
 
@@ -328,6 +333,7 @@ async def test_a_server_that_asks_for_the_node_at_the_view_point_clicks_the_bann
 ) -> None:
     """The defect the covered check guards against: the click is accepted, and lands on what covers the button."""
     monkeypatch.setattr(Actions, "_viewport", no_scroll_offset)
+    monkeypatch.setattr(Actions, "_press_reached", press_always_reached)
     address = rig.pages.url(SCROLLED_PAGE) + "#covered"
     outcome = await attempt_on(rig, screen, address, scroll_by_a_hundred_each_way, "tall", server_click)
     assert outcome.received.error is None and outcome.received.clicks["cover"] == 1, outcome.received

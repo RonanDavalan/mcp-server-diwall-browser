@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import time
-import unicodedata
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any, Protocol
 
+from .confusables import fold
 from .operator_profile import Limits
 from .output import ToolError
 
@@ -26,6 +26,10 @@ INTENT_CATEGORIES = frozenset({"read", "edit", "submit", *CATEGORIES})
 # Gestes que la porte regarde. Remplir un champ, choisir une option, aller à une page, défiler et
 # attendre ne sont jamais verrouillés.
 EVALUATED_GESTURES = frozenset({"click", "enter_key", "dialog_accept"})
+
+# Les boîtes de dialogue par lesquelles la page pose une question : l'accepter lui répond oui, que son message
+# dise ou non ce que ce oui déclenche.
+QUESTION_DIALOGS = frozenset({"confirm", "prompt"})
 
 # Expressions qui arment la porte, comparées mot à mot après normalisation. Un faux positif ajoute
 # une confirmation, un faux négatif laisse partir une action sans confirmation : la liste penche
@@ -89,11 +93,10 @@ VOCABULARY: Mapping[str, tuple[str, ...]] = MappingProxyType(
 
 
 def normalize(text: object) -> str:
-    """Minuscules, accents retirés, tout ce qui n'est pas lettre ni chiffre devenu une espace."""
+    """Texte plié (minuscules, sans accents, lettres latines), tout ce qui n'est pas lettre ni chiffre devenu une espace."""
     if not isinstance(text, str):
         return ""
-    decomposed = unicodedata.normalize("NFKD", text.lower())
-    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    plain = fold(text)
     return " ".join("".join(char if char.isalnum() else " " for char in plain).split())
 
 
@@ -136,9 +139,12 @@ class GateSnapshot(Protocol):
 
 @dataclass(frozen=True)
 class GateDecision:
+    """``armed`` : une catégorie de la liste rouge, donc une preuve et un humain. ``asks`` : un humain sans preuve."""
+
     armed: bool
     categories: tuple[str, ...]
     signals: tuple[str, ...]
+    asks: bool = False
 
 
 NOT_ARMED = GateDecision(armed=False, categories=(), signals=())
@@ -151,11 +157,13 @@ def classify(
     intent_category: str | None,
     snapshot: GateSnapshot | None,
     dialog_message: str | None = None,
+    dialog_type: str | None = None,
 ) -> GateDecision:
     """Dit si une action exige la confirmation d'un humain, et pourquoi.
 
     ``action_kind`` est le geste : ``click``, ``enter_key`` (Entrée sur un élément repéré) ou
-    ``dialog_accept`` ; tout autre geste n'est jamais évalué. La catégorie déclarée par le modèle peut
+    ``dialog_accept`` (``dialog_type`` : ``confirm`` et ``prompt`` demandent un humain, quel que soit le message) ;
+    tout autre geste n'est jamais évalué. La catégorie déclarée par le modèle peut
     armer la porte, jamais la désarmer : chaque signal ne fait qu'ajouter.
     """
     if action_kind not in EVALUATED_GESTURES:
@@ -163,11 +171,14 @@ def classify(
     categories: list[str] = []
     signals: list[str] = []
 
+    def add_signal(signal: str) -> None:
+        if signal not in signals:
+            signals.append(signal)
+
     def add(category: str, signal: str) -> None:
         if category not in categories:
             categories.append(category)
-        if signal not in signals:
-            signals.append(signal)
+        add_signal(signal)
 
     texts: tuple[object, ...]
     if action_kind == "dialog_accept":
@@ -187,7 +198,10 @@ def classify(
     if intent_category in CATEGORIES:
         add(intent_category, "declared_category")
     ordered = tuple(category for category in CATEGORIES if category in categories)
-    return GateDecision(armed=bool(ordered), categories=ordered, signals=tuple(signals))
+    asks = action_kind == "dialog_accept" and dialog_type in QUESTION_DIALOGS
+    if asks:
+        add_signal("dialog_question")
+    return GateDecision(armed=bool(ordered), categories=ordered, signals=tuple(signals), asks=asks)
 
 
 # --- Rythme et plafonds -------------------------------------------------------------------

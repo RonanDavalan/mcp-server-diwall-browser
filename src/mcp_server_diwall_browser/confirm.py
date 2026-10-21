@@ -39,7 +39,7 @@ GESTURES = {
     "select_option": "choix d'une option",
 }
 CATEGORY_LABELS = {"payment": "paiement", "deletion": "suppression irréversible", "secret_change": "changement de secret"}
-REASONS = frozenset({"armed", "operator_setting"})
+REASONS = frozenset({"armed", "operator_setting", "dialog_question"})
 
 _NUMBER = r"\d+(?:[   .,']\d+)*"
 _CURRENCY = r"(?:[€$£]|\b(?:EUR|USD|GBP|CHF)\b)"
@@ -125,6 +125,8 @@ def build_text(request: ConfirmRequest) -> str:
         lines.append("Signaux : " + ", ".join(request.signals))
     if request.reason == "operator_setting":
         lines.append("Demandé par le réglage de l'opérateur pour cette origine (confirm_each_change).")
+    if request.reason == "dialog_question":
+        lines.append("La page pose une question par une boîte de dialogue : l'accepter lui répond oui, sans que la page dise ce que ce oui déclenche.")
     return "\n".join(lines)
 
 

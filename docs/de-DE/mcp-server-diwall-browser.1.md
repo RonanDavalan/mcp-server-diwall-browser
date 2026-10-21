@@ -75,7 +75,7 @@ Der Server bietet dem Modell vierzehn Werkzeuge.
 :   Das Bild mit nummerierten Markierungen, den Barrierefreiheitsbaum und die Liste der Elemente liefern. Die Markierungen gelten nur für diese Beobachtung.
 
 **click**, **fill**, **select_option**, **press_key**, **scroll**, **handle_dialog**
-:   Auf ein Element handeln, das durch seine Markierung bezeichnet ist. Ein sensibles Feld wird nur aus einer Zugangsdatendatei gefüllt (**fill** mit *credential_ref*), nie aus einem Text.
+:   Auf ein Element handeln, das durch seine Markierung bezeichnet ist. Ein sensibles Feld wird nur aus einer Zugangsdatendatei gefüllt (**fill** mit *credential_ref*), nie aus einem Text, und ein Passwort gelangt nur in ein sensibles Feld. Ein Klick, eine Taste und ein Text werden abgebrochen, wenn die Seite das Ziel im letzten Augenblick ändert. Das Annehmen eines **confirm**- oder **prompt**-Dialogs verlangt vom Bediener eine Bestätigung.
 
 **wait**
 :   Auf das Laden der Seite, einen Text oder ein Element warten.

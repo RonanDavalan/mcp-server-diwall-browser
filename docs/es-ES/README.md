@@ -237,9 +237,10 @@ No probado:
   Chromium 141 (responde para un punto del documento, no de la vista): si difiere en otra versión, las pruebas de
   un clic en una página desplazada fallan allí. No se midió un clic en un elemento dentro de un marco de una página
   desplazada.
-- Una página que se mueve después de la segunda búsqueda de un clic y antes de la pulsación. En una página que se
-  desplaza 1000 píxeles CSS por segundo, 6 de 144 clics no dieron ningún error y no cayeron en ninguna parte;
-  ninguno cayó en otro botón (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
+- Un control que actúa con la pulsación y no con el clic, puesto bajo el puntero por un script en el instante de la
+  pulsación: la pulsación se comprueba después de hacerse, así que los manejadores de la página para la pulsación se
+  han ejecutado. La guarda de una tecla y de un texto es un script de la página: una página que la espera la rodea, y
+  no ve los eventos de un marco (Google Chrome 156.0.8078.47, `docs/OPERATOR_GUIDE.md`, sección 7).
 
 Límites conocidos:
 
@@ -248,8 +249,13 @@ Límites conocidos:
   un archivo usted mismo, detenga el servidor o el cliente MCP; las descargas vuelven a funcionar en cuanto termina la
   conexión del servidor.
 - Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga.
-- Aceptar un cuadro de diálogo cuyo mensaje pide un pago, un borrado o un cambio de secreto se rechaza siempre: no
+- Aceptar un cuadro de diálogo `confirm` o `prompt` pide una confirmación al operador en una ventana, diga lo que diga su
+  mensaje.
+  Aceptar un cuadro de diálogo cuyo mensaje pide un pago, un borrado o un cambio de secreto se rechaza siempre: no
   se puede tomar ninguna captura mientras hay un diálogo abierto. El operador responde a ese diálogo.
+- Un secreto que un sitio escribe en la ruta de una dirección se muestra tal cual en los resultados; solo se redactan el
+  valor de un parámetro de consulta cuyo nombre contiene una palabra como `token` y el fragmento.
+
 - La visibilidad es aproximada: el servidor no calcula el contraste ni el recorte por `overflow`, así que un texto
   que una persona no puede leer puede llegar igualmente al modelo.
 - Una observación contiene como máximo 150 marcas y 400 líneas de árbol (`marks_truncated`, `tree_truncated`). Más

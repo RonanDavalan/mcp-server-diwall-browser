@@ -45,6 +45,7 @@ rechazos que no dependen del criterio del modelo.
 | `origin` | análisis, normalización y comparación de direcciones y orígenes; el comodín de subdominio, un tipo propio |
 | `output` | el único punto de salida: censura, envoltorio, `server` y `page_content` mantenidos aparte |
 | `sensitive_field` | el predicado que dice que un campo es sensible |
+| `confusables` | el plegado único de un texto de la página antes de compararlo con una palabra: minúsculas, sin acentos, las letras de otro alfabeto que se parecen a una letra latina leídas como esa letra |
 | `mount` | si el directorio cifrado está montado como se espera, y cada ruta dentro de él |
 | `credentials` | lectura de los archivos de credenciales, resolución de uno para un origen exacto, y el esquema que otro código puede pedir |
 | `credential_import` | un comando del operador, fuera del servidor: convierte un archivo de credenciales antiguo, o un directorio de ellos, al esquema, sin mostrar ningún valor |

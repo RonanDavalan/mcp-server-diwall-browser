@@ -46,6 +46,7 @@ refusals that do not depend on the model's judgement.
 | `origin_policy` | the one place that decides whether an origin is read and acted on: the list, the `strict`, `discovery` or `open` policy, the window of an origin the list does not hold, what a session admitted or refused |
 | `output` | the single exit point: redaction, envelope, `server` and `page_content` kept apart |
 | `sensitive_field` | the predicate that says a field is sensitive |
+| `confusables` | the one folding of a text of the page before it is compared with a word: lowercase, no accents, the letters of another alphabet that look like a Latin letter read as that letter |
 | `mount` | whether the encrypted directory is mounted as expected, and every path inside it |
 | `credentials` | reading credential files, resolving one for an exact origin, and the schema other code may ask |
 | `credential_import` | an operator command, outside the server: converts an old credential file, or a directory of them, to the schema, showing no value |

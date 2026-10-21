@@ -617,7 +617,10 @@ L'origine est exacte : schéma, hôte et port. Avec le fichier ci-dessus, une p
 reçoit l'identifiant ; `http://account.example.invalid`, `https://account.example.invalid:8443` et
 `https://www.account.example.invalid` ne le reçoivent pas (`credential_not_bound`). Le modèle demande une valeur avec
 `credential_ref` (`{"key": "password"}`, ou `{"key": "password", "name": "account"}` quand plusieurs fichiers sont liés à
-une même origine) ; la valeur est saisie par le serveur et n'apparaît jamais dans un résultat.
+une même origine) ; la valeur est saisie par le serveur et n'apparaît jamais dans un résultat. Un mot de passe n'entre que
+dans un champ que le serveur reconnaît comme sensible (un type `password`, une valeur d'`autocomplete` ou un nom qu'il
+connaît) : dans un champ de texte ordinaire il est refusé (`sensitive_value_refused`), parce que ce qui y est saisi reste
+lisible dans la page et dans l'image. Un nom d'utilisateur va dans n'importe quel champ.
 
 ### Reprendre un fichier d'identifiants d'un autre format
 
@@ -917,20 +920,45 @@ des deux boutons ne reçoit rien ; un second clic sur une nouvelle observation
 cible. Un clic coûte une lecture de la boîte, une du décalage et une recherche de plus qu'avant ; leur durée n'a pas été
 mesurée à part. Une observation que vous demandez après un refus montre la page telle qu'elle est maintenant.
 
-Ce qui reste, mesuré : sur la même page d'essai, avec un script qui fait défiler le document de 4 pixels CSS toutes les 4 ms,
-dans un sens puis dans l'autre (1 000 pixels par seconde, 144 clics aux huit combinaisons, six par combinaison et par
-bouton), avant le changement, 64 clics ont atteint leur cible et 80 n'ont rendu aucune erreur alors que le clic ne tombait
-nulle part ; après lui, sous Chrome 154.0.8037.97, 90 ont atteint leur cible, 48 ont été refusés et 6 n'ont rendu aucune
-erreur alors que le clic ne tombait nulle part. Aucun n'est tombé sur un autre bouton. Une page qui bouge à l'instant entre
-la dernière recherche et l'appui n'est pas couverte. Pour rejouer les mesures :
+Le contrôle reste un simple regard : la page continue de tourner entre lui et l'appui, et un script qui échange le bouton
+sous le pointeur à cet instant précis envoie l'appui à l'autre bouton. Mesuré sous Google Chrome 156.0.8078.47 avec une
+page qui, dès le premier mouvement du pointeur, échange toutes les 2 ms le bouton choisi par le modèle contre un bouton
+d'un autre nom (300 clics) : 29 clics ont atteint l'autre bouton sans aucune erreur, 130 ont atteint le bon et 141 ont été
+refusés. Le serveur demande donc maintenant au navigateur, après l'appui et avant le relâchement, quel élément l'appui a
+atteint. Le navigateur garde cette réponse (`:active` désigne l'élément pressé et ses ancêtres) et la page ne peut plus la
+changer ensuite. Si ce n'est pas la cible ou l'un de ses descendants, le bouton est relâché en un point hors de la vue, où
+il ne clique rien, et le clic est refusé avec `element_obscured`. Sur la même page, en trois séries de 300 clics, aucun clic
+n'a atteint l'autre bouton ; environ 100 ont atteint le bon et environ 200 ont été refusés. Un clic coûte un appel
+de plus au navigateur. Ce qui reste : les gestionnaires que la page elle-même a attachés à l'appui (`pointerdown`,
+`mousedown`) se sont exécutés, sur ce qui se trouvait sous le pointeur, quand le contrôle s'achève ; un contrôle qui agit
+sur l'appui plutôt que sur le clic, placé sous le pointeur par un script à cet instant, n'est donc pas arrêté. Pour rejouer
+les mesures :
 
 ```
-.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py tests/test_click_swap_integration.py
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 
-La seconde commande n'exige aucun navigateur. Les 80 tests de la première commande, et les 21 tests d'échelle et 43 tests
-de zoom des parties précédentes, ont passé sous Google Chrome 155.0.8059.79 et sous Chromium 155.0.8059.39.
+La seconde commande n'exige aucun navigateur. Les tests de la première commande ont passé sous Google Chrome 156.0.8078.47.
+
+#### Une page qui déplace le focus
+
+Les touches et le texte ont la même faiblesse. `press_key` avec Entrée et `fill` donnent le focus à l'élément qu'ils ont
+contrôlé, puis envoient la touche ou le texte à ce qui a le focus ; un script qui déplace le focus entre les deux les
+envoie à un autre élément, et rien dans le navigateur ne retient la cible d'une touche ou d'un texte comme il retient celle
+d'un appui. Mesuré sous Google Chrome 156.0.8078.47 avec une page qui déplace le focus entre un champ de texte et un bouton
+toutes les 2 ms à partir du premier focus : sur 300 touches Entrée dans le champ de texte, 137 ont activé le bouton ; sur
+300 mots de passe saisis avec `credential_ref` dans un champ de mot de passe, 178 sont allés dans un champ de texte ordinaire
+de la même page, où l'image les montre.
+
+Le temps d'une touche ou d'un texte, le serveur pose désormais une garde dans la page : un écouteur de la fenêtre, le premier
+de la phase de capture, qui annule toute touche et toute insertion dont le chemin ne passe pas par l'élément contrôlé. Il
+s'exécute dans la tâche même qui remet l'entrée à la page, là où le focus est lu pour de bon. Une entrée qu'il a annulée est
+refusée avec `element_obscured` : rien n'est saisi dans l'autre champ et aucune touche n'atteint l'autre bouton. Sur les
+mêmes pages, en 300 essais chacune, aucune touche Entrée n'a activé le bouton et aucun mot de passe n'a atteint le champ
+ordinaire. Ce qui reste : la garde est un script de la page, si bien qu'une page qui l'attend, avec un écouteur enregistré
+avant elle qui arrête l'événement, la contourne ; et elle ne voit que les événements du document principal, pas ceux d'un
+cadre. Les tests sont dans `tests/test_click_swap_integration.py`.
 
 ## 8. Ce que le serveur ne fait jamais
 
@@ -993,8 +1021,8 @@ piloter. L'identifiant du navigateur n'est jamais dans un résultat ni dans le j
 
 ## 9. La confirmation
 
-Avant un paiement, une suppression irréversible ou un changement de secret (et avant chaque changement sur une origine de
-`confirm_each_change`), le serveur ouvre sur votre écran une fenêtre intitulée `Confirmation du serveur MCP`, avec deux
+Avant un paiement, une suppression irréversible ou un changement de secret, avant d'accepter une boîte de dialogue
+`confirm` ou `prompt` (et avant chaque changement sur une origine de `confirm_each_change`), le serveur ouvre sur votre écran une fenêtre intitulée `Confirmation du serveur MCP`, avec deux
 réponses, `Refuser` et `Autoriser`. Le refus est la réponse par défaut, et celle que donne une fenêtre fermée : avec `zenity` c'est le
 bouton qui a le focus, avec `kdialog` l'entrée cochée d'une courte liste (cet outil n'a pas d'option de bouton par défaut). Un `zenity` qui
 ne peut pas placer le défaut sur le refus ne montre aucune fenêtre, et l'action est refusée (`confirmation_unavailable`). La fenêtre
@@ -1166,7 +1194,9 @@ dialogue dans le navigateur. Une image dont on ne peut pas être sûr qu'elle mo
 `observe` lit `capture: unavailable` et sert son arbre, et `save_evidence` est refusé avec ce code.
 
 `sensitive_value_refused` : `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
-Écrivez un fichier d'identifiants pour cette origine (section 6).
+Écrivez un fichier d'identifiants pour cette origine (section 6). Le même code répond à un mot de passe demandé dans un
+champ que le serveur ne reconnaît pas comme sensible : `un mot de passe n'entre que dans un champ que le serveur reconnaît comme sensible (type password, autocomplete, nom) : ce champ n'en est pas un, rien n'a été saisi`.
+Saisissez ce mot de passe vous-même dans le navigateur.
 
 `credential_not_bound` : `aucun identifiant lié à l'origine https://account.example.invalid : un fichier d'identifiants doit lister cette origine dans allowed_origins`
 (la formulation de la seconde partie dépend de la demande), ou
@@ -1253,6 +1283,9 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
   autour d'un clic ou d'une touche Entrée du serveur ; arrêtez le serveur ou le client MCP pour télécharger vous-même.
 - Un téléchargement qu'une page lance plus d'une demi-seconde après la fin d'un chargement est refusé ; téléchargez-le
   vous-même.
+- Accepter une boîte de dialogue `confirm` ou `prompt` demande une confirmation, quel que soit son message, puisqu'accepter
+  répond oui à une question dont la page ne dit pas la conséquence ; une boîte `alert` ou `beforeunload` s'accepte sans
+  confirmation.
 - Accepter une boîte de dialogue dont le message demande un paiement, une suppression ou un changement de secret est
   toujours refusé (`capture_unavailable`) : aucune capture ne peut être prise tant qu'une boîte de dialogue est ouverte.
   Répondez-y vous-même.
@@ -1278,7 +1311,14 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
   mesurée sur 100 libellés de boutons courants, elle n'en a manqué aucun et en a verrouillé 2 qu'un lecteur attentif
   n'aurait pas verrouillés (`Effacer le formulaire`, `Supprimer le filtre`). Elle verrouille aussi `Finaliser l'achat`,
   `Valider mon panier`, `Reset your password` et `Regenerate API key`. Un libellé qui dit la même chose avec d'autres mots
-  n'est pas verrouillé : le garde-fou est une liste de mots, pas une lecture de la page.
+  n'est pas verrouillé : le garde-fou est une liste de mots, pas une lecture de la page. Les lettres des alphabets cyrillique
+  et grec qui ressemblent à une lettre latine sont lues comme cette lettre, dans un libellé comme dans le nom d'un champ ;
+  les autres ruses d'écriture (un chiffre à la place d'une lettre, des espaces au milieu d'un mot) ne le sont pas.
+- Un secret qu'un site écrit dans le chemin d'une adresse (`/reset/<token>`) est montré tel quel dans les résultats et dans
+  `list_tabs`. Le serveur rédige la valeur d'un paramètre de requête dont le nom contient un mot tel que `token`, `code`,
+  `state`, `key`, `secret`, `session`, `auth`, `password`, `otp`, `jwt` ou `signature`, et tout le fragment, jamais un
+  segment du chemin ni un paramètre d'un autre nom (`sid`). Rédiger les segments du chemin qui ressemblent à un jeton
+  cacherait des numéros d'article et en manquerait encore. Fermez vous-même une telle page quand elle a fait son office.
 - Un client qui donne un shell au modèle lève la garde du profil : le modèle peut modifier le profil de l'opérateur, `origin_policy` comprise, et lire
   les fichiers d'identifiants du répertoire chiffré ouvert. Le serveur ne l'en empêche pas ; il écrit seulement
   `profile_changed` après le changement d'une liste d'origines ou de la politique (section 5), que ce même shell peut effacer du journal.
@@ -1298,10 +1338,11 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 - La commande qui reprend un fichier d'identifiants a été testée sur des fichiers de la suite de tests dans un volume
   simulé ; sa publication du nouveau fichier par un lien matériel n'a pas été essayée sur un vrai volume gocryptfs (si le
   système de fichiers ne peut pas lier, elle prend d'abord le nom puis le remplit).
-- Un clic que la page déplace entre la seconde lecture de sa boîte et l'appui, ou dont la page couvre la cible sans la
-  déplacer ni déplacer la vue, n'est pas rattrapé (voir la partie sur les pages qui bougent quand le pointeur arrive) : sur
-  une page qui défilait de 1 000 pixels CSS par seconde, 6 clics sur 144 ne sont tombés nulle part sans erreur. Observez de
-  nouveau avant un second essai après un refus.
+- L'appui d'un clic est contrôlé après avoir été fait : les gestionnaires que la page a attachés à l'appui (`pointerdown`,
+  `mousedown`) se sont donc déjà exécutés sur ce qui se trouvait sous le pointeur ; un contrôle qui agit sur l'appui plutôt
+  que sur le clic, placé là par un script à cet instant, n'est pas arrêté. La garde d'une touche et d'un texte est un
+  script de la page : une page qui l'attend la contourne, et elle ne voit pas les événements d'un cadre (voir les parties
+  sur les pages qui bougent). Observez de nouveau avant un second essai après un refus.
 - Un nœud qui n'a pas de boîte à lui est pris pour caché, et ce qui se trouve dessous n'est pas montré au modèle. Mesuré sur
   Chromium 141 : une page dont le corps n'avait aucune hauteur parce que ses enfants étaient placés hors du flux n'a donné
   aucun repère, et un conteneur sans hauteur qui contenait une boîte de dialogue fixée à la vue n'en a donné aucun, alors que

@@ -663,7 +663,10 @@ Der Ursprung ist genau: Schema, Host und Port. Mit der obigen Datei erhält eine
 `https://account.example.invalid:8443` und `https://www.account.example.invalid` nicht
 (`credential_not_bound`). Das Modell fragt einen Wert mit `credential_ref` an (`{"key": "password"}`
 oder `{"key": "password", "name": "account"}`, wenn mehrere Dateien an einen Ursprung gebunden sind);
-der Wert wird vom Server getippt und erscheint nie in einem Ergebnis.
+der Wert wird vom Server getippt und erscheint nie in einem Ergebnis. Ein Passwort gelangt nur in ein Feld, das der
+Server als sensibel erkennt (ein Typ `password`, ein `autocomplete`-Wert oder ein Name, den er kennt): In einem
+gewöhnlichen Textfeld wird es abgelehnt (`sensitive_value_refused`), weil das, was dort getippt wird, in der Seite und im
+Bild lesbar bleibt. Ein Benutzername geht in jedes Feld.
 
 ### Eine Zugangsdatendatei eines anderen Formats übernehmen
 
@@ -1007,22 +1010,45 @@ abgelehnt, und keiner der beiden Buttons erhält etwas; ein zweiter Klick auf ei
 eines des Versatzes und eine Suche mehr als zuvor; ihre Dauer wurde nicht gesondert gemessen. Eine
 Beobachtung, die Sie nach einer Ablehnung anfordern, zeigt die Seite, wie sie jetzt ist.
 
-Was bleibt, gemessen: Auf derselben Testseite mit einem Skript, das das Dokument alle 4 ms um 4
-CSS-Pixel hin und her scrollt (1000 Pixel pro Sekunde, 144 Klicks bei den acht Kombinationen, sechs je
-Kombination und Button), landeten vor der Änderung 64 Klicks, und 80 lieferten keinen Fehler, wobei der
-Klick nirgends landete; danach, unter Chrome 154.0.8037.97, landeten 90, 48 wurden abgelehnt und 6
-lieferten keinen Fehler, wobei der Klick nirgends landete. Keiner landete auf einem anderen Button.
-Eine Seite, die sich in dem Augenblick zwischen der letzten Suche und dem Drücken bewegt, ist nicht
-abgedeckt. Um die Messungen zu wiederholen:
+Die Prüfung bleibt ein bloßer Blick: Die Seite läuft zwischen ihm und dem Drücken weiter, und ein Skript, das in genau
+diesem Augenblick den Button unter dem Zeiger austauscht, schickt das Drücken an den anderen Button. Gemessen unter Google
+Chrome 156.0.8078.47 mit einer Seite, die ab der ersten Bewegung des Zeigers alle 2 ms den vom Modell gewählten Button gegen
+einen Button mit anderem Namen austauscht (300 Klicks): 29 Klicks erreichten den anderen Button ohne jeden Fehler, 130
+erreichten den richtigen und 141 wurden abgelehnt. Deshalb fragt der Server jetzt nach dem Drücken und vor dem Loslassen den
+Browser, welches Element das Drücken erreicht hat. Der Browser behält diese Antwort (`:active` bezeichnet das gedrückte
+Element und seine Vorfahren), und die Seite kann sie danach nicht mehr ändern. Ist es nicht das Ziel oder einer seiner
+Nachkommen, wird die Maustaste an einem Punkt außerhalb der Ansicht losgelassen, wo sie nichts anklickt, und der Klick wird
+mit `element_obscured` abgelehnt. Auf derselben Seite erreichte in drei Läufen mit je 300 Klicks keiner den anderen Button;
+etwa 100 erreichten den richtigen und etwa 200 wurden abgelehnt. Ein Klick kostet einen Aufruf mehr an den Browser. Was
+bleibt: Die Handler, die die Seite selbst ans Drücken gehängt hat (`pointerdown`, `mousedown`), sind auf dem, was unter dem
+Zeiger lag, bereits gelaufen, wenn die Prüfung endet; ein Element, das auf das Drücken statt auf den Klick reagiert und in
+diesem Augenblick von einem Skript unter den Zeiger gesetzt wird, wird nicht aufgehalten. Um die Messungen zu wiederholen:
 
 ```
-.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py tests/test_click_swap_integration.py
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 
-Der zweite Befehl braucht keinen Browser. Die 80 Tests des ersten Befehls und die 21 Skalierungs- und
-43 Zoom-Tests der vorigen Teile bestanden unter Google Chrome 155.0.8059.79 und unter
-Chromium 155.0.8059.39.
+Der zweite Befehl braucht keinen Browser. Die Tests des ersten Befehls bestanden unter Google Chrome 156.0.8078.47.
+
+#### Eine Seite, die den Fokus verschiebt
+
+Die Tasten und der Text haben dieselbe Schwäche. `press_key` mit Enter und `fill` geben dem geprüften Element den Fokus und
+schicken dann die Taste oder den Text an das, was den Fokus hat; ein Skript, das den Fokus dazwischen verschiebt, schickt
+sie an ein anderes Element, und nichts im Browser behält das Ziel einer Taste oder eines Textes, wie er das Ziel eines
+Drückens behält. Gemessen unter Google Chrome 156.0.8078.47 mit einer Seite, die den Fokus ab dem ersten Fokus alle 2 ms
+zwischen einem Textfeld und einem Button verschiebt: Von 300 Enter-Tasten im Textfeld aktivierten 137 den Button; von 300
+mit `credential_ref` in ein Passwortfeld getippten Passwörtern gingen 178 in ein gewöhnliches Textfeld derselben Seite, wo
+das Bild sie zeigt.
+
+Für die Dauer einer Taste oder eines Textes setzt der Server jetzt eine Wache in die Seite: einen Listener des Fensters, den
+ersten der Capture-Phase, der jede Taste und jede Einfügung abbricht, deren Pfad nicht durch das geprüfte Element führt. Er
+läuft in genau der Task, die die Eingabe an die Seite übergibt, dort, wo der Fokus endgültig gelesen wird. Eine Eingabe, die
+er abgebrochen hat, wird mit `element_obscured` abgelehnt: Im anderen Feld wird nichts getippt, und keine Taste erreicht den
+anderen Button. Auf denselben Seiten aktivierte in je 300 Versuchen keine Enter-Taste den Button, und kein Passwort erreichte
+das gewöhnliche Feld. Was bleibt: Die Wache ist ein Skript der Seite, sodass eine Seite, die sie erwartet, mit einem vor ihr
+registrierten Listener, der das Ereignis anhält, sie umgeht; und sie sieht nur die Ereignisse des Hauptdokuments, nicht die
+eines Frames. Die Tests stehen in `tests/test_click_swap_integration.py`.
 
 ## 8. Was der Server nie tut
 
@@ -1096,8 +1122,8 @@ einem Ergebnis oder im Journal.
 
 ## 9. Die Bestätigung
 
-Vor einer Zahlung, einer unwiderruflichen Löschung oder einer Änderung eines Geheimnisses (und vor
-jeder Änderung auf einem Ursprung aus `confirm_each_change`) öffnet der Server ein Fenster auf Ihrem
+Vor einer Zahlung, einer unwiderruflichen Löschung oder einer Änderung eines Geheimnisses, vor dem Annehmen eines
+`confirm`- oder `prompt`-Dialogs (und vor jeder Änderung auf einem Ursprung aus `confirm_each_change`) öffnet der Server ein Fenster auf Ihrem
 Bildschirm mit dem Titel `Confirmation du serveur MCP` und zwei Antworten, `Refuser` und `Autoriser`. Die
 Ablehnung ist die Standardantwort und die, die ein geschlossenes Fenster gibt: Mit `zenity` ist es der Button mit dem Fokus, mit `kdialog` der
 angekreuzte Eintrag einer kurzen Liste (dieses Werkzeug hat keine Option für einen Standardbutton). Ein `zenity`, das den Standard nicht auf die
@@ -1285,7 +1311,9 @@ Zoom, der sich geändert hat, ein Bild in einer anderen Größe als die Ansicht)
 Code abgelehnt.
 
 `sensitive_value_refused`: `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
-Schreiben Sie eine Zugangsdatendatei für diesen Ursprung (Abschnitt 6).
+Schreiben Sie eine Zugangsdatendatei für diesen Ursprung (Abschnitt 6). Derselbe Code antwortet auf ein Passwort, das in einem Feld
+verlangt wird, das der Server nicht als sensibel erkennt: `un mot de passe n'entre que dans un champ que le serveur reconnaît comme sensible (type password, autocomplete, nom) : ce champ n'en est pas un, rien n'a été saisi`.
+Tippen Sie dieses Passwort selbst im Browser.
 
 `credential_not_bound`: `aucun identifiant lié à l'origine https://account.example.invalid : un fichier d'identifiants doit lister cette origine dans allowed_origins`
 (der Wortlaut des zweiten Teils hängt von der Anfrage ab) oder
@@ -1377,6 +1405,9 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
   an, um selbst herunterzuladen.
 - Ein Download, den eine Seite mehr als eine halbe Sekunde nach dem Ende eines Ladevorgangs startet,
   wird abgelehnt; laden Sie ihn selbst herunter.
+- Das Annehmen eines `confirm`- oder `prompt`-Dialogs verlangt eine Bestätigung, was immer seine Meldung sagt, denn
+  Annehmen antwortet Ja auf eine Frage, deren Folge die Seite nicht nennt; ein `alert`- oder `beforeunload`-Dialog wird
+  ohne Bestätigung angenommen.
 - Das Annehmen eines Dialogs, dessen Meldung eine Zahlung, eine Löschung oder eine Änderung eines
   Geheimnisses verlangt, wird immer abgelehnt (`capture_unavailable`): Solange ein Dialog offen ist,
   kann keine Aufnahme gemacht werden. Beantworten Sie ihn selbst.
@@ -1407,7 +1438,15 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
   2, die ein sorgfältiger Leser nicht sperren würde (`Effacer le formulaire`, `Supprimer le filtre`).
   Sie sperrt auch `Finaliser l'achat`, `Valider mon panier`, `Reset your password` und
   `Regenerate API key`. Eine Beschriftung, die dasselbe mit anderen Worten sagt, wird nicht gesperrt:
-  Der Schutz ist eine Liste von Wörtern, kein Lesen der Seite.
+  Der Schutz ist eine Liste von Wörtern, kein Lesen der Seite. Die Buchstaben des kyrillischen und des griechischen Alphabets,
+  die einem lateinischen Buchstaben gleichen, werden als dieser Buchstabe gelesen, in einer Beschriftung wie im Namen eines
+  Feldes; andere Schreibtricks (eine Ziffer statt eines Buchstabens, Leerzeichen mitten im Wort) werden es nicht.
+- Ein Geheimnis, das eine Website in den Pfad einer Adresse schreibt (`/reset/<token>`), wird in den Ergebnissen und in
+  `list_tabs` so gezeigt, wie es geschrieben ist. Der Server schwärzt den Wert eines Abfrageparameters, dessen Name ein Wort
+  wie `token`, `code`, `state`, `key`, `secret`, `session`, `auth`, `password`, `otp`, `jwt` oder `signature` enthält, und das
+  ganze Fragment, nie ein Segment des Pfades und nie einen Parameter mit anderem Namen (`sid`). Die Segmente des Pfades, die
+  einem Token gleichen, zu schwärzen, würde Artikelnummern verbergen und doch manche verfehlen. Schließen Sie eine solche
+  Seite selbst, wenn sie ihren Dienst getan hat.
 - Ein Client, der dem Modell eine Shell gibt, hebt den Schutz des Profils auf: Das Modell kann das
   Bedienerprofil, `origin_policy` eingeschlossen, bearbeiten und Zugangsdatendateien des geöffneten verschlüsselten Verzeichnisses
   lesen. Der Server hält es nicht auf; er schreibt nur `profile_changed` nach der Änderung einer
@@ -1431,11 +1470,12 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
   simulierten Volume getestet; seine Veröffentlichung der neuen Datei durch einen Hardlink wurde an
   keinem echten gocryptfs-Volume ausprobiert (wenn das Dateisystem nicht verlinken kann, belegt er
   zuerst den Namen und befüllt dann die Datei).
-- Ein Klick, den die Seite zwischen dem zweiten Lesen seines Rahmens und dem Drücken bewegt, oder dessen
-  Ziel die Seite verdeckt, ohne es oder die Ansicht zu bewegen, wird nicht abgefangen (siehe den Teil
-  über Seiten, die sich bewegen, wenn der Zeiger ankommt): Auf einer Seite, die um 1000 CSS-Pixel pro
-  Sekunde scrollte, landeten 6 von 144 Klicks ohne Fehler nirgends. Beobachten Sie nach einer
-  Ablehnung erneut, bevor Sie es ein zweites Mal versuchen.
+- Das Drücken eines Klicks wird geprüft, nachdem es gemacht wurde: Die Handler, die die Seite ans Drücken gehängt hat
+  (`pointerdown`, `mousedown`), sind also schon auf dem gelaufen, was unter dem Zeiger lag; ein Element, das auf das
+  Drücken statt auf den Klick reagiert und in diesem Augenblick von einem Skript dorthin gesetzt wird, wird nicht
+  aufgehalten. Die Wache einer Taste und eines Textes ist ein Skript der Seite: Eine Seite, die sie erwartet, umgeht sie,
+  und sie sieht die Ereignisse eines Frames nicht (siehe die Teile über Seiten, die sich bewegen). Beobachten Sie nach
+  einer Ablehnung erneut, bevor Sie es ein zweites Mal versuchen.
 - Ein Knoten, der keinen eigenen Rahmen hat, wird für verborgen gehalten, und was darunter liegt, wird
   dem Modell nicht gezeigt. Gemessen an Chromium 141: Eine Seite, deren Body keine Höhe hatte, weil
   ihre Kinder außerhalb des Flusses platziert waren, ergab keine Markierung, und ein Wrapper ohne Höhe,

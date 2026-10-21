@@ -242,9 +242,10 @@ Non testé :
   mesurée sur Chromium 141 (il répond pour un point du document, pas de la vue) : si elle diffère sur une
   autre version, les tests d'un clic sur une page défilée y échouent. Un clic sur un élément à l'intérieur
   d'un cadre d'une page défilée n'a pas été mesuré.
-- Une page qui bouge après la seconde recherche d'un clic et avant l'appui. Sur une page qui défile de 1 000
-  pixels CSS par seconde, 6 clics sur 144 n'ont donné aucune erreur et ne sont tombés nulle part ; aucun
-  n'est tombé sur un autre bouton (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
+- Un contrôle qui agit sur l'appui plutôt que sur le clic, placé sous le pointeur par un script à l'instant de
+  l'appui : l'appui est contrôlé après avoir été fait, si bien que les gestionnaires d'appui de la page se sont
+  exécutés. La garde d'une touche et d'un texte est un script de la page : une page qui l'attend la contourne, et
+  elle ne voit pas les événements d'un cadre (Google Chrome 156.0.8078.47, `docs/OPERATOR_GUIDE.md`, section 7).
 
 Limites connues :
 
@@ -253,9 +254,14 @@ Limites connues :
   serveur. Pour télécharger un fichier vous-même, arrêtez le serveur ou le client MCP ; les téléchargements
   fonctionnent de nouveau dès que la connexion du serveur prend fin.
 - Un téléchargement qu'une page lance plus d'une demi-seconde après la fin d'un chargement est refusé.
-- Accepter une boîte de dialogue dont le message demande un paiement, une suppression ou un changement de
+- Accepter une boîte de dialogue `confirm` ou `prompt` demande une confirmation à l'opérateur dans une fenêtre, quel que
+  soit son message.
+  Accepter une boîte de dialogue dont le message demande un paiement, une suppression ou un changement de
   secret est toujours refusé : aucune capture ne peut être prise tant qu'une boîte de dialogue est ouverte.
-  L'opérateur répond à une telle boîte de dialogue.
+    L'opérateur répond à une telle boîte de dialogue.
+- Un secret qu'un site écrit dans le chemin d'une adresse est montré tel quel dans les résultats ; seuls la valeur d'un
+  paramètre de requête dont le nom contient un mot tel que `token`, et le fragment, sont rédigés.
+
 - La visibilité est approximative : le serveur ne calcule ni le contraste ni le rognage par `overflow`, si
   bien qu'un texte qu'un humain ne peut pas lire peut tout de même parvenir au modèle.
 - Une observation tient au plus 150 repères et 400 lignes d'arbre (`marks_truncated`, `tree_truncated`). Au

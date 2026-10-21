@@ -38,7 +38,8 @@ async def run(
     """Click a marked element of an allowed site, after checking it is still the one observed.
 
     A payment, an irreversible deletion or a secret change waits for the operator's confirmation in a
-    window of the server; no parameter can approve it. The click lands on what is drawn at that point.
+    window of the server; no parameter can approve it. The click lands on what is drawn at that point;
+    if the page changed it at the instant of the press, the click is cancelled (element_obscured).
     A download the click starts goes to the encrypted directory; one that a page starts more than half a
     second after a load ends is refused, and the operator downloads it.
     Refused at once while a dialog is open (element_obscured, action_expected handle_dialog).

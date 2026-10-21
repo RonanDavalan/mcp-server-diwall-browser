@@ -68,6 +68,11 @@ async def attempt(rig: Rig, screen: ZoomedScreen, target: str, *, then: Callable
     return Outcome(received, shifted)
 
 
+async def press_always_reached(self: Actions, tab: Tab, backend: int) -> bool:
+    """Defective: the check after the press is neutralised too, so that only the check under test is missing."""
+    return True
+
+
 @pytest.mark.parametrize("target", TARGETS)
 async def test_a_click_of_the_server_on_a_page_that_moves_at_the_first_movement_lands_or_is_refused_and_nothing_else_happens(
     screen: ZoomedScreen, rig: Rig, target: str
@@ -108,6 +113,7 @@ async def test_the_shifting_click_check_fails_on_a_server_that_checks_only_befor
     screen: ZoomedScreen, rig: Rig, target: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(Actions, "_recheck_before_press", no_recheck)
+    monkeypatch.setattr(Actions, "_press_reached", press_always_reached)
     outcome = await attempt(rig, screen, target)
     assert outcome.shifted, "the page did not move its target: the attempt proves nothing"
     assert outcome.received.error is None and outcome.received.clicks[f"{target}-intruder"] == 1, outcome.received

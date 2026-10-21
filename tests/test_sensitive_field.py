@@ -138,7 +138,7 @@ def test_all_parameters_accept_none() -> None:
 
 # Substring matching flags these on purpose; a false positive only masks a
 # field, a false negative would expose one.
-ACCEPTED_FALSE_POSITIVES = ["tokenizer", "secretary", "token_count", "passwordless_hint"]
+ACCEPTED_FALSE_POSITIVES = ["tokenizer", "secretary", "token_count", "passwordless_hint", "cardnotes"]
 
 
 @pytest.mark.parametrize("name", ACCEPTED_FALSE_POSITIVES)
@@ -149,8 +149,7 @@ def test_known_substring_false_positives_stay_flagged(name: str) -> None:
 # Fields the fixed word lists do not catch. They are listed so that the gap is
 # visible and any change to it is deliberate.
 KNOWN_MISSES = [
-    {"name": "codepin"},
-    {"name": "numcarte"},
+    {"name": "code"},
     {"placeholder": "N° de carte"},
 ]
 
@@ -158,6 +157,16 @@ KNOWN_MISSES = [
 @pytest.mark.parametrize("attributes", KNOWN_MISSES)
 def test_known_misses_of_the_fixed_word_lists(attributes: dict[str, str]) -> None:
     assert not is_sensitive(**attributes).sensitive
+
+
+@pytest.mark.parametrize("name", ["passcode", "passphrase", "passkey", "codepin", "numcarte", "cardno", "card_no", "PassCode", "numCarte"])
+def test_more_names_of_a_secret_are_sensitive(name: str) -> None:
+    assert is_sensitive(name=name).sensitive
+
+
+@pytest.mark.parametrize("name", ["p\u0430ssword", "\u0440in", "t\u043eken", "s\u0435cret", "\u03bfpt_\u03bftp", "p\u0430sscode"])
+def test_a_name_written_with_a_lookalike_letter_is_still_sensitive(name: str) -> None:
+    assert is_sensitive(name=name).sensitive
 
 
 COMMON_FIELD_NAMES = [

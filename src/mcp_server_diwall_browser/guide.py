@@ -92,7 +92,7 @@ Error codes:
 - option_not_found: the list has no option with that text or value.
 - page_changed_during_capture: the page changed while being read; observe again.
 - capture_unavailable: no image with all masks could be made, so none is published or used as evidence.
-- sensitive_value_refused: a sensitive field accepts only credential_ref.
+- sensitive_value_refused: a sensitive field accepts only credential_ref, and a password enters only a field the server deems sensitive.
 - credential_not_bound: no credential of the encrypted directory is bound to this origin.
 - credential_ambiguous: several credentials are bound to this origin; name one in credential_ref.
 - credential_invalid: the credential reference or the credential file is not valid.
@@ -108,7 +108,8 @@ Error codes:
 
 Limits:
 - observe region (banner, navigation, main, contentinfo, complementary, form, search, dialog) keeps the subtree of that landmark, and contains keeps the tree lines that carry a text with their ancestors and two lines of context; the marks are numbered again among those that remain, and region_found false means the page has no such landmark.
-- Accepting a dialog whose message is a payment, a deletion or a secret change is always refused with capture_unavailable: while a dialog is open the page cannot be captured, and an irreversible action without evidence is refused. Dismissing it (accept false) stays possible; ask the operator to answer the dialog themselves.
+- Accepting a confirm or a prompt dialog asks the operator in a window, whatever its message says, because accepting answers yes to a question whose consequence the page does not state; alert and beforeunload dialogs are accepted without one. Accepting a dialog whose message is a payment, a deletion or a secret change is always refused with capture_unavailable: while a dialog is open the page cannot be captured, and an irreversible action without evidence is refused. Dismissing it (accept false) stays possible; ask the operator to answer the dialog themselves.
+- A click is checked after the press: if the page changed what lies under the pointer at that instant, the press is released away from the page, no element receives the click and the answer is element_obscured. Enter and the text of fill are guarded the same way: if the page moved the focus to another element at the last instant, nothing is typed and no key is delivered, and the answer is element_obscured. Observe again before a second try.
 - While a dialog is open, every other action is refused at once with element_obscured and action_expected handle_dialog.
 - A download that a page starts more than half a second after a load ends, for example after a page fetched the file first, is refused; the operator downloads it themselves.
 - Downloads land in the encrypted directory under a safe name; no tool opens them.

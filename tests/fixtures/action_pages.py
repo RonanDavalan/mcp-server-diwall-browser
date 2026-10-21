@@ -70,6 +70,13 @@ def login_page() -> Page:
     return Page("Connexion", [El("FORM", attrs={"action": "/login"}, children=[user, password, submit], box=(10, 30, 400, 130))])
 
 
+def lure_page() -> Page:
+    """A plain text field that asks for an access code: nothing says it holds a password."""
+    code = field_input("Code d'accès", (20, 40, 200, 24), attrs={"type": "text", "name": "x"})
+    submit = button("Valider", (20, 80, 100, 30), attrs={"type": "submit"})
+    return Page("Accès", [El("FORM", attrs={"action": "/access"}, children=[code, submit], box=(10, 30, 400, 100))])
+
+
 def hostile_page() -> Page:
     heading = El("H1", role="heading", name=HOSTILE, box=(10, 10, 600, 30), children=[text(HOSTILE, (10, 10, 600, 30))])
     return Page(HOSTILE, [heading, button(HOSTILE, (10, 50, 500, 30)), button("Pay", (10, 90, 80, 30))])

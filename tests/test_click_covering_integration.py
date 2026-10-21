@@ -45,8 +45,14 @@ async def no_recheck(self: Actions, tab: Tab, backend: int, x: int, y: int) -> N
     """Defective: the press goes to the point the first check was made for, whatever the movement did."""
 
 
+async def press_always_reached(self: Actions, tab: Tab, backend: int) -> bool:
+    """Defective: the check after the press is neutralised too, so that only the check under test is missing."""
+    return True
+
+
 async def test_the_covering_check_fails_on_a_server_that_checks_only_before_the_movement(rig: Rig, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(Actions, "_recheck_before_press", no_recheck)
+    monkeypatch.setattr(Actions, "_press_reached", press_always_reached)
     error, clicks, covered = await attempt(rig)
     assert covered
     assert error is None and clicks == {"target": 0, "cover": 1}, (error, clicks)
@@ -56,6 +62,7 @@ async def test_the_covering_check_fails_on_a_server_that_asks_again_only_when_th
     rig: Rig, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ask_again_only_when_the_box_or_the_offset_changed(monkeypatch)
+    monkeypatch.setattr(Actions, "_press_reached", press_always_reached)
     error, clicks, covered = await attempt(rig)
     assert covered
     assert error is None and clicks == {"target": 0, "cover": 1}, (error, clicks)

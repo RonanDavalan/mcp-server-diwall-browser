@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Continuer</title></head>
+<body>
+<button id="go" type="button">Continuer</button>
+<p id="state">Rien de fait</p>
+<script>
+document.getElementById("go").addEventListener("click", function () {
+  if (confirm("Continuer ?")) { document.getElementById("state").textContent = "COMPTE SUPPRIMÉ"; }
+});
+</script>
+</body></html>

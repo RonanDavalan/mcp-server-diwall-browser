@@ -23,6 +23,7 @@ from fixtures.action_pages import (
     drift_page,
     hostile_page,
     login_page,
+    lure_page,
     neutral_page,
     obscured_page,
     payment_page,
@@ -656,6 +657,13 @@ async def test_a_refused_attempt_still_counts(bench: Bench) -> None:
 # --- boîtes de dialogue -----------------------------------------------------------------------------
 
 
+async def _until_dialog(tab: Tab) -> None:
+    deadline = time.monotonic() + 2
+    while tab.dialog is None and time.monotonic() < deadline:
+        await asyncio.sleep(0.01)
+    assert tab.dialog is not None
+
+
 async def open_dialog_on(bench: Bench, page: Page, message: str, url: str = URL) -> Tab:
     tab, _snapshot = await bench.show(page, url)
     await bench.browser.open_dialog(tab.target_id, message)
@@ -681,8 +689,34 @@ async def test_accepting_a_dialog_on_an_origin_not_allowed_is_refused(bench: Ben
     assert bench.browser.accepted == []
 
 
-async def test_accepting_an_ordinary_dialog_needs_no_confirmation(bench: Bench) -> None:
-    tab = await open_dialog_on(bench, neutral_page(), "Voulez-vous vraiment quitter cette page ?")
+@pytest.mark.parametrize("kind", ["confirm", "prompt"])
+async def test_accepting_a_question_dialog_asks_the_operator_whatever_it_says(bench: Bench, kind: str) -> None:
+    tab, _snapshot = await bench.show(neutral_page())
+    await bench.browser.open_dialog(tab.target_id, "Voulez-vous vraiment quitter cette page ?", kind)
+    await _until_dialog(tab)
+    outcome = await bench.actions.handle_dialog(tab.tab_id, True)
+    assert bench.browser.accepted == [True] and len(bench.channel.texts) == 1
+    assert "boîte de dialogue" in bench.channel.texts[0] and "dialog_question" in bench.channel.texts[0]
+    assert outcome.gate == {"red_list": False, "confirmation": "granted"}
+    [line] = bench.journal_lines()
+    assert line["tool"] == "handle_dialog" and line["gates"]["red_list"] is False and line["origin"] == ORIGIN
+
+
+async def test_a_question_dialog_the_operator_denies_is_not_accepted(bench: Bench) -> None:
+    bench.channel.decision = ConfirmationDecision.DENIED
+    tab, _snapshot = await bench.show(neutral_page())
+    await bench.browser.open_dialog(tab.target_id, "Continuer ?", "confirm")
+    await _until_dialog(tab)
+    error = await refused("confirmation_denied", bench.actions.handle_dialog(tab.tab_id, True))
+    assert error.extra_server["gate"] == {"red_list": False, "confirmation": "denied"}
+    assert bench.browser.accepted == [] and len(bench.channel.texts) == 1
+
+
+@pytest.mark.parametrize("kind", ["alert", "beforeunload"])
+async def test_accepting_an_alert_or_a_page_leaving_notice_needs_no_confirmation(bench: Bench, kind: str) -> None:
+    tab, _snapshot = await bench.show(neutral_page())
+    await bench.browser.open_dialog(tab.target_id, "Ceci est un message.", kind)
+    await _until_dialog(tab)
     outcome = await bench.actions.handle_dialog(tab.tab_id, True)
     assert bench.browser.accepted == [True] and bench.channel.texts == []
     assert outcome.gate == {"red_list": False, "confirmation": "none"}
@@ -815,6 +849,45 @@ async def test_enter_in_a_comment_form_gives_the_focus_then_submits(bench: Bench
     assert [b["behavior"] for b in bench.browser.download_behaviors] == ["allowAndName", "deny"]
 
 
+async def test_a_focus_moved_by_the_page_just_before_the_key_receives_no_activation(bench: Bench) -> None:
+    page = neutral_page()
+    tab, snapshot = await bench.show(page)
+    send = backend_of(snapshot, "Envoyer")
+    activated: list[int | None] = []
+    bench.browser.on_key = lambda target_id, focused, params: activated.append(focused)
+    bench.browser.before_input = lambda target_id: bench.browser.focus.__setitem__(target_id, send)
+    await refused("element_obscured", bench.actions.press_key(tab.tab_id, "Enter", snapshot_id=snapshot.snapshot_id, mark=mark_of(snapshot, "Pseudonyme")))
+    assert activated == [], "the key reached the element the page moved the focus to"
+    assert bench.browser.input_guards == {}, "the guard of the key was left in the page"
+
+
+async def test_a_focus_moved_by_the_page_just_before_the_password_receives_nothing(bench: Bench) -> None:
+    write_credential(bench.paths, "shop.json", allowed_origins=[ORIGIN])
+    tab, snapshot = await bench.show(login_page())
+    other = backend_of(snapshot, "Identifiant")
+    bench.browser.before_input = lambda target_id: bench.browser.focus.__setitem__(target_id, other)
+    mark = mark_of(snapshot, "Mot de passe")
+    await refused("element_obscured", bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark, credential_ref={"key": "password"}))
+    assert bench.browser.typed == [] and bench.browser.input_guards == {}
+
+
+async def test_a_focus_moved_by_the_page_just_before_a_text_receives_nothing_elsewhere(bench: Bench) -> None:
+    tab, snapshot = await bench.show(neutral_page())
+    other = backend_of(snapshot, "Commentaire")
+    bench.browser.before_input = lambda target_id: bench.browser.focus.__setitem__(target_id, other)
+    await refused("element_obscured", bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Pseudonyme"), text="alice"))
+    assert bench.browser.typed == [] and bench.browser.input_guards == {}
+
+
+async def test_the_key_reaches_the_verified_element_under_its_guard(bench: Bench) -> None:
+    tab, snapshot = await bench.show(neutral_page())
+    nickname = backend_of(snapshot, "Pseudonyme")
+    activated: list[int | None] = []
+    bench.browser.on_key = lambda target_id, focused, params: activated.append(focused)
+    await bench.actions.press_key(tab.tab_id, "Enter", snapshot_id=snapshot.snapshot_id, mark=mark_of(snapshot, "Pseudonyme"))
+    assert activated == [nickname] and bench.browser.input_guards == {}
+
+
 class FocusFirst(Actions):
     """Défectueux : donne le focus avant le contrôle d'identité, comme la page le verrait."""
 
@@ -933,7 +1006,9 @@ async def test_an_ordinary_field_is_filled_with_text(bench: Bench) -> None:
         "Runtime.callFunctionOn",  # select the old content
         "Runtime.evaluate",  # where the focus is
         "Runtime.callFunctionOn",  # inside the element
+        "Runtime.callFunctionOn",  # the guard of the input, put in the page
         "Input.insertText",
+        "Runtime.callFunctionOn",  # the guard lifted
     ]
 
 
@@ -973,6 +1048,18 @@ async def test_text_in_a_sensitive_field_is_refused_without_confirmation(bench: 
     await refused("sensitive_value_refused", bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, name), text="4970101234567890"))
     assert "Input.insertText" not in bench.cdp.methods()
     assert bench.channel.texts == [] and bench.journal_lines() == []
+
+
+async def test_a_password_credential_is_refused_in_a_field_not_recognised_as_sensitive(bench: Bench) -> None:
+    write_credential(bench.paths, "shop.json", allowed_origins=[ORIGIN])
+    bench.profile = make_profile(bench.tmp, confirm=(ORIGIN,))
+    tab, snapshot = await bench.show(lure_page())
+    mark = mark_of(snapshot, "Code d'accès")
+    await refused("sensitive_value_refused", bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark, credential_ref={"key": "password"}))
+    assert bench.browser.typed == [] and "Input.insertText" not in bench.cdp.methods()
+    assert bench.channel.texts == [] and bench.journal_lines() == []
+    await bench.actions.fill(tab.tab_id, snapshot.snapshot_id, mark, credential_ref={"key": "username", "name": "shop"})
+    assert same_secret(bench.browser.typed[-1][2], FAKE_USERNAME), "the user name is allowed in any field"
 
 
 async def test_focus_moved_elsewhere_by_the_page_types_nothing(bench: Bench) -> None:

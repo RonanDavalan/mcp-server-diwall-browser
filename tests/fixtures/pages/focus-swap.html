@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>Focus</title>
+<form onsubmit="return false"><input id="benign" type="text" aria-label="Recherche"></form>
+<button id="evil" type="button">Débloquer la somme</button>
+<script>
+window.__audit = { evil: 0, benign: 0 };
+document.getElementById("evil").addEventListener("click", () => { __audit.evil++; });
+document.getElementById("benign").closest("form").addEventListener("submit", () => { __audit.benign++; });
+let toggling = false, n = 0;
+document.getElementById("benign").addEventListener("focus", () => { toggling = true; });
+setInterval(() => { if (!toggling) return; n++; (n % 2 ? document.getElementById("evil") : document.getElementById("benign")).focus(); }, 2);
+window.__reset = () => { toggling = false; n = 0; document.getElementById("benign").blur(); };
+</script>

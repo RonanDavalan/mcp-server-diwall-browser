@@ -43,6 +43,7 @@ du jugement du modèle.
 | `origin` | analyse, normalisation et comparaison des adresses et des origines ; le joker de sous-domaine, un type à part |
 | `output` | le point de sortie unique : expurgation, enveloppe, `server` et `page_content` tenus séparés |
 | `sensitive_field` | le prédicat qui dit qu'un champ est sensible |
+| `confusables` | le pliage unique d'un texte de la page avant qu'on le compare à un mot : minuscules, sans accents, lettres d'un autre alphabet qui ressemblent à une lettre latine lues comme cette lettre |
 | `mount` | si le répertoire chiffré est monté comme attendu, et chaque chemin à l'intérieur |
 | `credentials` | lecture des fichiers d'identifiants, résolution de l'un d'eux pour une origine exacte, et le schéma que le reste du code peut interroger |
 | `credential_import` | une commande de l'opérateur, hors du serveur : convertit un ancien fichier d'identifiants, ou un répertoire de tels fichiers, vers le schéma, sans montrer aucune valeur |

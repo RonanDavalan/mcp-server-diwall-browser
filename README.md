@@ -239,9 +239,10 @@ Not tested:
   on Chromium 141 (it answers for a point of the document, not of the view): if it differs on another
   version, the tests of a click on a scrolled page fail there. A click on an element inside a frame of a
   scrolled page was not measured.
-- A page that moves after the second lookup of a click and before the press. On a page that scrolls by
-  1000 CSS pixels a second, 6 of 144 clicks gave no error and landed nowhere; none landed on another
-  button (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
+- A control that acts on the press rather than on the click, put under the pointer by a script at the instant
+  of the press: the press is checked after it is made, so the page's own handlers of the press have run. The
+  guard of a key and of a text is a script of the page: a page that expects it goes round it, and it does not
+  see the events of a frame (Google Chrome 156.0.8078.47, `docs/OPERATOR_GUIDE.md`, section 7).
 
 Known limits:
 
@@ -250,8 +251,11 @@ Known limits:
   To download a file yourself, stop the server or the MCP client; downloads work again as soon as
   the server's connection ends.
 - A download that a page starts more than half a second after a load ends is refused.
-- Accepting a dialog whose message asks for a payment, a deletion or a secret change is always
+- Accepting a `confirm` or a `prompt` dialog asks the operator in a window, whatever its message says.
+  Accepting a dialog whose message asks for a payment, a deletion or a secret change is always
   refused: no capture can be taken while a dialog is open. The operator answers such a dialog.
+- A secret that a site writes in the path of an address is shown as written in the results; only the
+  value of a query parameter with a name such as `token`, and the fragment, are redacted.
 - Visibility is approximate: the server does not compute contrast or `overflow` clipping, so text a
   human cannot read can still reach the model.
 - An observation holds at most 150 marks and 400 tree lines (`marks_truncated`, `tree_truncated`).

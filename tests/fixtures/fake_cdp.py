@@ -221,6 +221,9 @@ class FakeBrowser:
         self.keys: list[tuple[str, dict[str, Any]]] = []
         self.typed: list[tuple[str, int | None, str]] = []
         self.clicks: list[tuple[str, int | None]] = []
+        self.pressed: dict[str, int | None] = {}
+        self.before_input: Callable[[str], Any] | None = None
+        self.input_guards: dict[str, Any] = {}
         self.dom_events: list[tuple[str, int, str]] = []
         self.download_behaviors: list[dict[str, Any]] = []
         self.on_click: Callable[[str, int | None], Any] | None = None
@@ -389,9 +392,20 @@ class FakeBrowser:
         text = params.get("functionDeclaration")
         name = next((key for key, script in INTERNAL_SCRIPTS.items() if script.text == text), None)
         this = self._object(params.get("objectId"))
+        if name == "guard_input":
+            guard = _KeyGuard(this)
+            self.input_guards[target_id] = guard
+            self.objects[f"guard-{id(guard)}"] = guard
+            return {"result": {"type": "function", "objectId": f"guard-{id(guard)}"}}
         arguments = params.get("arguments") or []
         if name == "is_connected":
             value = page.find(this.backend_id) is this
+        elif name == "release_input_guard":
+            self.input_guards.pop(target_id, None)
+            value = this.blocked
+        elif name == "is_pressed":
+            pressed = page.find(self.pressed[target_id]) if self.pressed.get(target_id) is not None else None
+            value = pressed is not None and (pressed is this or _descends(this, pressed))
         elif name == "contains":
             other = self._object(arguments[0].get("objectId"))
             value = other is this or _descends(this, other)
@@ -431,9 +445,15 @@ class FakeBrowser:
             top = max(0, min(y + params.get("deltaY", 0), page.content_size[1] - height))
             page.viewport = (x, top, width, height)
             return {}
+        if params.get("type") == "mousePressed" and params.get("button") == "left":
+            found = self.hit(page, params["x"], params["y"])
+            self.pressed[target_id] = found.backend_id if found is not None else None
         if params.get("type") == "mouseReleased" and params.get("button") == "left":
             found = self.hit(page, params["x"], params["y"])
             hit_id = found.backend_id if found is not None else None
+            # Le navigateur clique l'ancêtre commun de ce qui a été pressé et de ce qui est relâché.
+            if self.pressed.pop(target_id, hit_id) != hit_id:
+                return {}
             self.clicks.append((target_id, hit_id))
             if self.on_click is not None:
                 outcome = self.on_click(target_id, hit_id)
@@ -445,6 +465,14 @@ class FakeBrowser:
 
     async def _key_event(self, target_id: str, page: Any, params: dict[str, Any]) -> Any:
         self.keys.append((target_id, dict(params)))
+        if params.get("type") == "keyDown" and self.before_input is not None:
+            self.before_input(target_id)
+        guard = self.input_guards.get(target_id)
+        if params.get("type") == "keyDown" and guard is not None:
+            focused = page.find(self.focus[target_id]) if self.focus.get(target_id) is not None else None
+            if focused is None or not (focused is guard.element or _descends(guard.element, focused)):
+                guard.blocked = True
+                return {}
         if params.get("type") == "keyDown" and self.on_key is not None:
             outcome = self.on_key(target_id, self.focus.get(target_id), params)
             if inspect.isawaitable(outcome):
@@ -454,7 +482,15 @@ class FakeBrowser:
         return {}
 
     def _insert_text(self, target_id: str, page: Any, params: dict[str, Any]) -> Any:
+        if self.before_input is not None:
+            self.before_input(target_id)
         focused = self.focus.get(target_id)
+        guard = self.input_guards.get(target_id)
+        if guard is not None:
+            element = page.find(focused) if focused is not None else None
+            if element is None or not (element is guard.element or _descends(guard.element, element)):
+                guard.blocked = True
+                return {}
         value = params.get("text", "")
         self.typed.append((target_id, focused, value))
         element = page.find(focused) if focused is not None else None
@@ -554,6 +590,14 @@ class FakeBrowser:
                 ("Page.frameStoppedLoading", {"frameId": target_id}, session_id),
             ]
         return Reply(result, events)
+
+
+class _KeyGuard:
+    """What the page-side guard of a key press keeps: the element the key must reach, and whether another one was refused."""
+
+    def __init__(self, element: Any) -> None:
+        self.element = element
+        self.blocked = False
 
 
 def _descends(container: Any, inner: Any) -> bool:

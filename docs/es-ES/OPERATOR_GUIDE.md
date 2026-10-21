@@ -641,7 +641,10 @@ El origen es exacto: esquema, host y puerto. Con el archivo de arriba, una pági
 `https://account.example.invalid:8443` y `https://www.account.example.invalid` no
 (`credential_not_bound`). El modelo pide un valor con `credential_ref` (`{"key": "password"}`,
 o `{"key": "password", "name": "account"}` cuando varios archivos están ligados a un mismo origen); el
-valor lo escribe el servidor y nunca aparece en un resultado.
+valor lo escribe el servidor y nunca aparece en un resultado. Una contraseña solo entra en un campo que el servidor reconoce
+como sensible (un tipo `password`, un valor de `autocomplete` o un nombre que conoce): en un campo de texto ordinario se
+rechaza (`sensitive_value_refused`), porque lo que se escribe ahí sigue siendo legible en la página y en la imagen. Un
+nombre de usuario va en cualquier campo.
 
 ### Traspasar un archivo de credenciales de otro formato
 
@@ -955,20 +958,44 @@ movimiento, el clic se rechaza y ninguno de los dos botones recibe nada; un segu
 y una búsqueda más que antes; su duración no se midió aparte. Una observación que pide tras
 un rechazo muestra la página tal como está ahora.
 
-Lo que queda, medido: en la misma página de prueba con un script que desplaza el documento 4 píxeles CSS
-cada 4 ms, de ida y vuelta (1000 píxeles por segundo, 144 clics en las ocho combinaciones, seis
-por combinación y botón), 64 clics cayeron y 80 no devolvieron ningún error y el clic no cayó
-en ninguna parte antes del cambio; después de él, en Chrome 154.0.8037.97, cayeron 90, se rechazaron 48 y 6 no devolvieron
-ningún error y el clic no cayó en ninguna parte. Ninguno cayó en otro botón. Una página que se mueve en el
-instante entre la última búsqueda y la pulsación no está cubierta. Para repetir las mediciones:
+La comprobación sigue siendo una simple mirada: la página sigue funcionando entre ella y la pulsación, y un script que
+intercambia el botón bajo el puntero en ese mismo instante envía la pulsación al otro botón. Medido en Google Chrome
+156.0.8078.47 con una página que, desde el primer movimiento del puntero, intercambia cada 2 ms el botón que eligió el
+modelo por un botón de otro nombre (300 clics): 29 clics llegaron al otro botón sin ningún error, 130 llegaron al correcto
+y 141 se rechazaron. Por eso el servidor pregunta ahora al navegador, después de la pulsación y antes de soltar, qué
+elemento alcanzó la pulsación. El navegador guarda esa respuesta (`:active` designa el elemento pulsado y sus
+antepasados) y la página ya no puede cambiarla después. Si no es el objetivo o uno de sus descendientes, el botón se suelta
+en un punto fuera de la vista, donde no hace clic en nada, y el clic se rechaza con `element_obscured`. En la misma página,
+en tres series de 300 clics, ninguno llegó al otro botón; unos 100 llegaron al correcto y unos 200 se rechazaron. Un clic
+cuesta una llamada más al navegador. Lo que queda: los manejadores que la propia página unió a la pulsación (`pointerdown`,
+`mousedown`) se han ejecutado, sobre lo que estaba bajo el puntero, cuando acaba la comprobación; un control que actúa con la
+pulsación y no con el clic, puesto bajo el puntero por un script en ese instante, no se detiene. Para repetir las
+mediciones:
 
 ```
-.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py tests/test_click_swap_integration.py
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 
-El segundo comando no necesita navegador. Las 80 pruebas del primer comando, y las 21 pruebas de escala y las 43 de zoom
-de las partes anteriores, pasaron en Google Chrome 155.0.8059.79 y en Chromium 155.0.8059.39.
+El segundo comando no necesita navegador. Las pruebas del primer comando pasaron en Google Chrome 156.0.8078.47.
+
+#### Una página que mueve el foco
+
+Las teclas y el texto tienen la misma debilidad. `press_key` con Enter y `fill` dan el foco al elemento que comprobaron y
+luego envían la tecla o el texto a lo que tiene el foco; un script que mueve el foco entre medias los envía a otro
+elemento, y nada en el navegador guarda el destino de una tecla o de un texto como guarda el de una pulsación. Medido en
+Google Chrome 156.0.8078.47 con una página que mueve el foco entre un campo de texto y un botón cada 2 ms desde el primer
+foco: de 300 teclas Enter en el campo de texto, 137 activaron el botón; de 300 contraseñas escritas con `credential_ref` en
+un campo de contraseña, 178 fueron a un campo de texto ordinario de la misma página, donde la imagen las muestra.
+
+Mientras dura una tecla o un texto, el servidor pone ahora una guarda en la página: un escuchador de la ventana, el primero de
+la fase de captura, que anula toda tecla y toda inserción cuyo camino no pase por el elemento comprobado. Se ejecuta en la
+misma tarea que entrega la entrada a la página, donde el foco se lee de verdad. Una entrada que anuló se rechaza con
+`element_obscured`: no se escribe nada en el otro campo y ninguna tecla llega al otro botón. En las mismas páginas, en 300
+intentos cada una, ninguna tecla Enter activó el botón y ninguna contraseña llegó al campo ordinario. Lo que queda: la guarda
+es un script de la página, de modo que una página que la espera, con un escuchador registrado antes que ella que detiene el
+evento, la rodea; y solo ve los eventos del documento principal, no los de un marco. Las pruebas están en
+`tests/test_click_swap_integration.py`.
 
 ## 8. Lo que el servidor nunca hace
 
@@ -1033,8 +1060,8 @@ no es conducir. El identificador del navegador nunca está en un resultado ni en
 
 ## 9. La confirmación
 
-Antes de un pago, una eliminación irreversible o un cambio de secreto (y antes de cada cambio en un
-origen de `confirm_each_change`), el servidor abre una ventana en su pantalla, titulada
+Antes de un pago, una eliminación irreversible o un cambio de secreto, antes de aceptar un diálogo `confirm` o `prompt` (y
+antes de cada cambio en un origen de `confirm_each_change`), el servidor abre una ventana en su pantalla, titulada
 `Confirmation du serveur MCP`, con dos respuestas, `Refuser` y `Autoriser`. El rechazo es la respuesta
 por defecto, y la que da una ventana cerrada: con `zenity` es el botón que tiene el foco, con `kdialog` la entrada marcada de una lista corta (esa herramienta
 no tiene opción de botón por defecto). Un `zenity` que no puede poner el valor por defecto en el rechazo no muestra ninguna ventana, y la acción se rechaza
@@ -1214,7 +1241,9 @@ zoom de página utilizable, un zoom que cambió, una imagen de un tamaño distin
 código.
 
 `sensitive_value_refused`: `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
-Escriba un archivo de credenciales para este origen (sección 6).
+Escriba un archivo de credenciales para este origen (sección 6). El mismo código responde a una contraseña pedida en un
+campo que el servidor no reconoce como sensible: `un mot de passe n'entre que dans un champ que le serveur reconnaît comme sensible (type password, autocomplete, nom) : ce champ n'en est pas un, rien n'a été saisi`.
+Escriba usted mismo esa contraseña en el navegador.
 
 `credential_not_bound`: `aucun identifiant lié à l'origine https://account.example.invalid : un fichier d'identifiants doit lister cette origine dans allowed_origins`
 (la redacción de la segunda parte depende de la petición), o
@@ -1304,6 +1333,8 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
   usted mismo.
 - Se rechaza una descarga que una página inicia más de medio segundo después de que termine una carga; descárguela
   usted mismo.
+- Aceptar un diálogo `confirm` o `prompt` pide una confirmación, diga lo que diga su mensaje, porque aceptar responde sí a una
+  pregunta cuya consecuencia la página no dice; un diálogo `alert` o `beforeunload` se acepta sin confirmación.
 - Aceptar un diálogo cuyo mensaje pide un pago, una eliminación o un cambio de secreto se rechaza siempre
   (`capture_unavailable`): no se puede tomar ninguna captura mientras hay un diálogo abierto. Responda a él
   usted mismo.
@@ -1330,7 +1361,15 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
   medida sobre 100 etiquetas de botón comunes, no dejó escapar ninguna y bloqueó 2 que un lector atento no
   bloquearía (`Effacer le formulaire`, `Supprimer le filtre`). Bloquea también `Finaliser l'achat`,
   `Valider mon panier`, `Reset your password` y `Regenerate API key`. Una etiqueta que dice lo mismo
-  con otras palabras no se bloquea: la compuerta es una lista de palabras, no una lectura de la página.
+  con otras palabras no se bloquea: la compuerta es una lista de palabras, no una lectura de la página. Las letras de los
+  alfabetos cirílico y griego que se parecen a una letra latina se leen como esa letra, en una etiqueta y en el nombre de un
+  campo por igual; otros trucos de escritura (una cifra en lugar de una letra, espacios dentro de una palabra) no.
+- Un secreto que un sitio escribe en la ruta de una dirección (`/reset/<token>`) se muestra tal cual en los resultados y en
+  `list_tabs`. El servidor redacta el valor de un parámetro de consulta cuyo nombre contiene una palabra como `token`,
+  `code`, `state`, `key`, `secret`, `session`, `auth`, `password`, `otp`, `jwt` o `signature`, y todo el fragmento, nunca un
+  segmento de la ruta ni un parámetro de otro nombre (`sid`). Redactar los segmentos de la ruta que se parecen a un token
+  ocultaría números de artículo y aun así se le escaparían algunos. Cierre usted mismo una página así cuando haya cumplido
+  su cometido.
 - Un cliente que da un shell al modelo levanta la protección del perfil: el modelo puede editar el
   perfil del operador, `origin_policy` incluida, y leer los archivos de credenciales del directorio cifrado abierto. El servidor no
   lo impide; solo escribe `profile_changed` tras el cambio de una lista de orígenes o de la política (sección 5), que
@@ -1351,10 +1390,11 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 - El comando que traspasa un archivo de credenciales se probó con archivos de la batería de pruebas en un
   volumen simulado; su publicación del archivo nuevo mediante un enlace duro no se probó en un volumen gocryptfs
   real (si el sistema de archivos no puede enlazar, toma primero el nombre y lo rellena).
-- Un clic que la página mueve entre la segunda lectura de su cuadro y la pulsación, o cuyo objetivo
-  la página cubre sin moverlo ni mover la vista, no se detecta (véase la parte sobre las páginas que se mueven
-  cuando llega el puntero): en una página que se desplazaba 1000 píxeles CSS por segundo, 6 de 144 clics
-  no cayeron en ninguna parte y sin ningún error. Observe de nuevo antes de un segundo intento tras un rechazo.
+- La pulsación de un clic se comprueba después de hacerse: los manejadores que la página unió a la pulsación (`pointerdown`,
+  `mousedown`) ya se han ejecutado sobre lo que estaba bajo el puntero; un control que actúa con la pulsación y no con el
+  clic, puesto ahí por un script en ese instante, no se detiene. La guarda de una tecla y de un texto es un script de la
+  página: una página que la espera la rodea, y no ve los eventos de un marco (véanse las partes sobre las páginas que se
+  mueven). Observe de nuevo antes de un segundo intento tras un rechazo.
 - Un nodo que no tiene cuadro propio se toma por oculto, y lo que hay bajo él no se muestra al
   modelo. Medido en Chromium 141: una página cuyo cuerpo no tenía altura porque sus hijos estaban colocados
   fuera del flujo no dio ninguna marca, y un envoltorio sin altura que contenía un diálogo fijo a la vista dio

@@ -41,4 +41,6 @@ does not cover:
 - versions older than the current release (see "Supported versions");
 - the browser, the MCP client, the language model and its provider, or gocryptfs, which are
   separate programs with their own policies;
+- a secret that a site writes in the path of an address, which the server shows as written (a limit
+  stated in the operator guide, "Known limits");
 - the project's website, a separate codebase.

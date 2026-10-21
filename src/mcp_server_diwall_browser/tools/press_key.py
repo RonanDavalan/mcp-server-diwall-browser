@@ -37,7 +37,8 @@ async def run(
 
     Enter needs a mark: the field gets the focus after its identity is checked, and Enter in a payment
     form waits for the operator's confirmation, like a click. Other keys need no mark. No shortcut, no
-    character typing. Refused at once while a dialog is open (element_obscured, action_expected
+    character typing. If the page moves the focus to another element at the last instant, the key is
+    cancelled (element_obscured). Refused at once while a dialog is open (element_obscured, action_expected
     handle_dialog). Errors: unsupported_element (with the allowed keys), element_stale, snapshot_stale,
     origin_not_allowed, confirmation_denied, confirmation_expired, confirmation_unavailable, limit_reached.
     """

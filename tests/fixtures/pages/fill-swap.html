@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>Fill</title>
+<form onsubmit="return false">
+  <label>Mot de passe <input id="benign" type="password" name="password"></label>
+  <label>Code d'accès <input id="leak" type="text" name="x"></label>
+</form>
+<script>
+window.__audit = { leak: 0, benign: 0 };
+const benign = document.getElementById("benign"), leak = document.getElementById("leak");
+benign.addEventListener("input", () => { __audit.benign++; });
+leak.addEventListener("input", () => { __audit.leak++; });
+let toggling = false, n = 0;
+benign.addEventListener("focus", () => { toggling = true; });
+setInterval(() => { if (!toggling) return; n++; (n % 2 ? leak : benign).focus(); }, 2);
+window.__reset = () => { toggling = false; n = 0; benign.value = ""; leak.value = ""; __audit.leak = 0; __audit.benign = 0; benign.blur(); };
+</script>

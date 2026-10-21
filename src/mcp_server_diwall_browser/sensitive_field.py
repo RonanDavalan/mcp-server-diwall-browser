@@ -9,8 +9,9 @@ Pourquoi ce module existe :
 from __future__ import annotations
 
 import re
-import unicodedata
 from dataclasses import dataclass
+
+from .confusables import fold
 
 SENSITIVE_AUTOCOMPLETE = frozenset(
     {
@@ -34,6 +35,9 @@ CARD_WORDS = frozenset({"cvv", "cvc", "iban", "bic"})
 SENSITIVE_SUBSTRINGS = (
     "password",
     "passwd",
+    "passcode",
+    "passphrase",
+    "passkey",
     "motdepasse",
     "secret",
     "token",
@@ -43,10 +47,13 @@ SENSITIVE_SUBSTRINGS = (
     "creditcard",
     "numerodecarte",
     "numerocarte",
+    "numcarte",
+    "cardno",
     "cryptogramme",
     "securitycode",
     "onetimecode",
     "verificationcode",
+    "codepin",
     "codeverification",
     "codedeverification",
     "socialsecurity",
@@ -57,6 +64,8 @@ CARD_SUBSTRINGS = (
     "creditcard",
     "numerodecarte",
     "numerocarte",
+    "numcarte",
+    "cardno",
     "cryptogramme",
     "securitycode",
 )
@@ -151,7 +160,5 @@ def _split_camel_case(text: str) -> str:
 
 
 def _normalize(text: str) -> tuple[set[str], str]:
-    decomposed = unicodedata.normalize("NFKD", _split_camel_case(text).lower())
-    plain = "".join(c for c in decomposed if not unicodedata.combining(c))
-    words = [w for w in _WORD_SPLIT_RE.split(plain) if w]
+    words = [w for w in _WORD_SPLIT_RE.split(fold(_split_camel_case(text))) if w]
     return set(words), "".join(words)

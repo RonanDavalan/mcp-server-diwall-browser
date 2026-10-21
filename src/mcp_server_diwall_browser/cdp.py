@@ -140,6 +140,25 @@ INTERNAL_SCRIPTS: Mapping[str, InternalScript] = MappingProxyType(
         ),
         "active_element": InternalScript("evaluate", "document.activeElement", by_value=False),
         "is_connected": InternalScript("call_function_on", "function() { return this.isConnected; }"),
+        # :active suit l'élément que la pression a atteint, et ses ancêtres : c'est ce que le navigateur a retenu, non ce
+        # que la page montre une fois la pression faite.
+        # Garde d'une saisie : un écouteur de la fenêtre, le premier de la phase de capture, qui annule toute touche et
+        # toute insertion dont le chemin ne passe pas par l'élément vérifié. Il tourne dans la tâche même qui remet
+        # l'entrée à la page, là où le focus est lu pour de bon. Il retourne sa propre levée, et s'éteint seul si
+        # personne ne la lève.
+        "guard_input": InternalScript(
+            "call_function_on",
+            "function() { const target = this; let blocked = false; "
+            "const types = ['keydown', 'keypress', 'keyup', 'beforeinput']; "
+            "const guard = (event) => { if (!event.composedPath().includes(target)) { blocked = true; "
+            "event.preventDefault(); event.stopImmediatePropagation(); } }; "
+            "const release = () => { clearTimeout(timer); for (const type of types) { window.removeEventListener(type, guard, true); } "
+            "return blocked; }; const timer = setTimeout(release, 3000); "
+            "for (const type of types) { window.addEventListener(type, guard, true); } return release; }",
+            by_value=False,
+        ),
+        "release_input_guard": InternalScript("call_function_on", "function() { return this(); }"),
+        "is_pressed": InternalScript("call_function_on", "function() { return this.matches(':active'); }"),
     }
 )
 

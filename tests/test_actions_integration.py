@@ -299,7 +299,7 @@ async def test_dialogs_opened_by_a_click_are_answered_through_the_gate(rig: Rig)
     assert outcome.server["dialog_open"] is True
     await rig.actions.handle_dialog(tab.tab_id, True)
     assert '  StaticText "Accepted"' in await rig.tree(tab)
-    assert rig.channel.texts == []
+    assert len(rig.channel.texts) == 1 and "dialog_question" in rig.channel.texts[0]
 
     snapshot = await rig.observe(tab)
     outcome = await asyncio.wait_for(rig.actions.click(tab.tab_id, snapshot.snapshot_id, mark_of(snapshot, "Archive settings")), 10)

@@ -661,7 +661,10 @@ The origin is exact: scheme, host and port. With the file above, a page of
 `https://account.example.invalid:8443` and `https://www.account.example.invalid` do not
 (`credential_not_bound`). The model asks for a value with `credential_ref` (`{"key": "password"}`,
 or `{"key": "password", "name": "account"}` when several files are bound to one origin); the
-value is typed by the server and never appears in a result.
+value is typed by the server and never appears in a result. A password enters only a field the server
+recognises as sensitive (a `password` type, an `autocomplete` value or a name it knows): in a plain text
+field it is refused (`sensitive_value_refused`), because what is typed there stays readable in the page
+and in the image. A user name goes into any field.
 
 ### Carrying over a credential file of another format
 
@@ -977,20 +980,48 @@ movement, the click is refused and neither button receives anything; a second cl
 and one lookup more than before; their duration was not measured apart. An observation you ask for after
 a refusal shows the page as it now is.
 
-What remains, measured: on the same test page with a script that scrolls the document by 4 CSS
-pixels every 4 ms, back and forth (1000 pixels a second, 144 clicks at the eight combinations, six
-per combination and button), 64 clicks landed and 80 returned no error with the click landing
-nowhere before the change; after it, on Chrome 154.0.8037.97, 90 landed, 48 were refused and 6 returned
-no error with the click landing nowhere. None landed on another button. A page that moves in the
-instant between the last lookup and the press is not covered. To replay the measures:
+The look is still only a look: the page keeps running between it and the press, and a script that
+swaps the button under the pointer at that very instant sends the press to the other button. Measured
+on Google Chrome 156.0.8078.47 with a page that, from the first movement of the pointer, swaps the
+button the model chose for a button of another name every 2 ms (300 clicks): 29 clicks reached the other button without any error, 130 reached the
+right one and 141 were refused. So the server now asks the browser, after the press and before the
+release, which element the press reached. The browser keeps that answer (`:active` names the pressed
+element and its ancestors) and the page cannot change it afterwards. If it is not the target or one
+of its descendants, the button is released at a point outside the view, where it clicks nothing, and
+the click is refused with `element_obscured`. On the same page, in three runs of 300 clicks, no click
+reached the other button; about 100 reached the right one and about 200 were refused. A click costs
+one more call to the browser. What remains: the handlers that the page itself attached to the press
+(`pointerdown`, `mousedown`) have run, on whatever was under the pointer, when the check ends, so a
+control that acts on the press rather than on the click, put under the pointer by a script at that
+instant, is not stopped. To replay the measures:
 
 ```
-.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py
+.venv/bin/python -m pytest -q -m browser tests/test_click_shifting_integration.py tests/test_click_covering_integration.py tests/test_click_swap_integration.py
 .venv/bin/python -m pytest -q tests/test_click_shifting_page.py tests/test_click_moving_page.py
 ```
 
-The second command needs no browser. The 80 tests of the first command, and the 21 scale and 43 zoom
-tests of the previous parts, passed on Google Chrome 155.0.8059.79 and on Chromium 155.0.8059.39.
+The second command needs no browser. The tests of the first command passed on Google Chrome
+156.0.8078.47.
+
+#### A page that moves the focus
+
+The keys and the text have the same weakness. `press_key` with Enter and `fill` give the focus to the
+element they checked, then send the key or the text to whatever has the focus; a script that moves the
+focus in between sends them to another element, and nothing in the browser keeps the target of a key
+or of a text as it keeps the target of a press. Measured on Google Chrome 156.0.8078.47 with a page
+that moves the focus between a text field and a button every 2 ms from the first focus: of 300 Enter
+keys on the text field, 137 activated the button; of 300 passwords typed with `credential_ref` in a
+password field, 178 went to a plain text field of the same page, where the image shows them.
+
+For the time of a key or of a text, the server now puts a guard in the page: a listener of the window,
+the first of the capture phase, that cancels any key and any insertion whose path does not go through
+the checked element. It runs in the very task that hands the input to the page, where the focus is read
+for good. An input it cancelled is refused with `element_obscured`: nothing is typed in the other field
+and no key reaches the other button. On the same pages, in 300 tries each, no Enter key activated the
+button and no password reached the plain field. What remains: the guard is a script of the page, so a page
+that expects it, with a listener registered before it that stops the event, goes round it; and it sees
+the events of the main document only, not those of a frame. The tests are in
+`tests/test_click_swap_integration.py`.
 
 ## 8. What the server never does
 
@@ -1057,8 +1088,8 @@ is not driving. The identifier of the browser is never in a result or in the jou
 
 ## 9. The confirmation
 
-Before a payment, an irreversible deletion or a change of secret (and before every change on an
-origin of `confirm_each_change`), the server opens a window on your screen, titled
+Before a payment, an irreversible deletion or a change of secret, before accepting a `confirm` or a
+`prompt` dialog (and before every change on an origin of `confirm_each_change`), the server opens a window on your screen, titled
 `Confirmation du serveur MCP`, with two answers, `Refuser` and `Autoriser`. Refusal is the default
 answer, and the one a closed window gives: with `zenity` it is the focused button, with `kdialog` the
 checked entry of a short list (that tool has no option for a default button). A `zenity` that cannot
@@ -1249,7 +1280,9 @@ usable page zoom, a zoom that changed, an image of another size than the view) e
 code.
 
 `sensitive_value_refused`: `ce champ est sensible : il ne se remplit que par un identifiant du répertoire chiffré (credential_ref), jamais par un texte`.
-Write a credential file for this origin (section 6).
+Write a credential file for this origin (section 6). The same code answers a password asked in a field
+the server does not recognise as sensitive: `un mot de passe n'entre que dans un champ que le serveur reconnaît comme sensible (type password, autocomplete, nom) : ce champ n'en est pas un, rien n'a été saisi`.
+Type that password yourself in the browser.
 
 `credential_not_bound`: `aucun identifiant lié à l'origine https://account.example.invalid : un fichier d'identifiants doit lister cette origine dans allowed_origins`
 (the wording of the second part depends on the request), or
@@ -1356,6 +1389,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   yourself.
 - A download that a page starts more than half a second after a load ends is refused; download it
   yourself.
+- Accepting a `confirm` or a `prompt` dialog asks for a confirmation whatever its message says, since
+  accepting answers yes to a question whose consequence the page does not state; an `alert` or a
+  `beforeunload` dialog is accepted without one.
 - Accepting a dialog whose message asks for a payment, a deletion or a change of secret is always
   refused (`capture_unavailable`): no evidence can be taken while a dialog is open. Answer it
   yourself.
@@ -1382,7 +1418,16 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   measured on 100 common button labels, it missed none and locked 2 that a careful reader would
   not (`Effacer le formulaire`, `Supprimer le filtre`). It also locks `Finaliser l'achat`,
   `Valider mon panier`, `Reset your password` and `Regenerate API key`. A label that says the same
-  thing in other words is not locked: the guard is a list of words, not a reading of the page.
+  thing in other words is not locked: the guard is a list of words, not a reading of the page. The
+  letters of the Cyrillic and Greek alphabets that look like a Latin letter are read as that letter,
+  in a label and in the name of a field alike; other tricks of spelling (a digit for a letter, spaces
+  inside a word) are not.
+- A secret that a site writes in the path of an address (`/reset/<token>`) is shown as written in the
+  results and in `list_tabs`. The server redacts the value of a query parameter whose name holds a
+  word such as `token`, `code`, `state`, `key`, `secret`, `session`, `auth`, `password`, `otp`, `jwt`
+  or `signature`, and the whole fragment, never a segment of the path nor a parameter of another name
+  (`sid`). Redacting the segments of the path that look like a token would hide article numbers and
+  still miss some. Close such a page yourself once its job is done.
 - A client that gives the model a shell lifts the guard of the profile: the model can edit the
   operator profile, `origin_policy` included, and read credential files of the open encrypted directory. The
   server does not stop it; it only writes `profile_changed` after the change of an origin list or of the
@@ -1408,10 +1453,12 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - The command that carries a credential file over was tested on files of the test suite in a
   simulated volume; its publication of the new file by a hard link was not tried on a real gocryptfs
   volume (if the file system cannot link, it takes the name first and fills it).
-- A click that the page moves between the second reading of its box and the press, or whose target
-  the page covers without moving it or the view, is not caught (see the part on pages that move
-  when the pointer arrives): on a page that scrolled by 1000 CSS pixels a second, 6 of 144 clicks
-  landed nowhere with no error. Observe again before a second try after a refusal.
+- The press of a click is checked after it is made, so the handlers that the page attached to the press
+  (`pointerdown`, `mousedown`) have already run on whatever was under the pointer; a control that acts
+  on the press rather than on the click, put there by a script at that instant, is not stopped. The
+  guard of a key and of a text is a script of the page: a page that expects it goes round it, and it
+  does not see the events of a frame (see the parts on pages that move). Observe again before a second
+  try after a refusal.
 - A node that has no box of its own is taken for hidden, and what lies under it is not shown to the
   model. Measured on Chromium 141: a page whose body had no height because its children were placed
   out of the flow gave no mark, and a wrapper of no height holding a dialog fixed to the view gave

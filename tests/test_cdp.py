@@ -363,13 +363,16 @@ async def test_call_internal_refuses_malformed_arguments(
 
 
 def test_production_script_table_holds_the_action_scripts_and_is_read_only() -> None:
-    assert set(INTERNAL_SCRIPTS) == {"contains", "select_text", "set_select_option", "active_element", "is_connected"}
+    assert set(INTERNAL_SCRIPTS) == {"contains", "select_text", "set_select_option", "active_element", "is_connected", "is_pressed", "guard_input", "release_input_guard"}
     assert {name: script.kind for name, script in INTERNAL_SCRIPTS.items()} == {
         "contains": "call_function_on",
         "select_text": "call_function_on",
         "set_select_option": "call_function_on",
         "active_element": "evaluate",
         "is_connected": "call_function_on",
+        "is_pressed": "call_function_on",
+        "guard_input": "call_function_on",
+        "release_input_guard": "call_function_on",
     }
     assert INTERNAL_SCRIPTS["active_element"].by_value is False
     with pytest.raises(TypeError):

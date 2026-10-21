@@ -85,7 +85,7 @@ The server offers fourteen tools to the model.
 :   Return the image with numbered marks, the accessibility tree and the list of elements. The marks hold for that observation only.
 
 **click**, **fill**, **select_option**, **press_key**, **scroll**, **handle_dialog**
-:   Act on an element named by its mark. A sensitive field is filled only from a credential file (**fill** with *credential_ref*), never from a text.
+:   Act on an element named by its mark. A sensitive field is filled only from a credential file (**fill** with *credential_ref*), never from a text, and a password enters only a sensitive field. A click, a key and a text are cancelled if the page changes the target at the last instant. Accepting a **confirm** or **prompt** dialog asks the operator for confirmation.
 
 **wait**
 :   Wait for the load of the page, a text or an element.

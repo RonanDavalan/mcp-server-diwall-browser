@@ -174,6 +174,35 @@ def test_normalization() -> None:
     assert normalize(None) == ""
 
 
+# Les lettres d'un autre alphabet qu'une page peut écrire à la place d'une lettre latine sans que l'œil le voie.
+LOOKALIKES = {
+    "a": "\u0430\u03b1", "c": "\u0441\u03f2", "d": "\u0501", "e": "\u0435", "h": "\u04bb", "i": "\u0456\u03b9",
+    "j": "\u0458", "k": "\u043a\u03ba", "l": "\u04cf", "o": "\u043e\u03bf", "p": "\u0440\u03c1", "q": "\u051b",
+    "s": "\u0455", "u": "\u03c5", "v": "\u03bd", "w": "\u051d", "x": "\u0445\u03c7", "y": "\u0443",
+}
+PHRASES = [(category, phrase) for category, phrases in gate.VOCABULARY.items() for phrase in phrases]
+
+
+@pytest.mark.parametrize(("category", "phrase"), PHRASES)
+def test_a_phrase_of_the_vocabulary_is_found_with_any_letter_replaced_by_a_lookalike(category: str, phrase: str) -> None:
+    missed = []
+    for index, letter in enumerate(phrase):
+        for lookalike in LOOKALIKES.get(letter, ""):
+            disguised = phrase[:index] + lookalike + phrase[index + 1 :]
+            if category not in label_categories(disguised):
+                missed.append(disguised)
+    assert missed == []
+
+
+def test_a_delete_button_written_with_a_cyrillic_letter_arms_the_gate() -> None:
+    assert label_categories("Sup\u0440rimer mon compte") == D
+
+
+def test_normalization_brings_a_lookalike_back_to_its_latin_letter() -> None:
+    assert normalize("p\u0430yer") == "payer"
+    assert normalize("\u03bf\u0440\u0435n") == "open"
+
+
 # --- cent libellés de boutons courants : ce que la porte arme ---------------------------------------
 
 COMMON_BUTTONS = [
@@ -263,6 +292,20 @@ def test_signals_add_up() -> None:
     decision = classify(ref, action_kind="click", intent_category="secret_change", snapshot=Snap(page_has_card_field=True))
     assert decision.categories == ("payment", "deletion", "secret_change")
     assert set(decision.signals) == {"vocabulary_deletion", "card_field_on_page", "card_field_in_form", "declared_category"}
+
+
+@pytest.mark.parametrize(("kind", "asks"), [("confirm", True), ("prompt", True), ("alert", False), ("beforeunload", False)])
+def test_accepting_a_question_dialog_asks_the_operator_whatever_its_message_says(kind: str, asks: bool) -> None:
+    decision = classify(None, action_kind="dialog_accept", intent_category=None, snapshot=PLAIN_PAGE, dialog_message="Continuer ?", dialog_type=kind)
+    assert decision.asks is asks and decision.armed is False and decision.categories == ()
+    assert ("dialog_question" in decision.signals) is asks
+
+
+def test_a_question_dialog_that_also_names_a_deletion_is_armed() -> None:
+    decision = classify(
+        None, action_kind="dialog_accept", intent_category=None, snapshot=PLAIN_PAGE, dialog_message="Supprimer le compte ?", dialog_type="confirm"
+    )
+    assert decision.armed and decision.categories == D
 
 
 def test_other_texts_of_the_element_arm_too() -> None:

@@ -75,7 +75,7 @@ Le serveur offre quatorze outils au modèle.
 :   Rendre l'image aux repères numérotés, l'arbre d'accessibilité et la liste des éléments. Les repères ne valent que pour cette observation.
 
 **click**, **fill**, **select_option**, **press_key**, **scroll**, **handle_dialog**
-:   Agir sur un élément désigné par son repère. Un champ sensible ne se remplit que depuis un fichier d'identifiants (**fill** avec *credential_ref*), jamais depuis un texte.
+:   Agir sur un élément désigné par son repère. Un champ sensible ne se remplit que depuis un fichier d'identifiants (**fill** avec *credential_ref*), jamais depuis un texte, et un mot de passe n'entre que dans un champ sensible. Un clic, une touche et un texte sont annulés si la page change la cible au dernier instant. Accepter une boîte de dialogue **confirm** ou **prompt** demande une confirmation à l'opérateur.
 
 **wait**
 :   Attendre le chargement de la page, un texte ou un élément.

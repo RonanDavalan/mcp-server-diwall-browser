@@ -242,9 +242,10 @@ Nicht getestet:
   141 gemessen (sie antwortet für einen Punkt des Dokuments, nicht der Ansicht): Weicht sie in einer anderen
   Version ab, scheitern dort die Tests eines Klicks auf eine gescrollte Seite. Ein Klick auf ein Element in einem
   Frame einer gescrollten Seite wurde nicht gemessen.
-- Eine Seite, die sich nach der zweiten Suche eines Klicks und vor dem Drücken bewegt. Auf einer Seite, die um 1000
-  CSS-Pixel pro Sekunde scrollt, lieferten 6 von 144 Klicks keinen Fehler und landeten nirgends; keiner landete auf
-  einem anderen Button (Chrome 154.0.8037.97, `docs/JOURNAL.md`).
+- Ein Element, das auf das Drücken statt auf den Klick reagiert und im Augenblick des Drückens von einem Skript unter den
+  Zeiger gesetzt wird: Das Drücken wird geprüft, nachdem es gemacht wurde, sodass die Handler der Seite fürs Drücken
+  gelaufen sind. Die Wache einer Taste und eines Textes ist ein Skript der Seite: Eine Seite, die sie erwartet, umgeht
+  sie, und sie sieht die Ereignisse eines Frames nicht (Google Chrome 156.0.8078.47, `docs/OPERATOR_GUIDE.md`, Abschnitt 7).
 
 Bekannte Grenzen:
 
@@ -254,9 +255,15 @@ Bekannte Grenzen:
   endet.
 - Ein Download, den eine Seite mehr als eine halbe Sekunde nach dem Ende eines Ladevorgangs startet, wird
   abgelehnt.
-- Das Annehmen eines Dialogs, dessen Meldung eine Zahlung, eine Löschung oder eine Änderung eines Geheimnisses
+- Das Annehmen eines `confirm`- oder `prompt`-Dialogs verlangt vom Bediener eine Bestätigung in einem Fenster, was
+  immer seine Meldung sagt.
+  Das Annehmen eines Dialogs, dessen Meldung eine Zahlung, eine Löschung oder eine Änderung eines Geheimnisses
   verlangt, wird immer abgelehnt: Solange ein Dialog offen ist, kann keine Aufnahme gemacht werden. Der Bediener
-  beantwortet einen solchen Dialog.
+    beantwortet einen solchen Dialog.
+- Ein Geheimnis, das eine Website in den Pfad einer Adresse schreibt, wird in den Ergebnissen so gezeigt, wie es
+  geschrieben ist; nur der Wert eines Abfrageparameters, dessen Name ein Wort wie `token` enthält, und das Fragment
+  werden geschwärzt.
+
 - Die Sichtbarkeit ist ungefähr: Der Server berechnet weder Kontrast noch das Abschneiden durch `overflow`, sodass
   Text, den ein Mensch nicht lesen kann, das Modell dennoch erreichen kann.
 - Eine Beobachtung enthält höchstens 150 Markierungen und 400 Baumzeilen (`marks_truncated`, `tree_truncated`). Darüber
