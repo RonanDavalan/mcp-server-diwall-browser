@@ -14,6 +14,8 @@ the work actually done.
 - **gemini-3.5-flash (Google, through OpenCode)**: tests of the dedicated-agent connection (15 October 2026): the server's tools reach the `navigateur` agent only, with the client recorded in the journal, and a shell command is not run without an answer.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: stylesheet and layout of the project's website (16 October 2026), chosen among several trials: the text and the behaviour of the pages were left untouched.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: reading of the sixteen French pages of the project's website and wording proposals in four languages (18 October 2026), kept as drafts.
+- **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag (21 October 2026), from a blank session: a report of seven findings on the confirmation gate, the sensitive-field mask, credentials and URLs.
+- **GLM 5.3 (Zhipu, through OpenCode)**: independent security audit of the `v0.0.1` tag (21 October 2026), from a blank session: a report of seven findings, with reproductions on a headless browser, on the confirmation gate, dialogs, credentials and navigation.
 
 ## Heritage
 

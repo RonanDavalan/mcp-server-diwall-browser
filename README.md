@@ -277,5 +277,7 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, again on 16 October 2026: the stylesheet and layout of the project's website, chosen among several trials; the text and the behaviour of the pages were left untouched.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**, once more on 18 October 2026: a reading of the sixteen French pages of the project's website and wording proposals in four languages, kept as drafts.
+- **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session (21 October 2026).
+- **GLM 5.3 (Zhipu, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session, with reproductions on a headless browser (21 October 2026).
 
 License: MIT, see [LICENSE](LICENSE).
