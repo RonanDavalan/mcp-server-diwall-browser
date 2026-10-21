@@ -160,7 +160,7 @@ Use `zenity` en lugar de `kdialog` fuera de KDE si lo prefiere.
 ## 2. Instalación
 
 **Desde un paquete.** En Debian, Ubuntu, Fedora, openSUSE Leap y Arch Linux, un paquete nativo sustituye
-al clon, al entorno virtual y a la instalación de más abajo (los comandos de instalación están en el `README.md`).
+al clon, al entorno virtual y a la instalación de más abajo (en Debian 13 y Ubuntu 24.04, el comando de instalación es `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`, ejecutado desde la carpeta que contiene el archivo; los comandos de las demás distribuciones están en el `README.md`).
 Instala el servidor en `/usr/lib/mcp-server-diwall-browser` con un entorno virtual propio,
 y pone tres comandos en el `PATH`: `mcp-server-diwall-browser`, el servidor, `mcp-server-diwall-browser-credential-import`, el comando de la sección 6, y `mcp-server-diwall-browser-setup`, el comando del primer arranque. En los bloques de conexión del
 `README.md` y de la sección 2.1, el comando es entonces `mcp-server-diwall-browser`, sin argumento; en

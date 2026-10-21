@@ -14,6 +14,7 @@ the weight of the work.
 - **GLM 5.3 (Zhipu, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session: a report of seven findings, with reproductions on a headless browser, on the confirmation gate, dialogs, credentials and navigation, three of them confirmed at triage and corrected.
 - **Gemini (Google)**: architectural advisor and synthesizer. Proposed the name **Diwall**.
 - **gemini-3.5-flash (Google, through OpenCode)**: tests of the dedicated-agent connection: the server's tools reach the `navigateur` agent only, with the client recorded in the journal, and a shell command is not run without an answer.
+- **Qwen3.8 Max (Alibaba, through OpenCode)**: visitor test before the first release, from a blank session with no access to the framework: the site read through a screenshot and accessibility tool, the installation of the Debian package in a clean Debian 13 container up to the first-launch report, and five questions answered from the French manual; two defects of the site and one of the operator guide were corrected from its reports.
 - **Space Bunny Free (opencode)**: cleanup and pruning of the working framework at the start of the project.
 
 ## Heritage
