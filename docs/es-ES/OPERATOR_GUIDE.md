@@ -1092,8 +1092,7 @@ Lo que hay que leer antes de responder:
 - `Catégories` y `Signaux`: por qué pregunta el servidor.
 
 Los `kdialog` y `zenity` reales mostraron las ventanas en una pantalla virtual, y pulsaciones de teclas las respondieron (Intro, Escape y las flechas):
-Intro y Escape dan el rechazo. Una persona respondió a la forma anterior de la ventana el 15 de octubre de 2026 (un rechazo, una aceptación y una
-caducidad: `README.md`); ninguna persona ha respondido todavía a la forma actual. Las pruebas automáticas usan programas simulados en su lugar.
+Intro y Escape dan el rechazo. Una persona respondió a la ventana el 22 de octubre de 2026, con cada una de las dos herramientas sola (un rechazo, una aceptación y una caducidad: `README.md`). Las pruebas automáticas usan programas simulados en su lugar.
 
 La ventana pertenece al servidor, no al cliente MCP: el cliente actúa por el modelo y podría
 responder por sí mismo, mientras que la ventana del servidor la responde una persona, fuera de la conversación. El

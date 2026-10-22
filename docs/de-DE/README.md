@@ -215,12 +215,13 @@ Getestet:
   eines öffentlichen Einkaufsportals, füllte dessen Suchfeld, drückte die Eingabetaste und beobachtete die
   Ergebnisse. Der getippte Text erscheint nicht im Journal.
 - Die Ursprungsrichtlinie (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` und `tests/test_origin_policy_server.py` auf einem simulierten Browser und `tests/test_origin_policy_integration.py`, 12 Tests des über seinen Einstiegspunkt gestarteten Servers gegen Google Chrome 155.0.8059.84, mit Attrappenprogrammen für das Fenster: ein Portal, das auf einen zweiten Origin verweist, eine Weiterleitung auf einen unbekannten Origin, die drei Antworten des Fensters (das Profil nach `Ajouter à la liste` neu gelesen), unter `open` abgelehnte lokale Namen, eine Zahlung, die weiter ihr Fenster verlangt, und die im Profil geänderte Richtlinie ohne Neustart. Die Fenster der echten `kdialog` und `zenity` wurden in einem virtuellen Bildschirm gezeigt und durch Tastendrücke beantwortet (Eingabe und Escape geben die Ablehnung); noch keine Person hat sie beantwortet.
-- Die frühere Form des Bestätigungsfensters (zwei Schaltflächen), auf dem Rechner des Bedieners gezeigt und am 15. Oktober 2026 von einer Person
-  beantwortet (Revision `365c465`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen
-  Zahlungsseite, in Opera (das der Server als Chrome 153.0.8010.55 las): Eine Ablehnung lieferte
-  `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick aus, und die Seite
-  erhielt eine Anfrage; ohne Antwort verfiel die Anfrage nach 91 Sekunden (`confirmation_expired`), und die
-  Seite erhielt nichts.
+- Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und am 22. Oktober 2026 von einer Person beantwortet
+  (Revision `0f4f613`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen Zahlungsseite, in Opera
+  138.0.6044.24, einmal mit `kdialog` 25.04.0 und einmal mit `zenity` 4.1.90 (der Server fand nur dieses Werkzeug):
+  Bei beiden lieferte eine Ablehnung `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick
+  aus, und die Seite erhielt eine Anfrage; ohne Antwort verfiel die Anfrage nach 90,4 Sekunden (`confirmation_expired`),
+  und die Seite erhielt nichts. Das Protokoll enthält für jede der sechs Anfragen eine Zeile `requested` und eine Zeile
+  mit dem Ergebnis.
 - Claude Code, aus einem Desktop-Terminal gestartet: `status` über Claude Code meldete
   `confirmation_channel: native`, die Anzeige erreichte also den Server.
 - Der Serverprozess über Standardeingabe und Standardausgabe: Er schreibt nichts außer dem Protokoll auf seine

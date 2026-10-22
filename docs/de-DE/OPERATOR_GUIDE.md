@@ -1156,8 +1156,7 @@ Was Sie vor der Antwort lesen sollten:
 - `Catégories` und `Signaux`: warum der Server fragt.
 
 Die echten `kdialog` und `zenity` haben die Fenster in einem virtuellen Bildschirm gezeigt, und Tastendrücke haben geantwortet (Eingabe, Escape und
-Pfeiltasten): Eingabe und Escape geben die Ablehnung. Eine Person hat am 15. Oktober 2026 die frühere Form des Fensters beantwortet (eine Ablehnung,
-eine Zustimmung und ein Ablauf: `README.md`); auf die jetzige Form hat noch keine Person geantwortet. Die automatischen Tests verwenden an dessen
+Pfeiltasten): Eingabe und Escape geben die Ablehnung. Eine Person hat das Fenster am 22. Oktober 2026 mit jedem der beiden Werkzeuge allein beantwortet (eine Ablehnung, eine Zustimmung und ein Ablauf: `README.md`). Die automatischen Tests verwenden an dessen
 Stelle Attrappenprogramme.
 
 Das Fenster gehört dem Server, nicht dem MCP-Client: Der Client handelt für das Modell und könnte von

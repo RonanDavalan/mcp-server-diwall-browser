@@ -1121,9 +1121,8 @@ What to read before answering:
 - `Catégories` and `Signaux`: why the server asks.
 
 The windows were shown by the real `kdialog` and `zenity` in a virtual screen and answered by keystrokes
-(Enter, Escape and the arrow keys): Enter and Escape give the refusal. A person answered the earlier form
-of the window on 15 October 2026 (a refusal, an acceptance and an expiry: `README.md`); no person has answered
-the present form yet. The automated tests use fake programs in their place.
+(Enter, Escape and the arrow keys): Enter and Escape give the refusal. A person answered the window on 22 October 2026, with each tool alone (a refusal, an acceptance and an expiry: `README.md`).
+The automated tests use fake programs in their place.
 
 The window belongs to the server, not to the MCP client: the client acts for the model and could
 answer by itself, while the server's window is answered by a person, outside the conversation. The

@@ -213,11 +213,13 @@ Tested:
   a page of a public shopping site, filled its search field, pressed Enter and observed the
   results. The typed text does not appear in the journal.
 - The origin policy (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` and `tests/test_origin_policy_server.py` on a simulated browser, and `tests/test_origin_policy_integration.py`, 12 tests of the server started by its entry point against Google Chrome 155.0.8059.84, with fake window programs: a portal that links to a second origin, a redirection to an unknown origin, the three answers of the window (the profile read back after `Ajouter à la liste`), local names refused under `open`, a payment that still asks its window, and the policy changed in the profile without restarting. The windows of the real `kdialog` and `zenity` were shown in a virtual screen and answered by keystrokes (Enter and Escape give the refusal); no person has answered them yet.
-- The earlier form of the confirmation window (two buttons), shown on the operator's workstation and answered by a person on 15 October
-  2026 (revision `365c465`), with the operator's own gocryptfs volume mounted and a local payment page,
-  in Opera (which the server read as Chrome 153.0.8010.55): a refusal returned `confirmation_denied` and
-  the page received nothing; an acceptance made the click and the page received one request; with no
-  answer, the request expired after 91 seconds (`confirmation_expired`) and the page received nothing.
+- The confirmation window, shown on the operator's workstation and answered by a person on 22 October 2026
+  (revision `0f4f613`), with the operator's own gocryptfs volume mounted and a local payment page, in Opera
+  138.0.6044.24, once with `kdialog` 25.04.0 and once with `zenity` 4.1.90 (the server found only that tool):
+  with each, a refusal returned `confirmation_denied` and the page received nothing; an acceptance made the
+  click and the page received one request; with no answer, the request expired after 90.4 seconds
+  (`confirmation_expired`) and the page received nothing. The journal holds one `requested` line and one
+  line with the outcome for each of the six requests.
 - Claude Code, started from a desktop terminal: `status` through Claude Code read
   `confirmation_channel: native`, so the display reached the server.
 - The server process over standard input and output: it writes nothing but the protocol on its

@@ -1053,8 +1053,7 @@ Ce qu'il faut lire avant de répondre :
 - `Catégories` et `Signaux` : pourquoi le serveur demande.
 
 Les vrais `kdialog` et `zenity` ont montré les fenêtres dans un écran virtuel, et des frappes y ont répondu (Entrée, Échap et les flèches) :
-Entrée et Échap donnent le refus. Une personne a répondu à la forme précédente de la fenêtre le 15 octobre 2026 (un refus, un accord et une
-expiration : `README.md`) ; aucune personne n'a encore répondu à la forme actuelle. Les tests automatiques emploient de faux programmes à sa place.
+Entrée et Échap donnent le refus. Une personne a répondu à la fenêtre le 22 octobre 2026, avec chacun des deux outils seul (un refus, un accord et une expiration : `README.md`). Les tests automatiques emploient de faux programmes à sa place.
 
 La fenêtre appartient au serveur, pas au client MCP : le client agit pour le modèle et pourrait répondre seul, alors que la
 fenêtre du serveur reçoit la réponse d'une personne, hors de la conversation. Le serveur ne demande par le client que si
