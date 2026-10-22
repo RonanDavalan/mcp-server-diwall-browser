@@ -63,6 +63,8 @@ L'installation demande une connexion au réseau : le paquet crée un environnem
 les dépendances, aux versions que le projet a testées. La page de manuel est `man mcp-server-diwall-browser`.
 Pour installer depuis un clone du dépôt, suivez [docs/fr-FR/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+Une machine ARM 64 bits prend le même `.deb`, puisque le paquet ne dépend pas de l'architecture : un Raspberry Pi 4 sous Debian 13 a été essayé (voir « Ce qui est testé, ce qui ne l'est pas »). Le navigateur y est le Chromium de la distribution.
+
 ## Le brancher à un client MCP
 
 Le serveur parle MCP sur l'entrée et la sortie standard. Avec un paquet installé, la commande est
@@ -146,6 +148,7 @@ Testé :
   tests de téléchargement et les deux tests qui remplacent l'instable, chacun seul, 0 échec sur 40
   exécutions. Les tests de clic n'y ont pas été rejoués.
 - `scripts/smoke_test.py` rend 0 contre Google Chrome 155.0.8059.84 et 3 quand aucun navigateur n'est trouvé.
+- Un Raspberry Pi 4 Model B de 8 Go, Raspberry Pi OS sur Debian 13 (aarch64), Python 3.13.5 et Chromium 155.0.8059.79, le 22 octobre 2026 : le `.deb` final installé par `apt` ; le premier lancement de l'assistant d'installation de bout en bout avec le vrai `gocryptfs` (volumes temporaire et durable, navigateur, fermeture) ; `scripts/smoke_test.py` qui rend 0 ; le serveur piloté par un vrai client MCP sur un Chromium visible, avec fenêtre et non sans interface, sur un écran X11 virtuel, avec la fenêtre de confirmation native de `zenity` ouverte puis laissée expirer ; puis le paquet retiré et purgé, sans fichier restant. La suite complète y a donné 2 694 tests réussis et 1 ignoré en 15 minutes (cinq sont des mesures de ce poste que le dépôt ne contient pas). Sur ce réseau, la première page chargée par un Chromium qui vient de démarrer a pris 15 à 26 secondes, ce qui a fait échouer trois tests lors d'un premier passage ; avec le navigateur coupé du réseau, ils réussissent tous (guide, section 12).
 - Les repères et les masques à une échelle d'écran de 1, 1,5 et 2, sur un Chromium 141 sans interface : le
   cadre de chaque repère visible est à moins de deux pixels du cadre que donne le navigateur lui-même, chaque
   pixel du champ de mot de passe de la page de démonstration est sous son masque, et le masque ne dépasse pas
@@ -229,6 +232,7 @@ Testé :
 
 Non testé :
 
+- Une machine ARM 64 bits autre que ce Raspberry Pi 4 (un Raspberry Pi 5, une autre distribution), une session de bureau Wayland, et une personne qui répond à la fenêtre de confirmation sur ce poste.
 - L'assistant d'installation sur une machine qui a un espace d'échange (son rapport est essayé sur une liste simulée), et
   sa commande `browser` avec Brave, Chromium ou Opera.
 - Brave, et les versions de Google Chrome autres que celle que l'opérateur a employée.

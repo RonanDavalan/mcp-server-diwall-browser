@@ -108,6 +108,7 @@ write, and only while the encrypted directory is open.
   machine; the complete suite, 589 browser tests included, passed on Google Chrome 156.0.8078.47, and
   the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
   alone. Chromium 154 was not available there. Brave was not tried.
+- On a 64-bit ARM machine the same package and the same commands apply, with the browser of the distribution (`chromium` on Raspberry Pi OS, 155.0.8059.79 there). It was measured on 22 October 2026 on a Raspberry Pi 4 Model B with 8 GB: installation, first launch, smoke test and the complete suite, of which 2694 tests passed and 1 was skipped (five of those tests are measurements of that machine that the repository does not hold). The processor of a Raspberry Pi 4 has no AES instructions, and `gocryptfs` says so when it creates a volume: it suggests its `-xchacha` option, which the setup assistant does not use; the speed of the volume was not measured.
 - `fuse3` and `gocryptfs` for the encrypted directory.
 - `kdialog` or `zenity` for the confirmation window.
 - `git`, and `ss` (package `iproute2`) for the loopback check.
@@ -1383,6 +1384,7 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 
 ## 12. Known limits
 
+- On the Raspberry Pi 4 measured, the first page that a freshly started Chromium loaded took 15 to 26 seconds, and the following ones 0.2 second. The server then says that the page did not finish loading in 15 seconds and that its content may be incomplete. With the browser run in a network namespace that has only the loopback interface, the same load took 1.6 seconds: the delay comes from the requests the browser makes on its own at start, on that network; their exact origin was not found.
 - The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
 - The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
 - Whoever does not want these safeguards will find other MCP servers that drive a browser without them.

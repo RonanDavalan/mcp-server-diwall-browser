@@ -63,6 +63,8 @@ The installation needs a network connection: the package creates a Python virtua
 installs the dependencies, at the versions the project tested. The manual page is `man mcp-server-diwall-browser`.
 To install from a clone of the repository instead, follow [docs/OPERATOR_GUIDE.md](docs/OPERATOR_GUIDE.md).
 
+A 64-bit ARM machine takes the same `.deb`, since the package does not depend on the architecture: a Raspberry Pi 4 under Debian 13 was tried (see "What is tested, what is not"). The browser there is the distribution's Chromium.
+
 ## Connect it to an MCP client
 
 The server speaks MCP over standard input and output. With a package installed, the command is
@@ -146,6 +148,7 @@ Tested:
   passed; the two download tests and the two tests that replace the unstable one, each alone, 0
   failures in 40 runs. The click tests were not replayed on it.
 - `scripts/smoke_test.py` returns 0 against Google Chrome 155.0.8059.84 and 3 when no browser is found.
+- A Raspberry Pi 4 Model B with 8 GB, Raspberry Pi OS on Debian 13 (aarch64), Python 3.13.5 and Chromium 155.0.8059.79, on 22 October 2026: the final `.deb` installed by `apt`; the first launch of the setup assistant end to end with the real `gocryptfs` (temporary and durable volumes, browser, close); `scripts/smoke_test.py` returning 0; the server driven through a real MCP client on a visible Chromium with a window, not headless, on a virtual X11 screen, with the native confirmation window of `zenity` opened and left to expire; then the package removed and purged, no file left. The complete suite there gave 2694 tests passed and 1 skipped in 15 minutes (five of them are measurements of that machine that the repository does not hold). On that network, the first page loaded by a freshly started Chromium took 15 to 26 seconds, which made three tests fail in a first run; with the browser cut off from the network, they all pass (guide, section 12).
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
   password field of the demo page is under its mask, and the mask goes no further than two pixels
@@ -227,6 +230,7 @@ Tested:
 
 Not tested:
 
+- A 64-bit ARM machine other than that Raspberry Pi 4 (a Raspberry Pi 5, another distribution), a Wayland desktop session, and a person answering the confirmation window there.
 - The setup assistant on a machine that has a swap area (its report is tested on a simulated list), and its
   `browser` command with Brave, Chromium or Opera.
 - Brave, and Google Chrome builds other than the one the operator ran.

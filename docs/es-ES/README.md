@@ -62,6 +62,8 @@ directorio cifrado, ni un navegador. Debian 12 y Ubuntu 22.04 no son compatibles
 `man mcp-server-diwall-browser`. Para instalar desde un clon del repositorio, siga
 [docs/es-ES/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+Una máquina ARM de 64 bits toma el mismo `.deb`, porque el paquete no depende de la arquitectura: se probó una Raspberry Pi 4 con Debian 13 (véase «Lo que está probado y lo que no»). El navegador allí es el Chromium de la distribución.
+
 ## Conectarlo a un cliente MCP
 
 El servidor habla MCP por la entrada y la salida estándar. Con un paquete instalado, el comando es
@@ -144,6 +146,7 @@ Probado:
   y las dos que sustituyen a la inestable, cada una por separado, 0 fallos en 40 ejecuciones. Las pruebas de clic
   no se repitieron en él.
 - `scripts/smoke_test.py` devuelve 0 frente a Google Chrome 155.0.8059.84 y 3 cuando no se encuentra ningún navegador.
+- Una Raspberry Pi 4 Model B de 8 GB, Raspberry Pi OS sobre Debian 13 (aarch64), Python 3.13.5 y Chromium 155.0.8059.79, el 22 de octubre de 2026: el `.deb` final instalado por `apt`; el primer arranque del asistente de instalación de principio a fin con el `gocryptfs` real (volúmenes temporal y duradero, navegador, cierre); `scripts/smoke_test.py` que devuelve 0; el servidor manejado por un cliente MCP real sobre un Chromium visible, con ventana y no sin interfaz, en una pantalla X11 virtual, con la ventana de confirmación nativa de `zenity` abierta y dejada expirar; luego el paquete retirado y purgado, sin ningún archivo restante. La batería completa dio allí 2694 pruebas superadas y 1 omitida en 15 minutos (cinco son mediciones de ese equipo que el repositorio no contiene). En esa red, la primera página que cargó un Chromium recién iniciado tardó de 15 a 26 segundos, lo que hizo fallar tres pruebas en una primera pasada; con el navegador aislado de la red, todas pasan (guía, sección 12).
 - Las marcas y las máscaras a una escala de pantalla de 1, 1,5 y 2, en un Chromium 141 sin interfaz: el cuadro de
   cada marca visible está a menos de dos píxeles del cuadro que da el propio navegador, cada píxel del campo de
   contraseña de la página de demostración está bajo su máscara, y la máscara no se extiende más de dos píxeles más
@@ -223,6 +226,7 @@ Probado:
 
 No probado:
 
+- Un equipo ARM de 64 bits distinto de esa Raspberry Pi 4 (una Raspberry Pi 5, otra distribución), una sesión de escritorio Wayland y una persona que responda a la ventana de confirmación en ese equipo.
 - El asistente de instalación en una máquina con área de intercambio (su informe se probó sobre una lista simulada), y
   su comando `browser` con Brave, Chromium u Opera.
 

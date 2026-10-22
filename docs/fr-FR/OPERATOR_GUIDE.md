@@ -106,6 +106,7 @@ que le répertoire chiffré est ouvert.
   navigateur, a passé sous Google Chrome 156.0.8078.47, et les 536 tests de navigateur d'une révision antérieure ont aussi
   passé sous Chromium 155.0.8059.39 (Debian 13), chacun seul. Chromium 154 n'y était pas disponible. Brave n'a pas été
   essayé.
+- Sur une machine ARM 64 bits, le même paquet et les mêmes commandes s'appliquent, avec le navigateur de la distribution (`chromium` sous Raspberry Pi OS, 155.0.8059.79 sur ce poste). Cela a été mesuré le 22 octobre 2026 sur un Raspberry Pi 4 Model B de 8 Go : l'installation, le premier lancement, le test de fumée et la suite complète, dont 2 694 tests ont réussi et 1 a été ignoré (cinq de ces tests sont des mesures de ce poste que le dépôt ne contient pas). Le processeur d'un Raspberry Pi 4 n'a pas d'instructions AES, et `gocryptfs` le dit quand il crée un volume : il suggère son option `-xchacha`, que l'assistant d'installation n'emploie pas ; la vitesse du volume n'a pas été mesurée.
 - `fuse3` et `gocryptfs` pour le répertoire chiffré.
 - `kdialog` ou `zenity` pour la fenêtre de confirmation.
 - `git`, et `ss` (paquet `iproute2`) pour la vérification de la boucle locale.
@@ -1278,6 +1279,7 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 
 ## 12. Limites connues
 
+- Sur le Raspberry Pi 4 mesuré, la première page qu'un Chromium qui vient de démarrer a chargée a pris 15 à 26 secondes, et les suivantes 0,2 seconde. Le serveur dit alors que la page n'a pas fini de charger en 15 secondes et que son contenu peut être incomplet. Avec le navigateur lancé dans un espace de noms réseau qui n'a que l'interface de boucle locale, le même chargement a pris 1,6 seconde : le retard vient des requêtes que le navigateur fait de lui-même au démarrage, sur ce réseau ; leur origine exacte n'a pas été trouvée.
 - Le répertoire chiffré protège autant que son mot de passe : qui a le mot de passe en lit le contenu, et un mot de passe faible ou réutilisé protège peu.
 - Les garde-fous sont ceux mesurés à la date de cette version, par les essais et les mesures que ce document nomme. Un modèle plus récent que ceux essayés peut trouver un contournement qu'aucun essai n'a vu.
 - Qui ne veut pas de ces garde-fous trouvera d'autres serveurs MCP qui pilotent un navigateur sans eux.

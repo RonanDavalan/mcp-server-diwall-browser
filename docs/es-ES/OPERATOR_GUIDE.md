@@ -110,6 +110,7 @@ escritura, y solo mientras el directorio cifrado está abierto.
   navegador incluidas, pasó en Google Chrome 156.0.8078.47, y las 536 pruebas de navegador de una
   revisión anterior también pasaron en Chromium 155.0.8059.39 (Debian 13), cada una por separado.
   Chromium 154 no estaba disponible allí. No se probó Brave.
+- En un equipo ARM de 64 bits se aplican el mismo paquete y los mismos comandos, con el navegador de la distribución (`chromium` en Raspberry Pi OS, 155.0.8059.79 allí). Se midió el 22 de octubre de 2026 en una Raspberry Pi 4 Model B de 8 GB: la instalación, el primer arranque, la prueba de humo y la batería completa, de la que pasaron 2694 pruebas y 1 se omitió (cinco de esas pruebas son mediciones de ese equipo que el repositorio no contiene). El procesador de una Raspberry Pi 4 no tiene instrucciones AES, y `gocryptfs` lo dice al crear un volumen: sugiere su opción `-xchacha`, que el asistente de instalación no usa; la velocidad del volumen no se midió.
 - `fuse3` y `gocryptfs` para el directorio cifrado.
 - `kdialog` o `zenity` para la ventana de confirmación.
 - `git`, y `ss` (paquete `iproute2`) para la comprobación del bucle local.
@@ -1327,6 +1328,7 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 
 ## 12. Límites conocidos
 
+- En la Raspberry Pi 4 medida, la primera página que cargó un Chromium recién iniciado tardó de 15 a 26 segundos, y las siguientes 0,2 segundos. El servidor dice entonces que la página no terminó de cargar en 15 segundos y que su contenido puede estar incompleto. Con el navegador ejecutado en un espacio de nombres de red que solo tiene la interfaz de bucle local, la misma carga tardó 1,6 segundos: el retraso viene de las solicitudes que el navegador hace por sí mismo al arrancar, en esa red; su origen exacto no se encontró.
 - El directorio cifrado protege tanto como su contraseña: quien tiene la contraseña lee su contenido, y una contraseña débil o reutilizada protege poco.
 - Las salvaguardas son las que se midieron en la fecha de esta versión, con las pruebas y mediciones que nombra este documento. Un modelo más reciente que los probados puede encontrar una forma de eludirlas que ninguna prueba ha visto.
 - Quien no quiera estas salvaguardas encontrará otros servidores MCP que controlan un navegador sin ellas.

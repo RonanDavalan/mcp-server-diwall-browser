@@ -111,6 +111,7 @@ Schreibzugriff und nur, solange das verschlüsselte Verzeichnis geöffnet ist.
   Google Chrome 156.0.8078.47, und die 536 Browser-Tests einer früheren Revision bestanden ebenfalls
   unter Chromium 155.0.8059.39 (Debian 13), jeweils einzeln. Chromium 154 war dort nicht verfügbar.
   Brave wurde nicht ausprobiert.
+- Auf einer 64-Bit-ARM-Maschine gelten dasselbe Paket und dieselben Befehle, mit dem Browser der Distribution (`chromium` unter Raspberry Pi OS, dort 155.0.8059.79). Gemessen wurde am 22. Oktober 2026 auf einem Raspberry Pi 4 Model B mit 8 GB: Installation, erster Start, Smoke-Test und die vollständige Suite, von der 2694 Tests bestanden und 1 übersprungen wurde (fünf dieser Tests sind Messungen dieser Maschine, die das Repository nicht enthält). Der Prozessor eines Raspberry Pi 4 hat keine AES-Befehle, und `gocryptfs` sagt das beim Anlegen eines Volumes: Es schlägt seine Option `-xchacha` vor, die der Einrichtungsassistent nicht verwendet; die Geschwindigkeit des Volumes wurde nicht gemessen.
 - `fuse3` und `gocryptfs` für das verschlüsselte Verzeichnis.
 - `kdialog` oder `zenity` für das Bestätigungsfenster.
 - `git` und `ss` (Paket `iproute2`) für die Loopback-Prüfung.
@@ -1398,6 +1399,7 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
 
 ## 12. Bekannte Grenzen
 
+- Auf dem gemessenen Raspberry Pi 4 brauchte die erste Seite, die ein frisch gestarteter Chromium lud, 15 bis 26 Sekunden, die folgenden 0,2 Sekunden. Der Server sagt dann, dass die Seite nicht innerhalb von 15 Sekunden fertig geladen wurde und dass ihr Inhalt unvollständig sein kann. Mit dem Browser in einem Netzwerk-Namensraum, der nur die Loopback-Schnittstelle hat, dauerte dasselbe Laden 1,6 Sekunden: Die Verzögerung kommt von den Anfragen, die der Browser beim Start von sich aus in diesem Netz stellt; ihr genauer Ursprung wurde nicht gefunden.
 - Das verschlüsselte Verzeichnis schützt so viel wie sein Passwort: Wer das Passwort hat, liest seinen Inhalt, und ein schwaches oder mehrfach verwendetes Passwort schützt wenig.
 - Die Schutzmaßnahmen sind die, die zum Datum dieser Version gemessen wurden, mit den Tests und Messungen, die dieses Dokument nennt. Ein Modell, das neuer ist als die erprobten, kann einen Weg um sie herum finden, den kein Versuch gesehen hat.
 - Wer diese Schutzmaßnahmen nicht will, findet andere MCP-Server, die einen Browser ohne sie steuern.

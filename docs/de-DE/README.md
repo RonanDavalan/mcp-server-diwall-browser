@@ -64,6 +64,8 @@ Python-Umgebung an und installiert darin die Abhängigkeiten in den Versionen, d
 Die Handbuchseite ist `man mcp-server-diwall-browser`. Zur Installation aus einem Klon des Repositorys folgen
 Sie [docs/de-DE/OPERATOR_GUIDE.md](OPERATOR_GUIDE.md).
 
+Eine 64-Bit-ARM-Maschine nimmt dasselbe `.deb`, da das Paket nicht von der Architektur abhängt: Ein Raspberry Pi 4 unter Debian 13 wurde ausprobiert (siehe „Was getestet ist, was nicht“). Der Browser ist dort das Chromium der Distribution.
+
 ## An einen MCP-Client anbinden
 
 Der Server spricht MCP über Standardeingabe und Standardausgabe. Mit installiertem Paket lautet der Befehl
@@ -146,6 +148,7 @@ Getestet:
   Tests, die den instabilen ersetzen, einzeln, 0 Fehlschläge in je 40 Läufen. Die Klick-Tests wurden damit nicht
   wiederholt.
 - `scripts/smoke_test.py` liefert 0 gegen Google Chrome 155.0.8059.84 und 3, wenn kein Browser gefunden wird.
+- Ein Raspberry Pi 4 Model B mit 8 GB, Raspberry Pi OS auf Debian 13 (aarch64), Python 3.13.5 und Chromium 155.0.8059.79, am 22. Oktober 2026: das endgültige `.deb`, von `apt` installiert; der erste Start des Einrichtungsassistenten von Anfang bis Ende mit dem echten `gocryptfs` (temporäres und dauerhaftes Volume, Browser, Schließen); `scripts/smoke_test.py`, das 0 liefert; der Server, von einem echten MCP-Client gesteuert, auf einem sichtbaren Chromium mit Fenster, nicht headless, auf einem virtuellen X11-Bildschirm, wobei das native Bestätigungsfenster von `zenity` geöffnet und ablaufen gelassen wurde; danach das Paket entfernt und vollständig gelöscht, ohne verbliebene Datei. Die vollständige Suite ergab dort 2694 bestandene Tests und 1 übersprungenen in 15 Minuten (fünf davon sind Messungen dieser Maschine, die das Repository nicht enthält). In diesem Netz brauchte die erste Seite, die ein frisch gestarteter Chromium lud, 15 bis 26 Sekunden, wodurch bei einem ersten Durchlauf drei Tests scheiterten; mit vom Netz getrenntem Browser bestehen alle (Bedienerhandbuch, Abschnitt 12).
 - Die Markierungen und die Masken bei einer Bildschirmskalierung von 1, 1,5 und 2, auf einem Chromium 141 ohne
   Oberfläche: Der Rahmen jeder sichtbaren Markierung liegt innerhalb von zwei Pixeln des Rahmens, den der Browser
   selbst angibt, jedes Pixel des Passwortfelds der Demoseite liegt unter seiner Maske, und die Maske reicht nicht
@@ -229,6 +232,7 @@ Getestet:
 
 Nicht getestet:
 
+- Eine andere 64-Bit-ARM-Maschine als dieser Raspberry Pi 4 (ein Raspberry Pi 5, eine andere Distribution), eine Wayland-Desktopsitzung und eine Person, die dort das Bestätigungsfenster beantwortet.
 - Der Einrichtungsassistent auf einem Rechner mit Auslagerungsspeicher (sein Bericht ist an einer simulierten Liste
   erprobt) und sein Befehl `browser` mit Brave, Chromium oder Opera.
 
