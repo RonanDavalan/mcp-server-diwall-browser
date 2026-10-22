@@ -105,7 +105,7 @@ write, and only while the encrypted directory is open.
   browser's default profile, which is one reason the server needs a dedicated profile (this
   behaviour was not measured by the project; the server refuses a default profile in any case).
   The tests ran on Chromium 141 in the project's environment and on Chrome 154 on the operator's
-  machine; the complete suite, 583 browser tests included, passed on Google Chrome 155.0.8059.84, and
+  machine; the complete suite, 589 browser tests included, passed on Google Chrome 156.0.8078.47, and
   the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
   alone. Chromium 154 was not available there. Brave was not tried.
 - `fuse3` and `gocryptfs` for the encrypted directory.
@@ -207,11 +207,11 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output on 20 October 2026, on the code of version 0.0.1, with Python 3.12.11 (583 of its tests
+Output on 22 October 2026, on the code of version 0.0.1, with Python 3.12.11 (589 of its tests
 need a browser):
 
 ```
-2019 passed, 1 skipped, 583 deselected, 1 warning in 105.60s (0:01:45)
+2100 passed, 1 skipped, 589 deselected, 1 warning in 105.36s (0:01:45)
 ```
 
 The warning is an `IncompleteFieldDefinitionWarning` of `pydantic_settings`, a library the MCP SDK
@@ -242,12 +242,12 @@ differs ends with `<- not as expected`). The encrypted directory line reads `clo
 server a directory that is not mounted. `--save-image ~/observe.png` writes the image
 the model received.
 
-With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 583 browser tests;
+With a browser on your `PATH`, `.venv/bin/python -m pytest -q` also runs the 589 browser tests;
 each starts the browser headless on a blank temporary profile. On the same day, with Google
-Chrome 155.0.8059.84 found on the `PATH`:
+Chrome 156.0.8078.47 found on the `PATH`:
 
 ```
-2602 passed, 1 skipped, 1 warning in 372.94s (0:06:12)
+2689 passed, 1 skipped, 1 warning in 405.98s (0:06:45)
 ```
 
 Then connect the server to your MCP client, as the next part describes.

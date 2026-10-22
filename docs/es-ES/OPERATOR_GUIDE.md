@@ -106,8 +106,8 @@ escritura, y solo mientras el directorio cifrado está abierto.
   en el perfil predeterminado del navegador, que es una de las razones por las que el servidor
   necesita un perfil dedicado (el proyecto no midió este comportamiento; el servidor rechaza un perfil
   predeterminado en cualquier caso). Las pruebas se ejecutaron en Chromium 141 en el entorno del
-  proyecto y en Chrome 154 en la máquina del operador; la batería completa, con las 583 pruebas de
-  navegador incluidas, pasó en Google Chrome 155.0.8059.84, y las 536 pruebas de navegador de una
+  proyecto y en Chrome 154 en la máquina del operador; la batería completa, con las 589 pruebas de
+  navegador incluidas, pasó en Google Chrome 156.0.8078.47, y las 536 pruebas de navegador de una
   revisión anterior también pasaron en Chromium 155.0.8059.39 (Debian 13), cada una por separado.
   Chromium 154 no estaba disponible allí. No se probó Brave.
 - `fuse3` y `gocryptfs` para el directorio cifrado.
@@ -205,11 +205,11 @@ página de demostración local. Ninguno toca su navegador, su directorio cifrado
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Salida del 20 de octubre de 2026, sobre el código de la versión 0.0.1, con Python 3.12.11 (583 pruebas
+Salida del 22 de octubre de 2026, sobre el código de la versión 0.0.1, con Python 3.12.11 (589 pruebas
 necesitan un navegador):
 
 ```
-2019 passed, 1 skipped, 583 deselected, 1 warning in 105.60s (0:01:45)
+2100 passed, 1 skipped, 589 deselected, 1 warning in 105.36s (0:01:45)
 ```
 
 La advertencia es una `IncompleteFieldDefinitionWarning` de `pydantic_settings`, una biblioteca que
@@ -240,12 +240,12 @@ difiere termina con `<- not as expected`). La línea del directorio cifrado dice
 servidor un directorio que no está montado. `--save-image ~/observe.png` escribe la imagen
 que recibió el modelo.
 
-Con un navegador en su `PATH`, `.venv/bin/python -m pytest -q` ejecuta también las 583 pruebas de navegador;
+Con un navegador en su `PATH`, `.venv/bin/python -m pytest -q` ejecuta también las 589 pruebas de navegador;
 cada una inicia el navegador sin interfaz con un perfil temporal vacío. El mismo día, con Google
-Chrome 155.0.8059.84 en el `PATH`:
+Chrome 156.0.8078.47 en el `PATH`:
 
 ```
-2602 passed, 1 skipped, 1 warning in 372.94s (0:06:12)
+2689 passed, 1 skipped, 1 warning in 405.98s (0:06:45)
 ```
 
 Después conecte el servidor a su cliente MCP, como describe la parte siguiente.

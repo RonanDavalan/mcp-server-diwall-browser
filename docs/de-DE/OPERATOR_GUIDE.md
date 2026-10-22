@@ -107,8 +107,8 @@ Schreibzugriff und nur, solange das verschlüsselte Verzeichnis geöffnet ist.
   Standardprofil des Browsers, was ein Grund dafür ist, dass der Server ein eigenes Profil braucht
   (dieses Verhalten hat das Projekt nicht gemessen; der Server lehnt ein Standardprofil in jedem Fall
   ab). Die Tests liefen unter Chromium 141 in der Umgebung des Projekts und unter Chrome 154 auf dem
-  Rechner des Bedieners; die vollständige Suite, die 583 Browser-Tests eingeschlossen, bestand unter
-  Google Chrome 155.0.8059.84, und die 536 Browser-Tests einer früheren Revision bestanden ebenfalls
+  Rechner des Bedieners; die vollständige Suite, die 589 Browser-Tests eingeschlossen, bestand unter
+  Google Chrome 156.0.8078.47, und die 536 Browser-Tests einer früheren Revision bestanden ebenfalls
   unter Chromium 155.0.8059.39 (Debian 13), jeweils einzeln. Chromium 154 war dort nicht verfügbar.
   Brave wurde nicht ausprobiert.
 - `fuse3` und `gocryptfs` für das verschlüsselte Verzeichnis.
@@ -207,11 +207,11 @@ Verzeichnis oder Ihr Bedienerprofil.
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Ausgabe vom 20. Oktober 2026, auf dem Code der Version 0.0.1, mit Python 3.12.11 (583 Tests brauchen
+Ausgabe vom 22. Oktober 2026, auf dem Code der Version 0.0.1, mit Python 3.12.11 (589 Tests brauchen
 einen Browser):
 
 ```
-2019 passed, 1 skipped, 583 deselected, 1 warning in 105.60s (0:01:45)
+2100 passed, 1 skipped, 589 deselected, 1 warning in 105.36s (0:01:45)
 ```
 
 Die Warnung ist eine `IncompleteFieldDefinitionWarning` von `pydantic_settings`, einer Bibliothek,
@@ -243,12 +243,12 @@ abweichende Zeile endet auf `<- not as expected`). Die Zeile des verschlüsselte
 absichtlich `closed_or_absent`: Der Smoke-Test gibt dem Server ein Verzeichnis, das nicht eingehängt
 ist. `--save-image ~/observe.png` schreibt das Bild, das das Modell erhalten hat.
 
-Mit einem Browser auf Ihrem `PATH` führt `.venv/bin/python -m pytest -q` auch die 583 Browser-Tests
+Mit einem Browser auf Ihrem `PATH` führt `.venv/bin/python -m pytest -q` auch die 589 Browser-Tests
 aus; jeder startet den Browser ohne Oberfläche auf einem leeren temporären Profil. Am selben Tag, mit Google
-Chrome 155.0.8059.84 auf dem `PATH`:
+Chrome 156.0.8078.47 auf dem `PATH`:
 
 ```
-2602 passed, 1 skipped, 1 warning in 372.94s (0:06:12)
+2689 passed, 1 skipped, 1 warning in 405.98s (0:06:45)
 ```
 
 Verbinden Sie den Server dann mit Ihrem MCP-Client, wie der nächste Teil beschreibt.

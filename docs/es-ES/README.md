@@ -123,8 +123,8 @@ se retiene del texto que recibe el modelo (`redacted_fields` vale 1).
 Probado:
 
 - La batería completa, en Debian 13 con Python 3.12.11 y las dependencias de `requirements.lock`: sin navegador
-  pasan 2019 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 583 que necesitan un navegador
-  quedan deseleccionadas; con Google Chrome 155.0.8059.84 (sin interfaz, perfil temporal vacío) pasan 2602
+  pasan 2100 pruebas, 1 se omite (una prueba que solo se ejecuta como root) y las 589 que necesitan un navegador
+  quedan deseleccionadas; con Google Chrome 156.0.8078.47 (sin interfaz, perfil temporal vacío) pasan 2689
   pruebas y 1 se omite, sin fallo esperado.
 - Pruebas de descarga: dos fallaban al azar, 7 y 8 veces en 30 ejecuciones de cada una por separado, porque el
   servidor cerraba el ajuste de descarga antes de que el navegador hubiera elegido qué hacer con la descarga.
@@ -208,7 +208,7 @@ Probado:
   Se conectó Opera 136 (Chromium 152), iniciado con su perfil en ese volumen y un puerto de depuración en la
   interfaz de bucle local; el servidor abrió una página de un sitio público de compras, rellenó su campo de
   búsqueda, pulsó Intro y observó los resultados. El texto escrito no aparece en el diario.
-- La política de orígenes (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` y `tests/test_origin_policy_server.py` sobre un navegador simulado, y `tests/test_origin_policy_integration.py`, 12 pruebas del servidor iniciado por su punto de entrada contra Google Chrome 155.0.8059.84, con programas de ventana simulados: un portal que remite a un segundo origen, una redirección a un origen desconocido, las tres respuestas de la ventana (el perfil releído tras `Ajouter à la liste`), nombres locales rechazados con `open`, un pago que sigue pidiendo su ventana, y la política cambiada en el perfil sin reiniciar. Las ventanas de los `kdialog` y `zenity` reales se mostraron en una pantalla virtual y se respondieron con pulsaciones de teclas (Intro y Escape dan el rechazo); ninguna persona las ha respondido todavía.
+- La política de orígenes (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` y `tests/test_origin_policy_server.py` sobre un navegador simulado, y `tests/test_origin_policy_integration.py`, 12 pruebas del servidor iniciado por su punto de entrada contra Google Chrome 155.0.8059.84, con programas de ventana simulados: un portal que remite a un segundo origen, una redirección a un origen desconocido, las tres respuestas de la ventana (el perfil releído tras `Ajouter à la liste`), nombres locales rechazados con `open`, un pago que sigue pidiendo su ventana, y la política cambiada en el perfil sin reiniciar. Las ventanas de los `kdialog` y `zenity` reales se mostraron en una pantalla virtual y se respondieron con pulsaciones de teclas (Intro y Escape dan el rechazo); una persona las respondió el 22 de octubre de 2026 (la entrada siguiente).
 - La ventana de confirmación, mostrada en el equipo del operador y respondida por una persona el 22 de octubre de 2026
   (revisión `0f4f613`), con el volumen gocryptfs propio del operador montado y una página de pago local, en Opera
   138.0.6044.24, una vez con `kdialog` 25.04.0 y otra con `zenity` 4.1.90 (el servidor solo encontraba esa herramienta):
