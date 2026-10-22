@@ -105,7 +105,7 @@ in English. With no sub-command it runs **check**.
     (**gocryptfs** on Linux), **fusermount3**, `/dev/fuse`, the install command of the package manager (`apt`, `dnf`,
     `zypper` or `pacman`) when something is missing, the closed **gocryptfs** volumes found in the usual places, the
     mounted volumes of another kind (LUKS, eCryptfs, EncFS, CryFS), which the server does not support, the operator
-    profile and the state of its volume, the browsers found, the swap area (its encryption is not determined), the
+    profile and the state of its volume, the browsers found, the swap area, present or absent (its encryption is not determined), the
     terminal and the screen, and ends on the next command. **\--json** prints the same report on one line.
 
 **create** [**\--temporary**]

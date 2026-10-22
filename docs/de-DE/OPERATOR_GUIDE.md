@@ -42,7 +42,7 @@ Prochaine étape : `mcp-server-diwall-browser-setup create --temporary`
   aucun profil ni volume : un essai immédiat se fait sur un volume temporaire en mémoire vive, détruit à sa fermeture ; `mcp-server-diwall-browser-setup create` fait un volume durable (~/Vaults/Main.enc, ouvert sur ~/Vaults/Main)
 ```
 
-Der Bericht sagt, ob `gocryptfs`, `fusermount3` und `/dev/fuse` vorhanden sind und, wenn etwas fehlt, den Installationsbefehl der Paketverwaltung, die er gefunden hat (`sudo apt install gocryptfs fuse3` mit `apt`; `dnf`, `zypper` und `pacman` bei den anderen Familien); die geschlossenen `gocryptfs`-Volumes, die er an den üblichen Orten findet (`~/Vaults*`, der Ordner von Plasma Vault); die eingehängten Volumes anderer Art (LUKS, eCryptfs, EncFS, CryFS), die der Server nicht unterstützt, weil er einen `gocryptfs`-Mount verlangt: Der Weg ist ein `gocryptfs`-Volume daneben; ob das Bedienerprofil existiert und in welchem Zustand sein Volume ist; die Browser der Chromium-Familie, die er gefunden hat; ob ein Auslagerungsspeicher (Swap) existiert; ob er in einem Terminal läuft und einen Bildschirm hat. `mcp-server-diwall-browser-setup check --json` gibt denselben Bericht in einer JSON-Zeile aus: Ein Modell, das eine Shell hat, führt ihn aus und sagt Ihnen, was er sagt.
+Der Bericht sagt, ob `gocryptfs`, `fusermount3` und `/dev/fuse` vorhanden sind und, wenn etwas fehlt, den Installationsbefehl der Paketverwaltung, die er gefunden hat (`sudo apt install gocryptfs fuse3` mit `apt`; `dnf`, `zypper` und `pacman` bei den anderen Familien); die geschlossenen `gocryptfs`-Volumes, die er an den üblichen Orten findet (`~/Vaults*`, der Ordner von Plasma Vault); die eingehängten Volumes anderer Art (LUKS, eCryptfs, EncFS, CryFS), die der Server nicht unterstützt, weil er einen `gocryptfs`-Mount verlangt: Der Weg ist ein `gocryptfs`-Volume daneben; ob das Bedienerprofil existiert und in welchem Zustand sein Volume ist; die Browser der Chromium-Familie, die er gefunden hat; ob ein Auslagerungsspeicher (Swap) vorhanden oder nicht vorhanden ist (seine Zeile steht immer im Bericht); ob er in einem Terminal läuft und einen Bildschirm hat. `mcp-server-diwall-browser-setup check --json` gibt denselben Bericht in einer JSON-Zeile aus: Ein Modell, das eine Shell hat, führt ihn aus und sagt Ihnen, was er sagt.
 
 Die anderen Befehle handeln. Jeder verlangt ein Terminal, weil das Passwort keinen anderen Ort hat, an dem es eingegeben werden kann: Der Assistent reicht das Terminal an `gocryptfs` weiter, das selbst nach dem Passwort fragt, und der Assistent liest, behält und gibt es nicht weiter. Ohne Terminal lehnen sie mit `no_terminal` ab.
 
@@ -1398,6 +1398,9 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
 
 ## 12. Bekannte Grenzen
 
+- Das verschlüsselte Verzeichnis schützt so viel wie sein Passwort: Wer das Passwort hat, liest seinen Inhalt, und ein schwaches oder mehrfach verwendetes Passwort schützt wenig.
+- Die Schutzmaßnahmen sind die, die zum Datum dieser Version gemessen wurden, mit den Tests und Messungen, die dieses Dokument nennt. Ein Modell, das neuer ist als die erprobten, kann einen Weg um sie herum finden, den kein Versuch gesehen hat.
+- Wer diese Schutzmaßnahmen nicht will, findet andere MCP-Server, die einen Browser ohne sie steuern.
 - Solange der Server verbunden ist, lehnt der Browser jeden Download ab, auch in Ihren eigenen Tabs,
   außer um einen Klick oder eine Eingabetaste des Servers; halten Sie den Server oder den MCP-Client
   an, um selbst herunterzuladen.
@@ -1453,7 +1456,7 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
 - Das Fenster der Richtlinie `discovery` braucht `kdialog` oder `zenity` und eine Anzeige; die eigene Bestätigung des Clients dient dafür nicht, weil
   sie nicht drei benannte Antworten mit der Ablehnung als Standard bieten kann. Mit `open` wird ein öffentlicher Name, der auf eine private Adresse
   auflöst, nicht erkannt, und der Anbieter eines gehosteten Modells erhält jede Seite, die das Modell liest.
-- Die Meldungen des Einrichtungsassistenten sind auf Französisch. Er wurde nur unter Linux gespielt, mit `gocryptfs`; ein LUKS-, eCryptfs-, EncFS- oder CryFS-Volume wird gemeldet und nicht benutzt, und Windows und macOS haben keinen Mechanismus in seiner Tabelle. Er wurde in einem Pseudoterminal auf einem Wegwerf-Volume und in einem sauberen Debian-13-Container gespielt (wo er `gocryptfs` meldet und installiert). Der Bericht über den Auslagerungsspeicher wurde an einer simulierten Liste von Auslagerungsspeichern erprobt, nicht an einem Rechner, der einen hat.
+- Die Meldungen des Einrichtungsassistenten sind auf Französisch. Er wurde nur unter Linux gespielt, mit `gocryptfs`; ein LUKS-, eCryptfs-, EncFS- oder CryFS-Volume wird gemeldet und nicht benutzt, und Windows und macOS haben keinen Mechanismus in seiner Tabelle. Er wurde in einem Pseudoterminal auf einem Wegwerf-Volume und in einem sauberen Debian-13-Container gespielt (wo er `gocryptfs` meldet und installiert). Der Bericht über den Auslagerungsspeicher wurde an einer simulierten Liste von Auslagerungsspeichern und, für einen Rechner ohne Auslagerungsspeicher, in diesem Container erprobt, nicht an einem Rechner, der einen hat.
 - `local_model_origins` und die beiden Erklärungen werden in `status` angezeigt und ändern sonst nichts.
 - `profile_encrypted` in `status` sagt, wo das deklarierte Profil liegt, nicht, wo der Browser seine
   Daten ablegt.

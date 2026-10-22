@@ -218,9 +218,9 @@ Testé :
 - La politique d'origines (`strict`, `discovery`, `open`) : `tests/test_origin_policy.py` et `tests/test_origin_policy_server.py` sur un navigateur simulé, et `tests/test_origin_policy_integration.py`, 12 tests du serveur lancé par son point d'entrée contre Google Chrome 155.0.8059.84, avec de faux programmes de fenêtre : un portail qui renvoie vers une seconde origine, une redirection vers une origine inconnue, les trois réponses de la fenêtre (le profil relu après `Ajouter à la liste`), les noms locaux refusés avec `open`, un paiement qui demande toujours sa fenêtre, et la politique changée dans le profil sans redémarrage. Les fenêtres des vrais `kdialog` et `zenity` ont été montrées dans un écran virtuel et répondues par des frappes (Entrée et Échap donnent le refus) ; aucune personne n'y a encore répondu.
 - La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 22 octobre 2026
   (révision `0f4f613`), avec le propre volume gocryptfs de l'opérateur monté et une page de paiement locale, dans Opera
-  138.0.6044.24, une fois avec `kdialog` 25.04.0 et une fois avec `zenity` 4.1.90 (le serveur ne trouvait que cet outil) :
-  avec chacun, un refus a rendu `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu
-  une requête ; sans réponse, la demande a expiré après 90,4 secondes (`confirmation_expired`) et la page n'a rien reçu. Le
+  138.0.6044.24, une fois avec `kdialog` 25.04.0 et une fois avec `zenity` 4.1.90 (le serveur ne trouvait que cet outil) :
+  avec chacun, un refus a rendu `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu
+  une requête ; sans réponse, la demande a expiré après 90,4 secondes (`confirmation_expired`) et la page n'a rien reçu. Le
   journal porte une ligne `requested` et une ligne de l'issue pour chacune des six demandes.
 - Claude Code, démarré depuis un terminal de bureau : `status` par Claude Code lisait
   `confirmation_channel: native`, donc l'affichage atteignait le serveur.
@@ -250,6 +250,9 @@ Non testé :
 
 Limites connues :
 
+- Le répertoire chiffré protège autant que son mot de passe : qui a le mot de passe en lit le contenu, et un mot de passe faible ou réutilisé protège peu.
+- Les garde-fous sont ceux mesurés à la date de cette version, par les essais et les mesures que ce document nomme. Un modèle plus récent que ceux essayés peut trouver un contournement qu'aucun essai n'a vu.
+- Qui ne veut pas de ces garde-fous trouvera d'autres serveurs MCP qui pilotent un navigateur sans eux.
 - Tant que le serveur est attaché au navigateur, les téléchargements sont refusés dans tous les onglets, y
   compris ceux de l'opérateur, sauf dans la courte fenêtre autour d'un clic ou d'une touche Entrée du
   serveur. Pour télécharger un fichier vous-même, arrêtez le serveur ou le client MCP ; les téléchargements
@@ -285,7 +288,7 @@ tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIB
 - **Muse Spark 1.3 Contributor (Meta, par OpenCode)** : premier usage du serveur par un modèle autre que Claude, sur une instance locale d'une application web, dont le rapport de terrain a orienté les corrections suivantes ; la feuille de style et la mise en page du site du projet, retenues parmi plusieurs essais, le texte et le comportement des pages restés intacts ; deux relectures du site, avec des propositions de formulation en quatre langues restées à l'état de brouillon et des défauts relevés, corrigés.
 - **DeepSeek V4 Pro (DeepSeek, par OpenCode)** : audit de sécurité indépendant du tag `v0.0.1`, sur une session vierge ; quatre de ses sept constats ont été confirmés au tri et corrigés.
 - **GLM 5.3 (Zhipu, par OpenCode)** : audit de sécurité indépendant du même tag, sur une session vierge, avec des reproductions sur un navigateur sans écran ; trois de ses sept constats ont été confirmés au tri et corrigés.
-- **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
+- **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
 - **gemini-3.5-flash (Google, par OpenCode)** : a testé le branchement par un agent dédié : les outils n'atteignent que cet agent, et son shell demande avant d'exécuter.
 - **Space Bunny Free (opencode)** : nettoyage et élagage du cadre de travail du projet au début du projet.
 

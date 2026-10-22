@@ -245,6 +245,9 @@ No probado:
 
 Límites conocidos:
 
+- El directorio cifrado protege tanto como su contraseña: quien tiene la contraseña lee su contenido, y una contraseña débil o reutilizada protege poco.
+- Las salvaguardas son las que se midieron en la fecha de esta versión, con las pruebas y mediciones que nombra este documento. Un modelo más reciente que los probados puede encontrar una forma de eludirlas que ninguna prueba ha visto.
+- Quien no quiera estas salvaguardas encontrará otros servidores MCP que controlan un navegador sin ellas.
 - Mientras el servidor está conectado al navegador, las descargas se rechazan en todas las pestañas, incluidas las
   del propio operador, salvo en la breve ventana en torno a un clic o una tecla Intro del servidor. Para descargar
   un archivo usted mismo, detenga el servidor o el cliente MCP; las descargas vuelven a funcionar en cuanto termina la

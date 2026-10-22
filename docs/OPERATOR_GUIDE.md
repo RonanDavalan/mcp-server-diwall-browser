@@ -40,7 +40,7 @@ Prochaine étape : `mcp-server-diwall-browser-setup create --temporary`
   aucun profil ni volume : un essai immédiat se fait sur un volume temporaire en mémoire vive, détruit à sa fermeture ; `mcp-server-diwall-browser-setup create` fait un volume durable (~/Vaults/Main.enc, ouvert sur ~/Vaults/Main)
 ```
 
-The report says whether `gocryptfs`, `fusermount3` and `/dev/fuse` are there and, when something is missing, the install command of the package manager it found (`sudo apt install gocryptfs fuse3` with `apt`; `dnf`, `zypper` and `pacman` on the other families); the closed `gocryptfs` volumes it finds in the usual places (`~/Vaults*`, the folder of Plasma Vault); the mounted volumes of another kind (LUKS, eCryptfs, EncFS, CryFS), which the server does not support, because it needs a `gocryptfs` mount: the way forward is a `gocryptfs` volume next to them; whether the operator profile exists and what state its volume is in; the browsers of the Chromium family it found; whether a swap area exists; whether it runs in a terminal and has a screen. `mcp-server-diwall-browser-setup check --json` prints the same report on one line of JSON: a model that has a shell runs it, and tells you what it says.
+The report says whether `gocryptfs`, `fusermount3` and `/dev/fuse` are there and, when something is missing, the install command of the package manager it found (`sudo apt install gocryptfs fuse3` with `apt`; `dnf`, `zypper` and `pacman` on the other families); the closed `gocryptfs` volumes it finds in the usual places (`~/Vaults*`, the folder of Plasma Vault); the mounted volumes of another kind (LUKS, eCryptfs, EncFS, CryFS), which the server does not support, because it needs a `gocryptfs` mount: the way forward is a `gocryptfs` volume next to them; whether the operator profile exists and what state its volume is in; the browsers of the Chromium family it found; whether a swap area is present or absent (its line is always in the report); whether it runs in a terminal and has a screen. `mcp-server-diwall-browser-setup check --json` prints the same report on one line of JSON: a model that has a shell runs it, and tells you what it says.
 
 The other commands act. Each asks for a terminal, because the password has no other place to be typed: the assistant hands the terminal to `gocryptfs`, which asks for the password itself, and the assistant does not read, keep or pass it on. Without a terminal, they refuse with `no_terminal`.
 
@@ -1383,6 +1383,9 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 
 ## 12. Known limits
 
+- The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
+- The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
+- Whoever does not want these safeguards will find other MCP servers that drive a browser without them.
 - While the server is attached, the browser refuses every download, in your own tabs too, except
   around one of the server's clicks or Enter keys; stop the server or the MCP client to download
   yourself.
@@ -1439,7 +1442,7 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
   LUKS, eCryptfs, EncFS or CryFS volume is reported and not used, and Windows and macOS have no
   mechanism in its table. It was played in a pseudo-terminal on a throw-away volume and in a clean Debian 13
   container (where it reports and installs `gocryptfs`). The report of the swap area was tested on a simulated list
-  of swap areas, not on a machine that has one.
+  of swap areas and, for a machine without one, in that container, not on a machine that has one.
 - `local_model_origins` and the two declarations are shown in `status` and change nothing else.
 - `profile_encrypted` in `status` says where the declared profile lies, not where the browser
   keeps its data.

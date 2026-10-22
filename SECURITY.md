@@ -32,6 +32,12 @@ server accepts although it is reachable beyond the loopback interface.
 - A fix ships as a normal release once checked. The report stays private until then, and you are
   credited in the release notes if you wish.
 
+## What the safeguards promise
+
+- The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
+- The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
+- Whoever does not want these safeguards will find other MCP servers that drive a browser without them.
+
 ## Scope
 
 This policy covers the code of this repository, `src/mcp_server_diwall_browser/` and its tests. It

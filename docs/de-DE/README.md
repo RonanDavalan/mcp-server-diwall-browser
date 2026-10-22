@@ -250,6 +250,9 @@ Nicht getestet:
 
 Bekannte Grenzen:
 
+- Das verschlüsselte Verzeichnis schützt so viel wie sein Passwort: Wer das Passwort hat, liest seinen Inhalt, und ein schwaches oder mehrfach verwendetes Passwort schützt wenig.
+- Die Schutzmaßnahmen sind die, die zum Datum dieser Version gemessen wurden, mit den Tests und Messungen, die dieses Dokument nennt. Ein Modell, das neuer ist als die erprobten, kann einen Weg um sie herum finden, den kein Versuch gesehen hat.
+- Wer diese Schutzmaßnahmen nicht will, findet andere MCP-Server, die einen Browser ohne sie steuern.
 - Solange der Server am Browser hängt, werden Downloads in allen Tabs abgelehnt, auch in denen des Bedieners,
   außer im kurzen Fenster um einen Klick oder eine Eingabetaste des Servers. Um selbst eine Datei herunterzuladen,
   halten Sie den Server oder den MCP-Client an; Downloads funktionieren wieder, sobald die Verbindung des Servers

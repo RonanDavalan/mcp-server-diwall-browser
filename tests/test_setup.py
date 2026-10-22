@@ -221,6 +221,22 @@ def test_check_in_text_names_the_next_step_and_the_swap_without_inventing_its_en
     assert str(poste.home) not in out and "~/" in out
 
 
+def test_check_in_text_says_so_when_there_is_no_swap_area(poste: Poste) -> None:
+    code, out, _err = play(poste, "check")
+    assert code == 0
+    assert "- espace d'échange : absent" in out.splitlines()
+    assert "non déterminé" not in out
+
+
+def test_check_in_text_gives_the_swap_area_on_one_line_whether_present_or_absent(poste: Poste) -> None:
+    _code, absent, _err = play(poste, "check")
+    poste.swaps.write_text("Filename Type Size Used Priority\n/dev/sda3 partition 8388604 0 -2\n")
+    _code, present, _err = play(poste, "check")
+    [line] = [line for line in present.splitlines() if line.startswith("- espace d'échange")]
+    assert line.startswith("- espace d'échange : présent ;") and "non déterminé" in line
+    assert len([line for line in absent.splitlines() if line.startswith("- espace d'échange")]) == 1
+
+
 @pytest.mark.parametrize(
     ("manager", "expected"),
     [

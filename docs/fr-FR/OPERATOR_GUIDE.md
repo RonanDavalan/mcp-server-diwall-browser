@@ -40,7 +40,7 @@ Prochaine étape : `mcp-server-diwall-browser-setup create --temporary`
   aucun profil ni volume : un essai immédiat se fait sur un volume temporaire en mémoire vive, détruit à sa fermeture ; `mcp-server-diwall-browser-setup create` fait un volume durable (~/Vaults/Main.enc, ouvert sur ~/Vaults/Main)
 ```
 
-Le rapport dit si `gocryptfs`, `fusermount3` et `/dev/fuse` sont là et, quand quelque chose manque, la commande d'installation du gestionnaire de paquets qu'il a trouvé (`sudo apt install gocryptfs fuse3` avec `apt` ; `dnf`, `zypper` et `pacman` pour les autres familles) ; les volumes `gocryptfs` fermés qu'il trouve aux endroits habituels (`~/Vaults*`, le dossier de Plasma Vault) ; les volumes montés d'un autre genre (LUKS, eCryptfs, EncFS, CryFS), que le serveur ne prend pas en charge, parce qu'il exige un montage `gocryptfs` : la voie est un volume `gocryptfs` à côté ; si le profil de l'opérateur existe et dans quel état est son volume ; les navigateurs de la famille Chromium qu'il a trouvés ; si un espace d'échange existe ; s'il s'exécute dans un terminal et s'il a un écran. `mcp-server-diwall-browser-setup check --json` affiche le même rapport sur une ligne de JSON : un modèle qui a un shell la lance et vous dit ce qu'elle dit.
+Le rapport dit si `gocryptfs`, `fusermount3` et `/dev/fuse` sont là et, quand quelque chose manque, la commande d'installation du gestionnaire de paquets qu'il a trouvé (`sudo apt install gocryptfs fuse3` avec `apt` ; `dnf`, `zypper` et `pacman` pour les autres familles) ; les volumes `gocryptfs` fermés qu'il trouve aux endroits habituels (`~/Vaults*`, le dossier de Plasma Vault) ; les volumes montés d'un autre genre (LUKS, eCryptfs, EncFS, CryFS), que le serveur ne prend pas en charge, parce qu'il exige un montage `gocryptfs` : la voie est un volume `gocryptfs` à côté ; si le profil de l'opérateur existe et dans quel état est son volume ; les navigateurs de la famille Chromium qu'il a trouvés ; si un espace d'échange est présent ou absent (sa ligne est toujours dans le rapport) ; s'il s'exécute dans un terminal et s'il a un écran. `mcp-server-diwall-browser-setup check --json` affiche le même rapport sur une ligne de JSON : un modèle qui a un shell la lance et vous dit ce qu'elle dit.
 
 Les autres commandes agissent. Chacune demande un terminal, parce que le mot de passe n'a pas d'autre endroit où se taper : l'assistant passe le terminal à `gocryptfs`, qui demande lui-même le mot de passe, et l'assistant ne le lit, ne le garde ni ne le transmet. Sans terminal, elles refusent avec `no_terminal`.
 
@@ -156,7 +156,7 @@ Hors de KDE, utilisez `zenity` à la place de `kdialog` si vous préférez.
 ## 2. Installation
 
 **Depuis un paquet.** Sous Debian, Ubuntu, Fedora, openSUSE Leap et Arch Linux, un paquet natif remplace le clone,
-l'environnement virtuel et l'installation décrits plus bas (sous Debian 13 et Ubuntu 24.04, la commande d'installation est `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`, lancée depuis le dossier qui contient le fichier ; les autres distributions sont dans le `README.md`). Il
+l'environnement virtuel et l'installation décrits plus bas (sous Debian 13 et Ubuntu 24.04, la commande d'installation est `sudo apt install ./mcp-server-diwall-browser_0.0.1-1_all.deb`, lancée depuis le dossier qui contient le fichier ; les autres distributions sont dans le `README.md`). Il
 installe le serveur sous `/usr/lib/mcp-server-diwall-browser` avec un environnement virtuel à lui, et place trois commandes dans le `PATH` : `mcp-server-diwall-browser`, le serveur, `mcp-server-diwall-browser-credential-import`, la commande de la section 6, et `mcp-server-diwall-browser-setup`, la commande du premier lancement. Dans les blocs de connexion du `README.md` et de la section 2.1, la commande est alors
 `mcp-server-diwall-browser`, sans argument ; dans la section 6, `mcp-server-diwall-browser-credential-import` prend la
 place de `.venv/bin/python -m mcp_server_diwall_browser.credential_import`, et la commande d'installation prend la place de `.venv/bin/python -m mcp_server_diwall_browser.setup`. Le paquet termine son installation en affichant la première commande à taper. Les tests et le test de fumée appartiennent
@@ -1053,7 +1053,7 @@ Ce qu'il faut lire avant de répondre :
 - `Catégories` et `Signaux` : pourquoi le serveur demande.
 
 Les vrais `kdialog` et `zenity` ont montré les fenêtres dans un écran virtuel, et des frappes y ont répondu (Entrée, Échap et les flèches) :
-Entrée et Échap donnent le refus. Une personne a répondu à la fenêtre le 22 octobre 2026, avec chacun des deux outils seul (un refus, un accord et une expiration : `README.md`). Les tests automatiques emploient de faux programmes à sa place.
+Entrée et Échap donnent le refus. Une personne a répondu à la fenêtre le 22 octobre 2026, avec chacun des deux outils seul (un refus, un accord et une expiration : `README.md`). Les tests automatiques emploient de faux programmes à sa place.
 
 La fenêtre appartient au serveur, pas au client MCP : le client agit pour le modèle et pourrait répondre seul, alors que la
 fenêtre du serveur reçoit la réponse d'une personne, hors de la conversation. Le serveur ne demande par le client que si
@@ -1278,6 +1278,9 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 
 ## 12. Limites connues
 
+- Le répertoire chiffré protège autant que son mot de passe : qui a le mot de passe en lit le contenu, et un mot de passe faible ou réutilisé protège peu.
+- Les garde-fous sont ceux mesurés à la date de cette version, par les essais et les mesures que ce document nomme. Un modèle plus récent que ceux essayés peut trouver un contournement qu'aucun essai n'a vu.
+- Qui ne veut pas de ces garde-fous trouvera d'autres serveurs MCP qui pilotent un navigateur sans eux.
 - Tant que le serveur est attaché, le navigateur refuse tous les téléchargements, dans vos propres onglets aussi, sauf
   autour d'un clic ou d'une touche Entrée du serveur ; arrêtez le serveur ou le client MCP pour télécharger vous-même.
 - Un téléchargement qu'une page lance plus d'une demi-seconde après la fin d'un chargement est refusé ; téléchargez-le
@@ -1325,7 +1328,7 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 - La fenêtre de la politique `discovery` exige `kdialog` ou `zenity` et un affichage ; la confirmation propre du client n'y sert pas, parce
   qu'elle ne peut pas offrir trois réponses nommées avec le refus par défaut. Avec `open`, un nom public qui résout vers une adresse privée
   n'est pas détecté, et le fournisseur d'un modèle hébergé reçoit chaque page que le modèle lit.
-- Les messages de l'assistant d'installation sont en français. Il a été joué sous Linux seulement, avec `gocryptfs` ; un volume LUKS, eCryptfs, EncFS ou CryFS est signalé et non utilisé, et Windows et macOS n'ont aucun mécanisme dans sa table. Il a été joué dans un pseudo-terminal sur un volume jetable et dans un conteneur Debian 13 propre (où il signale et installe `gocryptfs`). Le rapport de l'espace d'échange a été essayé sur une liste simulée d'espaces d'échange, non sur une machine qui en a un.
+- Les messages de l'assistant d'installation sont en français. Il a été joué sous Linux seulement, avec `gocryptfs` ; un volume LUKS, eCryptfs, EncFS ou CryFS est signalé et non utilisé, et Windows et macOS n'ont aucun mécanisme dans sa table. Il a été joué dans un pseudo-terminal sur un volume jetable et dans un conteneur Debian 13 propre (où il signale et installe `gocryptfs`). Le rapport de l'espace d'échange a été essayé sur une liste simulée d'espaces d'échange et, pour une machine qui n'en a pas, dans ce conteneur, non sur une machine qui en a un.
 - `local_model_origins` et les deux déclarations sont montrées dans `status` et ne changent rien d'autre.
 - `profile_encrypted` dans `status` dit où se trouve le profil déclaré, pas où le navigateur garde ses données.
 - Un processus du serveur permet 200 actions et 50 pages par défaut, avec au moins 250 ms entre deux actions ; un appel

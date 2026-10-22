@@ -248,6 +248,9 @@ Not tested:
 
 Known limits:
 
+- The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
+- The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
+- Whoever does not want these safeguards will find other MCP servers that drive a browser without them.
 - While the server is attached to the browser, downloads are refused in every tab, the operator's
   own tabs included, except in the short window around one of the server's clicks or Enter keys.
   To download a file yourself, stop the server or the MCP client; downloads work again as soon as

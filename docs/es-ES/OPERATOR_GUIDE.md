@@ -41,7 +41,7 @@ Prochaine étape : `mcp-server-diwall-browser-setup create --temporary`
   aucun profil ni volume : un essai immédiat se fait sur un volume temporaire en mémoire vive, détruit à sa fermeture ; `mcp-server-diwall-browser-setup create` fait un volume durable (~/Vaults/Main.enc, ouvert sur ~/Vaults/Main)
 ```
 
-El informe dice si `gocryptfs`, `fusermount3` y `/dev/fuse` están y, cuando algo falta, el comando de instalación del gestor de paquetes que encontró (`sudo apt install gocryptfs fuse3` con `apt`; `dnf`, `zypper` y `pacman` en las otras familias); los volúmenes `gocryptfs` cerrados que encuentra en los lugares habituales (`~/Vaults*`, la carpeta de Plasma Vault); los volúmenes montados de otro tipo (LUKS, eCryptfs, EncFS, CryFS), que el servidor no admite porque exige un montaje `gocryptfs`: el camino es un volumen `gocryptfs` al lado; si el perfil del operador existe y en qué estado está su volumen; los navegadores de la familia Chromium que encontró; si existe un área de intercambio (swap); si se ejecuta en una terminal y si tiene pantalla. `mcp-server-diwall-browser-setup check --json` imprime el mismo informe en una línea de JSON: un modelo que tiene un shell lo ejecuta y le dice lo que dice.
+El informe dice si `gocryptfs`, `fusermount3` y `/dev/fuse` están y, cuando algo falta, el comando de instalación del gestor de paquetes que encontró (`sudo apt install gocryptfs fuse3` con `apt`; `dnf`, `zypper` y `pacman` en las otras familias); los volúmenes `gocryptfs` cerrados que encuentra en los lugares habituales (`~/Vaults*`, la carpeta de Plasma Vault); los volúmenes montados de otro tipo (LUKS, eCryptfs, EncFS, CryFS), que el servidor no admite porque exige un montaje `gocryptfs`: el camino es un volumen `gocryptfs` al lado; si el perfil del operador existe y en qué estado está su volumen; los navegadores de la familia Chromium que encontró; si hay o no un área de intercambio (swap) (su línea figura siempre en el informe); si se ejecuta en una terminal y si tiene pantalla. `mcp-server-diwall-browser-setup check --json` imprime el mismo informe en una línea de JSON: un modelo que tiene un shell lo ejecuta y le dice lo que dice.
 
 Los demás comandos actúan. Cada uno pide una terminal, porque la contraseña no tiene otro lugar donde teclearse: el asistente pasa la terminal a `gocryptfs`, que pide él mismo la contraseña, y el asistente no la lee, no la guarda ni la transmite. Sin terminal, rechazan con `no_terminal`.
 
@@ -1327,6 +1327,9 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 
 ## 12. Límites conocidos
 
+- El directorio cifrado protege tanto como su contraseña: quien tiene la contraseña lee su contenido, y una contraseña débil o reutilizada protege poco.
+- Las salvaguardas son las que se midieron en la fecha de esta versión, con las pruebas y mediciones que nombra este documento. Un modelo más reciente que los probados puede encontrar una forma de eludirlas que ninguna prueba ha visto.
+- Quien no quiera estas salvaguardas encontrará otros servidores MCP que controlan un navegador sin ellas.
 - Mientras el servidor está conectado, el navegador rechaza todas las descargas, también en sus propias pestañas, salvo
   en torno a uno de los clics o de las teclas Intro del servidor; detenga el servidor o el cliente MCP para descargar
   usted mismo.
@@ -1376,7 +1379,7 @@ parámetro que la herramienta no tiene, o un valor de un tipo equivocado; no se 
 - La ventana de la política `discovery` exige `kdialog` o `zenity` y una pantalla; la confirmación propia del cliente no sirve para ella, porque no puede
   ofrecer tres respuestas con nombre y el rechazo por defecto. Con `open`, un nombre público que resuelve a una dirección privada no se detecta, y el
   proveedor de un modelo alojado recibe cada página que el modelo lee.
-- Los mensajes del asistente de instalación están en francés. Se ejecutó solo en Linux, con `gocryptfs`; un volumen LUKS, eCryptfs, EncFS o CryFS se señala y no se usa, y Windows y macOS no tienen ningún mecanismo en su tabla. Se ejecutó en un pseudoterminal sobre un volumen desechable y en un contenedor Debian 13 limpio (donde señala e instala `gocryptfs`). El informe del área de intercambio se probó sobre una lista simulada de áreas de intercambio, no en una máquina que tenga una.
+- Los mensajes del asistente de instalación están en francés. Se ejecutó solo en Linux, con `gocryptfs`; un volumen LUKS, eCryptfs, EncFS o CryFS se señala y no se usa, y Windows y macOS no tienen ningún mecanismo en su tabla. Se ejecutó en un pseudoterminal sobre un volumen desechable y en un contenedor Debian 13 limpio (donde señala e instala `gocryptfs`). El informe del área de intercambio se probó sobre una lista simulada de áreas de intercambio y, para una máquina que no la tiene, en ese contenedor, no en una máquina que tenga una.
 - `local_model_origins` y las dos declaraciones se muestran en `status` y no cambian nada más.
 - `profile_encrypted` en `status` dice dónde está el perfil declarado, no dónde
   guarda el navegador sus datos.

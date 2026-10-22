@@ -493,8 +493,7 @@ def render_report(report: dict[str, Any]) -> str:
         f"port {browser['port']} {'répond' if browser['listening'] else 'ne répond pas'}"
     )
     swap = report["swap"]
-    if swap["present"]:
-        lines.append(f"- espace d'échange présent : {swap['note']}")
+    lines.append(f"- espace d'échange : présent ; {swap['note']}" if swap["present"] else "- espace d'échange : absent")
     lines.append(f"- terminal interactif : {'oui' if report['terminal']['interactive'] else 'non (create, open, browser et close le demandent)'}")
     lines.append(f"- écran : {'oui' if report['display']['available'] else 'non (le navigateur en demande un)'}")
     lines.append(f"- fenêtre de confirmation : {report['confirmation_window']['tool'] or 'aucune (kdialog ou zenity à installer)'}")
