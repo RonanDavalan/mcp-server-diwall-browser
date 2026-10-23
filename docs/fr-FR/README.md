@@ -2,7 +2,7 @@
 
 [English](../../README.md) | **Français** | [Deutsch](../de-DE/README.md) | [Español](../es-ES/README.md)
 
-![L'œil de Diwall MCP éclaire le Web : ce sur quoi le modèle peut agir porte un cadre numéroté, et le champ du mot de passe reste noir](../images/scene-diwall-mcp.png)
+![L'œil de Diwall MCP éclaire le Web : ce sur quoi le modèle peut agir porte un cadre numéroté, et le champ du mot de passe reste noir](../images/scene-diwall-mcp.png)
 
 Un serveur MCP qui donne à un modèle de langage les yeux et les mains d'un opérateur dans le navigateur
 même de l'opérateur, par le protocole Chrome DevTools : le modèle voit la même capture d'écran et le
@@ -294,7 +294,7 @@ tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIB
 - **Muse Spark 1.3 Contributor (Meta, par OpenCode)** : premier usage du serveur par un modèle autre que Claude, sur une instance locale d'une application web, dont le rapport de terrain a orienté les corrections suivantes ; la feuille de style et la mise en page du site du projet, retenues parmi plusieurs essais, le texte et le comportement des pages restés intacts ; deux relectures du site, avec des propositions de formulation en quatre langues restées à l'état de brouillon et des défauts relevés, corrigés.
 - **DeepSeek V4 Pro (DeepSeek, par OpenCode)** : audit de sécurité indépendant du tag `v0.0.1`, sur une session vierge ; quatre de ses sept constats ont été confirmés au tri et corrigés.
 - **GLM 5.3 (Zhipu, par OpenCode)** : audit de sécurité indépendant du même tag, sur une session vierge, avec des reproductions sur un navigateur sans écran ; trois de ses sept constats ont été confirmés au tri et corrigés.
-- **DeepSeek V4.1 Flash 1017 (DeepSeek, par OpenCode)** : l'emblème en 3D « le D de verre », dessiné dans Blender sur le poste de travail, en deux variantes de pupille (une pupille ronde et un pointeur) ; il est l'œil de la scène qui illustre la première version.
+- **DeepSeek V4.1 Flash 1017 (DeepSeek, par OpenCode)** : l'emblème en 3D « le D de verre », dessiné dans Blender sur le poste de travail, en deux variantes de pupille (une pupille ronde et un pointeur) ; il est l'œil de la scène qui illustre la première version.
 - **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
 - **gemini-3.5-flash (Google, par OpenCode)** : a testé le branchement par un agent dédié : les outils n'atteignent que cet agent, et son shell demande avant d'exécuter.
 - **Space Bunny Free (opencode)** : nettoyage et élagage du cadre de travail du projet au début du projet.
