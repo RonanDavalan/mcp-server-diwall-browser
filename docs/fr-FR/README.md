@@ -2,6 +2,8 @@
 
 [English](../../README.md) | **Français** | [Deutsch](../de-DE/README.md) | [Español](../es-ES/README.md)
 
+![L'œil de Diwall MCP éclaire le Web : ce sur quoi le modèle peut agir porte un cadre numéroté, et le champ du mot de passe reste noir](../images/scene-diwall-mcp.png)
+
 Un serveur MCP qui donne à un modèle de langage les yeux et les mains d'un opérateur dans le navigateur
 même de l'opérateur, par le protocole Chrome DevTools : le modèle voit la même capture d'écran et le
 même arbre d'accessibilité que l'opérateur, et agit dans la même session authentifiée. Il lui faut un
@@ -287,7 +289,7 @@ mcp-server-diwall-browser est construit dans une collaboration asymétrique huma
 tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIBUTORS.md](../../CONTRIBUTORS.md).
 
 - **Ronan Davalan** : architecte et arbitre. Vision, exigences de sécurité, décisions, validation et essais.
-- **Claude Code (Anthropic ; Opus 5.5, Sonnet 5.5 et Haiku 5.5)** : ingénieur systèmes et développeur principal. Réalisation du serveur, tests, documentation, cadre de travail, texte et entretien du site du projet, et rapport de terrain du premier lancement depuis le paquet Debian.
+- **Claude Code (Anthropic ; Opus 5.5, Sonnet 5.5 et Haiku 5.5)** : ingénieur systèmes et développeur principal. Réalisation du serveur, tests, documentation, cadre de travail, texte et entretien du site du projet, la scène qui illustre la première version et son court clip, rendus dans Blender sur le poste, et rapport de terrain du premier lancement depuis le paquet Debian.
 - **Claude Cloud (Anthropic)** : a écrit une partie du code sur des branches, à partir de consignes, relue avant chaque fusion.
 - **Muse Spark 1.3 Contributor (Meta, par OpenCode)** : premier usage du serveur par un modèle autre que Claude, sur une instance locale d'une application web, dont le rapport de terrain a orienté les corrections suivantes ; la feuille de style et la mise en page du site du projet, retenues parmi plusieurs essais, le texte et le comportement des pages restés intacts ; deux relectures du site, avec des propositions de formulation en quatre langues restées à l'état de brouillon et des défauts relevés, corrigés.
 - **DeepSeek V4 Pro (DeepSeek, par OpenCode)** : audit de sécurité indépendant du tag `v0.0.1`, sur une session vierge ; quatre de ses sept constats ont été confirmés au tri et corrigés.

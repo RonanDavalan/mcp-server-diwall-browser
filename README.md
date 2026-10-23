@@ -2,6 +2,8 @@
 
 **English** | [Français](docs/fr-FR/README.md) | [Deutsch](docs/de-DE/README.md) | [Español](docs/es-ES/README.md)
 
+![The eye of Diwall MCP lights up the web: everything the model can act on gets a numbered frame, and the password field stays black](docs/images/scene-diwall-mcp.png)
+
 An MCP server that gives a language model the eyes and hands of an operator in the operator's own
 browser, through the Chrome DevTools Protocol: the model sees the same screenshot and the same
 accessibility tree as the operator, and acts in the same authenticated session. It needs a
@@ -282,7 +284,7 @@ mcp-server-diwall-browser is built in an asymmetric human–LLM collaboration. T
 down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 - **Ronan Davalan**: architect and arbiter. Vision, security requirements, decisions, validation and testing.
-- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 and Haiku 5.5)**: systems engineer and lead developer. Server implementation, tests, documentation, the working framework, the text and upkeep of the project's website, and a field report of the first launch from the Debian package.
+- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 and Haiku 5.5)**: systems engineer and lead developer. Server implementation, tests, documentation, the working framework, the text and upkeep of the project's website, the scene that illustrates the first release and its short clip, rendered in Blender on the workstation, and a field report of the first launch from the Debian package.
 - **Claude Cloud (Anthropic)**: wrote part of the code on branches, from prompts, reviewed before every merge.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application, whose field report shaped the next fixes; the stylesheet and layout of the project's website, chosen among several trials, the text and the behaviour of the pages left untouched; two readings of the website, with wording proposals in four languages kept as drafts and defects found, which were corrected.
 - **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session; four of its seven findings were confirmed at triage and corrected.
