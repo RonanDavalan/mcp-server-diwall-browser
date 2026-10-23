@@ -222,7 +222,7 @@ Testé :
   journal.
 - La politique d'origines (`strict`, `discovery`, `open`) : `tests/test_origin_policy.py` et `tests/test_origin_policy_server.py` sur un navigateur simulé, et `tests/test_origin_policy_integration.py`, 12 tests du serveur lancé par son point d'entrée contre Google Chrome 155.0.8059.84, avec de faux programmes de fenêtre : un portail qui renvoie vers une seconde origine, une redirection vers une origine inconnue, les trois réponses de la fenêtre (le profil relu après `Ajouter à la liste`), les noms locaux refusés avec `open`, un paiement qui demande toujours sa fenêtre, et la politique changée dans le profil sans redémarrage. Les fenêtres des vrais `kdialog` et `zenity` ont été montrées dans un écran virtuel et répondues par des frappes (Entrée et Échap donnent le refus) ; une personne y a répondu le 22 octobre 2026 (l'entrée suivante).
 - La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 22 octobre 2026
-  (révision `0f4f613`), avec le propre volume gocryptfs de l'opérateur monté et une page de paiement locale, dans Opera
+  (révision `ce970fb`), avec le propre volume gocryptfs de l'opérateur monté et une page de paiement locale, dans Opera
   138.0.6044.24, une fois avec `kdialog` 25.04.0 et une fois avec `zenity` 4.1.90 (le serveur ne trouvait que cet outil) :
   avec chacun, un refus a rendu `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu
   une requête ; sans réponse, la demande a expiré après 90,4 secondes (`confirmation_expired`) et la page n'a rien reçu. Le

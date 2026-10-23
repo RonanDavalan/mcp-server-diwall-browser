@@ -215,7 +215,7 @@ Probado:
   búsqueda, pulsó Intro y observó los resultados. El texto escrito no aparece en el diario.
 - La política de orígenes (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` y `tests/test_origin_policy_server.py` sobre un navegador simulado, y `tests/test_origin_policy_integration.py`, 12 pruebas del servidor iniciado por su punto de entrada contra Google Chrome 155.0.8059.84, con programas de ventana simulados: un portal que remite a un segundo origen, una redirección a un origen desconocido, las tres respuestas de la ventana (el perfil releído tras `Ajouter à la liste`), nombres locales rechazados con `open`, un pago que sigue pidiendo su ventana, y la política cambiada en el perfil sin reiniciar. Las ventanas de los `kdialog` y `zenity` reales se mostraron en una pantalla virtual y se respondieron con pulsaciones de teclas (Intro y Escape dan el rechazo); una persona las respondió el 22 de octubre de 2026 (la entrada siguiente).
 - La ventana de confirmación, mostrada en el equipo del operador y respondida por una persona el 22 de octubre de 2026
-  (revisión `0f4f613`), con el volumen gocryptfs propio del operador montado y una página de pago local, en Opera
+  (revisión `ce970fb`), con el volumen gocryptfs propio del operador montado y una página de pago local, en Opera
   138.0.6044.24, una vez con `kdialog` 25.04.0 y otra con `zenity` 4.1.90 (el servidor solo encontraba esa herramienta):
   con cada una, un rechazo devolvió `confirmation_denied` y la página no recibió nada; una aceptación hizo el clic y la
   página recibió una petición; sin respuesta, la petición caducó a los 90,4 segundos (`confirmation_expired`) y la página
