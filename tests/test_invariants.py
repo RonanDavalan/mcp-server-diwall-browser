@@ -1409,6 +1409,8 @@ _FORBIDDEN_DIRECTORIES = {".claude", "credentials", "evidence", "downloads", "br
 # Une capture est une image de page : la seule suivie est celle de la page de démonstration, montrée dans le README.
 _CAPTURE_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 _DOCUMENTED_CAPTURE = "docs/images/observe-demo.png"
+# La scène du README est un rendu 3D fait sur le poste : elle ne montre aucune page.
+_DOCUMENTED_ILLUSTRATION = "docs/images/scene-diwall-mcp.png"
 
 
 def forbidden_files(tracked: list[str]) -> list[str]:
@@ -1417,7 +1419,7 @@ def forbidden_files(tracked: list[str]) -> list[str]:
         parts = name.split("/")
         if parts[-1] in _FORBIDDEN_NAMES or parts[-1].endswith(".jsonl") or _FORBIDDEN_DIRECTORIES & set(parts[:-1]):
             found.append(name)
-        elif name.lower().endswith(_CAPTURE_SUFFIXES) and name != _DOCUMENTED_CAPTURE:
+        elif name.lower().endswith(_CAPTURE_SUFFIXES) and name not in (_DOCUMENTED_CAPTURE, _DOCUMENTED_ILLUSTRATION):
             found.append(name)
     return found
 
@@ -1448,5 +1450,6 @@ def test_forbidden_file_check_catches_each_kind() -> None:
         "docs/images/screenshot.png",
         "tests/fixtures/capture.JPG",
     ]
-    kept = ["README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "tests/fixtures/pages/basic.html", "docs/images/observe-demo.png"]
+    kept = ["README.md", "LICENSE", "SECURITY.md", "CHANGELOG.md", "tests/fixtures/pages/basic.html", "docs/images/observe-demo.png",
+            "docs/images/scene-diwall-mcp.png"]
     assert forbidden_files(planted + kept) == planted
