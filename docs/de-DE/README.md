@@ -2,7 +2,7 @@
 
 [English](../../README.md) | [Français](../fr-FR/README.md) | **Deutsch** | [Español](../es-ES/README.md)
 
-![Das Auge von Diwall MCP beleuchtet das Web: Alles, worauf das Modell einwirken kann, erhält einen nummerierten Rahmen, und das Passwortfeld bleibt schwarz](../images/scene-diwall-mcp.png)
+https://github.com/user-attachments/assets/68ffda17-6506-4865-a0c6-b25516c245e1
 
 Ein MCP-Server, der einem Sprachmodell die Augen und Hände eines Bedieners im eigenen Browser des Bedieners
 gibt, über das Chrome DevTools Protocol: Das Modell sieht denselben Screenshot und denselben

@@ -2,7 +2,7 @@
 
 **English** | [Français](docs/fr-FR/README.md) | [Deutsch](docs/de-DE/README.md) | [Español](docs/es-ES/README.md)
 
-![The eye of Diwall MCP lights up the web: everything the model can act on gets a numbered frame, and the password field stays black](docs/images/scene-diwall-mcp.png)
+https://github.com/user-attachments/assets/2e7f579f-5466-4bb2-b78d-9c617ebdbfc9
 
 An MCP server that gives a language model the eyes and hands of an operator in the operator's own
 browser, through the Chrome DevTools Protocol: the model sees the same screenshot and the same

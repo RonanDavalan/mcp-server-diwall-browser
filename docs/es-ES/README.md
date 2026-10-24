@@ -2,7 +2,7 @@
 
 [English](../../README.md) | [Français](../fr-FR/README.md) | [Deutsch](../de-DE/README.md) | **Español**
 
-![El ojo de Diwall MCP ilumina la web: todo aquello sobre lo que el modelo puede actuar lleva un marco numerado, y el campo de la contraseña queda en negro](../images/scene-diwall-mcp.png)
+https://github.com/user-attachments/assets/86982a93-a0b9-486b-9ae1-f08f3a2796a0
 
 Un servidor MCP que da a un modelo de lenguaje los ojos y las manos de un operador en el propio navegador del
 operador, mediante el protocolo Chrome DevTools: el modelo ve la misma captura de pantalla y el mismo árbol de
