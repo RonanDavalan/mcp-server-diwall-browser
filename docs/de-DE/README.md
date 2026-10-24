@@ -141,16 +141,8 @@ Getestet:
   Einstellung sofort schloss und erwartete, dass ein später Download abgelehnt wird, scheiterte einzeln 4-mal in
   200 Läufen: Der echte Browser kann entscheiden, bevor der Server die Einstellung schließt, daher wird der Test
   durch Tests an einem simulierten Browser ersetzt. Die Messungen und was bleibt, stehen in `docs/JOURNAL.md`.
-- Der Bediener hat eine frühere Revision unter Debian (Python 3.13.5) mit Chrome 154.0.8037.97 wiederholt: ohne
-  Browser bestanden 1450 und 1 wurde übersprungen (ein Test, der nur als root läuft); mit ihm bestanden 119, und
-  6 scheiterten wie erwartet, die sechs des Seitenzooms, seither geschlossen; die beiden Download-Tests einzeln,
-  0 Fehlschläge in je 40 Läufen. Der Bediener wiederholte dann `ff8c433` (die Revision vor den Klick-Tests) mit
-  demselben Browser: ohne Browser bestanden 1546, 1 wurde übersprungen und 188 abgewählt; die drei Zoom- und
-  Skalierungsdateien, 125 bestanden; alle 188 Browser-Tests bestanden; die beiden Download-Tests und die beiden
-  Tests, die den instabilen ersetzen, einzeln, 0 Fehlschläge in je 40 Läufen. Die Klick-Tests wurden damit nicht
-  wiederholt.
 - `scripts/smoke_test.py` liefert 0 gegen Google Chrome 155.0.8059.84 und 3, wenn kein Browser gefunden wird.
-- Ein Raspberry Pi 4 Model B mit 8 GB, Raspberry Pi OS auf Debian 13 (aarch64), Python 3.13.5 und Chromium 155.0.8059.79, am 22. Oktober 2026: das endgültige `.deb`, von `apt` installiert; der erste Start des Einrichtungsassistenten von Anfang bis Ende mit dem echten `gocryptfs` (temporäres und dauerhaftes Volume, Browser, Schließen); `scripts/smoke_test.py`, das 0 liefert; der Server, von einem echten MCP-Client gesteuert, auf einem sichtbaren Chromium mit Fenster, nicht headless, auf einem virtuellen X11-Bildschirm, wobei das native Bestätigungsfenster von `zenity` geöffnet und ablaufen gelassen wurde; danach das Paket entfernt und vollständig gelöscht, ohne verbliebene Datei. Die vollständige Suite ergab dort 2694 bestandene Tests und 1 übersprungenen in 15 Minuten (fünf davon sind Messungen dieser Maschine, die das Repository nicht enthält). In diesem Netz brauchte die erste Seite, die ein frisch gestarteter Chromium lud, 15 bis 26 Sekunden, wodurch bei einem ersten Durchlauf drei Tests scheiterten; mit vom Netz getrenntem Browser bestehen alle (Bedienerhandbuch, Abschnitt 12).
+- Ein Raspberry Pi 4 Model B mit 8 GB, Raspberry Pi OS auf Debian 13 (aarch64), Python 3.13.5 und Chromium 155.0.8059.79: das `.deb`, von `apt` installiert; der erste Start des Einrichtungsassistenten von Anfang bis Ende mit dem echten `gocryptfs` (temporäres und dauerhaftes Volume, Browser, Schließen); `scripts/smoke_test.py`, das 0 liefert; der Server, von einem echten MCP-Client gesteuert, auf einem sichtbaren Chromium mit Fenster, nicht headless, auf einem virtuellen X11-Bildschirm, wobei das native Bestätigungsfenster von `zenity` geöffnet und ablaufen gelassen wurde; danach das Paket entfernt und vollständig gelöscht, ohne verbliebene Datei. Die vollständige Suite ergab dort 2694 bestandene Tests und 1 übersprungenen in 15 Minuten (fünf davon sind Messungen dieser Maschine, die das Repository nicht enthält). In diesem Netz brauchte die erste Seite, die ein frisch gestarteter Chromium lud, 15 bis 26 Sekunden, wodurch bei einem ersten Durchlauf drei Tests scheiterten; mit vom Netz getrenntem Browser bestehen alle (Bedienerhandbuch, Abschnitt 12).
 - Die Markierungen und die Masken bei einer Bildschirmskalierung von 1, 1,5 und 2, auf einem Chromium 141 ohne
   Oberfläche: Der Rahmen jeder sichtbaren Markierung liegt innerhalb von zwei Pixeln des Rahmens, den der Browser
   selbst angibt, jedes Pixel des Passwortfelds der Demoseite liegt unter seiner Maske, und die Maske reicht nicht
@@ -205,7 +197,7 @@ Getestet:
   seine drei Buttons sind markiert und im Baum zuerst aufgelistet, die Elemente darunter sagen `covered`, und ein
   Klick auf „Ablehnen“ über seine Markierung entfernt das Banner (`tests/test_ranking_integration.py`).
 - Der Einrichtungsassistent `mcp-server-diwall-browser-setup`: 50 Tests auf einem simulierten Rechner (Einhängetabellen,
-  Paketverwaltungen, kein `/dev/fuse`, kein Terminal, ein LUKS-Volume); dann, am 20. Oktober 2026, mit dem echten gocryptfs
+  Paketverwaltungen, kein `/dev/fuse`, kein Terminal, ein LUKS-Volume); dann mit dem echten gocryptfs
   2.5.1 in einem Pseudoterminal, auf Wegwerf-Volumes: `create --temporary`, der Server liest `mounted`, `browser`
   (Google Chrome 155.0.8059.84 ohne Bildschirm, angebunden, `profile_encrypted: true`), `close` (kein Volume mehr im
   Arbeitsspeicher, keine Datei des Browserprofils auf der Platte), dann `create`, `close` und `open` eines dauerhaften
@@ -219,9 +211,8 @@ Getestet:
   Volume und einem Debugging-Port auf der Loopback-Schnittstelle, wurde angebunden; der Server öffnete eine Seite
   eines öffentlichen Einkaufsportals, füllte dessen Suchfeld, drückte die Eingabetaste und beobachtete die
   Ergebnisse. Der getippte Text erscheint nicht im Journal.
-- Die Ursprungsrichtlinie (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` und `tests/test_origin_policy_server.py` auf einem simulierten Browser und `tests/test_origin_policy_integration.py`, 12 Tests des über seinen Einstiegspunkt gestarteten Servers gegen Google Chrome 155.0.8059.84, mit Attrappenprogrammen für das Fenster: ein Portal, das auf einen zweiten Origin verweist, eine Weiterleitung auf einen unbekannten Origin, die drei Antworten des Fensters (das Profil nach `Ajouter à la liste` neu gelesen), unter `open` abgelehnte lokale Namen, eine Zahlung, die weiter ihr Fenster verlangt, und die im Profil geänderte Richtlinie ohne Neustart. Die Fenster der echten `kdialog` und `zenity` wurden in einem virtuellen Bildschirm gezeigt und durch Tastendrücke beantwortet (Eingabe und Escape geben die Ablehnung); eine Person hat sie am 22. Oktober 2026 beantwortet (der nächste Eintrag).
-- Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und am 22. Oktober 2026 von einer Person beantwortet
-  (Revision `ce970fb`), mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen Zahlungsseite, in Opera
+- Die Ursprungsrichtlinie (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` und `tests/test_origin_policy_server.py` auf einem simulierten Browser und `tests/test_origin_policy_integration.py`, 12 Tests des über seinen Einstiegspunkt gestarteten Servers gegen Google Chrome 155.0.8059.84, mit Attrappenprogrammen für das Fenster: ein Portal, das auf einen zweiten Origin verweist, eine Weiterleitung auf einen unbekannten Origin, die drei Antworten des Fensters (das Profil nach `Ajouter à la liste` neu gelesen), unter `open` abgelehnte lokale Namen, eine Zahlung, die weiter ihr Fenster verlangt, und die im Profil geänderte Richtlinie ohne Neustart. Die Fenster der echten `kdialog` und `zenity` wurden in einem virtuellen Bildschirm gezeigt und durch Tastendrücke beantwortet (Eingabe und Escape geben die Ablehnung); eine Person hat sie beantwortet (der nächste Eintrag).
+- Das Bestätigungsfenster, auf dem Rechner des Bedieners gezeigt und von einer Person beantwortet, mit eingehängtem eigenem gocryptfs-Volume des Bedieners und einer lokalen Zahlungsseite, in Opera
   138.0.6044.24, einmal mit `kdialog` 25.04.0 und einmal mit `zenity` 4.1.90 (der Server fand nur dieses Werkzeug):
   Bei beiden lieferte eine Ablehnung `confirmation_denied`, und die Seite erhielt nichts; eine Zustimmung führte den Klick
   aus, und die Seite erhielt eine Anfrage; ohne Antwort verfiel die Anfrage nach 90,4 Sekunden (`confirmation_expired`),
@@ -258,7 +249,6 @@ Bekannte Grenzen:
 
 - Das verschlüsselte Verzeichnis schützt so viel wie sein Passwort: Wer das Passwort hat, liest seinen Inhalt, und ein schwaches oder mehrfach verwendetes Passwort schützt wenig.
 - Die Schutzmaßnahmen sind die, die zum Datum dieser Version gemessen wurden, mit den Tests und Messungen, die dieses Dokument nennt. Ein Modell, das neuer ist als die erprobten, kann einen Weg um sie herum finden, den kein Versuch gesehen hat.
-- Wer diese Schutzmaßnahmen nicht will, findet andere MCP-Server, die einen Browser ohne sie steuern.
 - Solange der Server am Browser hängt, werden Downloads in allen Tabs abgelehnt, auch in denen des Bedieners,
   außer im kurzen Fenster um einen Klick oder eine Eingabetaste des Servers. Um selbst eine Datei herunterzuladen,
   halten Sie den Server oder den MCP-Client an; Downloads funktionieren wieder, sobald die Verbindung des Servers
@@ -300,6 +290,6 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, über OpenCode)**: das 3D-Emblem „das Glas-D“, in Blender am Arbeitsplatz gezeichnet, in zwei Pupillenvarianten (eine runde Pupille und ein Mauszeiger); es ist das Auge der Szene, die die erste Version illustriert.
 - **Gemini (Google)**: Architekturberater und Synthetisierer; gab dem Projekt seinen Namen, **Diwall**, „Deich“ auf Bretonisch.
 - **gemini-3.5-flash (Google, über OpenCode)**: hat die Anbindung über einen eigenen Agenten getestet: Die Werkzeuge erreichen nur diesen Agenten, und seine Shell fragt, bevor sie etwas ausführt.
-- **Space Bunny Free (opencode)**: Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
+- **Space Bunny Free (opencode)**: das Logo des Projekts, das D mit dem runden Auge, verwendet auf der Website, in ihren Icons und auf dem Titelblatt der Handbücher; Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
 
 Lizenz: MIT, siehe [LICENSE](../../LICENSE).

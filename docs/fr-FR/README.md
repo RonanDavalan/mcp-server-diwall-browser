@@ -141,16 +141,8 @@ Testé :
   tardif soit refusé, a échoué 4 fois sur 200 seul : le vrai navigateur peut choisir avant que le serveur
   referme le réglage, si bien que ce test est remplacé par des tests sur un navigateur simulé. Les mesures et
   ce qui reste sont dans `docs/JOURNAL.md`.
-- L'opérateur a rejoué une révision antérieure sous Debian (Python 3.13.5) avec Chrome 154.0.8037.97 : sans
-  navigateur 1 450 ont passé et 1 a été ignoré (un test qui ne s'exécute qu'en root) ; avec lui 119 ont passé
-  et 6 ont échoué comme prévu, les six du zoom de page, clos depuis ; les deux tests de téléchargement seuls,
-  0 échec sur 40 exécutions chacun. L'opérateur a ensuite rejoué `ff8c433` (la révision avant les tests de
-  clic) sur le même navigateur : sans navigateur 1 546 ont passé, 1 a été ignoré et 188 désélectionnés ; les
-  trois fichiers de zoom et d'échelle, 125 passés ; les 188 tests de navigateur ont tous passé ; les deux
-  tests de téléchargement et les deux tests qui remplacent l'instable, chacun seul, 0 échec sur 40
-  exécutions. Les tests de clic n'y ont pas été rejoués.
 - `scripts/smoke_test.py` rend 0 contre Google Chrome 155.0.8059.84 et 3 quand aucun navigateur n'est trouvé.
-- Un Raspberry Pi 4 Model B de 8 Go, Raspberry Pi OS sur Debian 13 (aarch64), Python 3.13.5 et Chromium 155.0.8059.79, le 22 octobre 2026 : le `.deb` final installé par `apt` ; le premier lancement de l'assistant d'installation de bout en bout avec le vrai `gocryptfs` (volumes temporaire et durable, navigateur, fermeture) ; `scripts/smoke_test.py` qui rend 0 ; le serveur piloté par un vrai client MCP sur un Chromium visible, avec fenêtre et non sans interface, sur un écran X11 virtuel, avec la fenêtre de confirmation native de `zenity` ouverte puis laissée expirer ; puis le paquet retiré et purgé, sans fichier restant. La suite complète y a donné 2 694 tests réussis et 1 ignoré en 15 minutes (cinq sont des mesures de ce poste que le dépôt ne contient pas). Sur ce réseau, la première page chargée par un Chromium qui vient de démarrer a pris 15 à 26 secondes, ce qui a fait échouer trois tests lors d'un premier passage ; avec le navigateur coupé du réseau, ils réussissent tous (guide, section 12).
+- Un Raspberry Pi 4 Model B de 8 Go, Raspberry Pi OS sur Debian 13 (aarch64), Python 3.13.5 et Chromium 155.0.8059.79 : le `.deb` installé par `apt` ; le premier lancement de l'assistant d'installation de bout en bout avec le vrai `gocryptfs` (volumes temporaire et durable, navigateur, fermeture) ; `scripts/smoke_test.py` qui rend 0 ; le serveur piloté par un vrai client MCP sur un Chromium visible, avec fenêtre et non sans interface, sur un écran X11 virtuel, avec la fenêtre de confirmation native de `zenity` ouverte puis laissée expirer ; puis le paquet retiré et purgé, sans fichier restant. La suite complète y a donné 2 694 tests réussis et 1 ignoré en 15 minutes (cinq sont des mesures de ce poste que le dépôt ne contient pas). Sur ce réseau, la première page chargée par un Chromium qui vient de démarrer a pris 15 à 26 secondes, ce qui a fait échouer trois tests lors d'un premier passage ; avec le navigateur coupé du réseau, ils réussissent tous (guide, section 12).
 - Les repères et les masques à une échelle d'écran de 1, 1,5 et 2, sur un Chromium 141 sans interface : le
   cadre de chaque repère visible est à moins de deux pixels du cadre que donne le navigateur lui-même, chaque
   pixel du champ de mot de passe de la page de démonstration est sous son masque, et le masque ne dépasse pas
@@ -206,7 +198,7 @@ Testé :
   `covered`, et un clic sur « Refuser » par son repère retire la bannière
   (`tests/test_ranking_integration.py`).
 - L'assistant d'installation, `mcp-server-diwall-browser-setup` : 50 tests sur une machine simulée (tables de montage,
-  gestionnaires de paquets, pas de `/dev/fuse`, pas de terminal, un volume LUKS) ; puis, le 20 octobre 2026, avec le vrai
+  gestionnaires de paquets, pas de `/dev/fuse`, pas de terminal, un volume LUKS) ; puis, avec le vrai
   gocryptfs 2.5.1 dans un pseudo-terminal, sur des volumes jetables : `create --temporary`, le serveur lisant `mounted`,
   `browser` (Google Chrome 155.0.8059.84 sans écran, rattaché, `profile_encrypted: true`), `close` (plus de volume en
   mémoire, aucun fichier du profil du navigateur sur le disque), puis `create`, `close` et `open` d'un volume durable ; et
@@ -220,9 +212,8 @@ Testé :
   l'interface de bouclage, a été attaché ; le serveur a ouvert une page d'un site marchand public, rempli son
   champ de recherche, appuyé sur Entrée et observé les résultats. Le texte saisi n'apparaît pas dans le
   journal.
-- La politique d'origines (`strict`, `discovery`, `open`) : `tests/test_origin_policy.py` et `tests/test_origin_policy_server.py` sur un navigateur simulé, et `tests/test_origin_policy_integration.py`, 12 tests du serveur lancé par son point d'entrée contre Google Chrome 155.0.8059.84, avec de faux programmes de fenêtre : un portail qui renvoie vers une seconde origine, une redirection vers une origine inconnue, les trois réponses de la fenêtre (le profil relu après `Ajouter à la liste`), les noms locaux refusés avec `open`, un paiement qui demande toujours sa fenêtre, et la politique changée dans le profil sans redémarrage. Les fenêtres des vrais `kdialog` et `zenity` ont été montrées dans un écran virtuel et répondues par des frappes (Entrée et Échap donnent le refus) ; une personne y a répondu le 22 octobre 2026 (l'entrée suivante).
-- La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu le 22 octobre 2026
-  (révision `ce970fb`), avec le propre volume gocryptfs de l'opérateur monté et une page de paiement locale, dans Opera
+- La politique d'origines (`strict`, `discovery`, `open`) : `tests/test_origin_policy.py` et `tests/test_origin_policy_server.py` sur un navigateur simulé, et `tests/test_origin_policy_integration.py`, 12 tests du serveur lancé par son point d'entrée contre Google Chrome 155.0.8059.84, avec de faux programmes de fenêtre : un portail qui renvoie vers une seconde origine, une redirection vers une origine inconnue, les trois réponses de la fenêtre (le profil relu après `Ajouter à la liste`), les noms locaux refusés avec `open`, un paiement qui demande toujours sa fenêtre, et la politique changée dans le profil sans redémarrage. Les fenêtres des vrais `kdialog` et `zenity` ont été montrées dans un écran virtuel et répondues par des frappes (Entrée et Échap donnent le refus) ; une personne y a répondu (l'entrée suivante).
+- La fenêtre de confirmation, affichée sur le poste de l'opérateur et à laquelle une personne a répondu, avec le propre volume gocryptfs de l'opérateur monté et une page de paiement locale, dans Opera
   138.0.6044.24, une fois avec `kdialog` 25.04.0 et une fois avec `zenity` 4.1.90 (le serveur ne trouvait que cet outil) :
   avec chacun, un refus a rendu `confirmation_denied` et la page n'a rien reçu ; un accord a fait le clic et la page a reçu
   une requête ; sans réponse, la demande a expiré après 90,4 secondes (`confirmation_expired`) et la page n'a rien reçu. Le
@@ -258,7 +249,6 @@ Limites connues :
 
 - Le répertoire chiffré protège autant que son mot de passe : qui a le mot de passe en lit le contenu, et un mot de passe faible ou réutilisé protège peu.
 - Les garde-fous sont ceux mesurés à la date de cette version, par les essais et les mesures que ce document nomme. Un modèle plus récent que ceux essayés peut trouver un contournement qu'aucun essai n'a vu.
-- Qui ne veut pas de ces garde-fous trouvera d'autres serveurs MCP qui pilotent un navigateur sans eux.
 - Tant que le serveur est attaché au navigateur, les téléchargements sont refusés dans tous les onglets, y
   compris ceux de l'opérateur, sauf dans la courte fenêtre autour d'un clic ou d'une touche Entrée du
   serveur. Pour télécharger un fichier vous-même, arrêtez le serveur ou le client MCP ; les téléchargements
@@ -297,6 +287,6 @@ tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIB
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, par OpenCode)** : l'emblème en 3D « le D de verre », dessiné dans Blender sur le poste de travail, en deux variantes de pupille (une pupille ronde et un pointeur) ; il est l'œil de la scène qui illustre la première version.
 - **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
 - **gemini-3.5-flash (Google, par OpenCode)** : a testé le branchement par un agent dédié : les outils n'atteignent que cet agent, et son shell demande avant d'exécuter.
-- **Space Bunny Free (opencode)** : nettoyage et élagage du cadre de travail du projet au début du projet.
+- **Space Bunny Free (opencode)** : le logo du projet, le D à l'œil rond, repris sur le site, ses icônes et la page de titre des manuels ; nettoyage et élagage du cadre de travail du projet au début du projet.
 
 Licence : MIT, voir [LICENSE](../../LICENSE).

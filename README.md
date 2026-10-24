@@ -141,16 +141,8 @@ Tested:
   expected a late download to be refused, failed 4 times in 200 alone: the real browser can choose
   before the server closes the setting, so the test is replaced by tests on a simulated browser. The
   measures and what remains are in `docs/JOURNAL.md`.
-- The operator replayed an earlier revision on Debian (Python 3.13.5) with Chrome
-  154.0.8037.97: without a browser 1450 passed and 1 was skipped (a test that runs as root only);
-  with it 119 passed and 6 failed as expected, the six of the page zoom, closed since;
-  the two download tests alone, 0 failures in 40 runs each. The operator then replayed `ff8c433`
-  (the revision before the click tests) on the same browser: without a browser 1546 passed, 1 was
-  skipped and 188 were deselected; the three zoom and scale files, 125 passed; all 188 browser tests
-  passed; the two download tests and the two tests that replace the unstable one, each alone, 0
-  failures in 40 runs. The click tests were not replayed on it.
 - `scripts/smoke_test.py` returns 0 against Google Chrome 155.0.8059.84 and 3 when no browser is found.
-- A Raspberry Pi 4 Model B with 8 GB, Raspberry Pi OS on Debian 13 (aarch64), Python 3.13.5 and Chromium 155.0.8059.79, on 22 October 2026: the final `.deb` installed by `apt`; the first launch of the setup assistant end to end with the real `gocryptfs` (temporary and durable volumes, browser, close); `scripts/smoke_test.py` returning 0; the server driven through a real MCP client on a visible Chromium with a window, not headless, on a virtual X11 screen, with the native confirmation window of `zenity` opened and left to expire; then the package removed and purged, no file left. The complete suite there gave 2694 tests passed and 1 skipped in 15 minutes (five of them are measurements of that machine that the repository does not hold). On that network, the first page loaded by a freshly started Chromium took 15 to 26 seconds, which made three tests fail in a first run; with the browser cut off from the network, they all pass (guide, section 12).
+- A Raspberry Pi 4 Model B with 8 GB, Raspberry Pi OS on Debian 13 (aarch64), Python 3.13.5 and Chromium 155.0.8059.79: the `.deb` installed by `apt`; the first launch of the setup assistant end to end with the real `gocryptfs` (temporary and durable volumes, browser, close); `scripts/smoke_test.py` returning 0; the server driven through a real MCP client on a visible Chromium with a window, not headless, on a virtual X11 screen, with the native confirmation window of `zenity` opened and left to expire; then the package removed and purged, no file left. The complete suite there gave 2694 tests passed and 1 skipped in 15 minutes (five of them are measurements of that machine that the repository does not hold). On that network, the first page loaded by a freshly started Chromium took 15 to 26 seconds, which made three tests fail in a first run; with the browser cut off from the network, they all pass (guide, section 12).
 - The marks and the masks at a screen scale of 1, 1.5 and 2, on a headless Chromium 141: the box of
   every mark in view lies within two pixels of the box the browser itself gives, every pixel of the
   password field of the demo page is under its mask, and the mask goes no further than two pixels
@@ -203,7 +195,7 @@ Tested:
   buttons are marked and listed first in the tree, the elements under it say `covered`, and a click
   on "Refuse" by its mark takes the banner away (`tests/test_ranking_integration.py`).
 - The setup assistant, `mcp-server-diwall-browser-setup`: 50 tests on a simulated machine (mount tables, package
-  managers, no `/dev/fuse`, no terminal, a LUKS volume); then, on 20 October 2026, with the real gocryptfs 2.5.1 in a
+  managers, no `/dev/fuse`, no terminal, a LUKS volume); then, with the real gocryptfs 2.5.1 in a
   pseudo-terminal, on throw-away volumes: `create --temporary`, the server reading `mounted`, `browser`
   (Google Chrome 155.0.8059.84 without a screen, attached, `profile_encrypted: true`), `close` (no volume left in
   memory, no file of the browser profile on the disk), then `create`, `close` and `open` of a durable volume; and
@@ -217,9 +209,8 @@ Tested:
   in that volume and a debugging port on the loopback interface, was attached; the server opened
   a page of a public shopping site, filled its search field, pressed Enter and observed the
   results. The typed text does not appear in the journal.
-- The origin policy (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` and `tests/test_origin_policy_server.py` on a simulated browser, and `tests/test_origin_policy_integration.py`, 12 tests of the server started by its entry point against Google Chrome 155.0.8059.84, with fake window programs: a portal that links to a second origin, a redirection to an unknown origin, the three answers of the window (the profile read back after `Ajouter à la liste`), local names refused under `open`, a payment that still asks its window, and the policy changed in the profile without restarting. The windows of the real `kdialog` and `zenity` were shown in a virtual screen and answered by keystrokes (Enter and Escape give the refusal); a person answered them on 22 October 2026 (the next entry).
-- The confirmation window, shown on the operator's workstation and answered by a person on 22 October 2026
-  (revision `ce970fb`), with the operator's own gocryptfs volume mounted and a local payment page, in Opera
+- The origin policy (`strict`, `discovery`, `open`): `tests/test_origin_policy.py` and `tests/test_origin_policy_server.py` on a simulated browser, and `tests/test_origin_policy_integration.py`, 12 tests of the server started by its entry point against Google Chrome 155.0.8059.84, with fake window programs: a portal that links to a second origin, a redirection to an unknown origin, the three answers of the window (the profile read back after `Ajouter à la liste`), local names refused under `open`, a payment that still asks its window, and the policy changed in the profile without restarting. The windows of the real `kdialog` and `zenity` were shown in a virtual screen and answered by keystrokes (Enter and Escape give the refusal); a person answered them (the next entry).
+- The confirmation window, shown on the operator's workstation and answered by a person, with the operator's own gocryptfs volume mounted and a local payment page, in Opera
   138.0.6044.24, once with `kdialog` 25.04.0 and once with `zenity` 4.1.90 (the server found only that tool):
   with each, a refusal returned `confirmation_denied` and the page received nothing; an acceptance made the
   click and the page received one request; with no answer, the request expired after 90.4 seconds
@@ -256,7 +247,6 @@ Known limits:
 
 - The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
 - The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
-- Whoever does not want these safeguards will find other MCP servers that drive a browser without them.
 - While the server is attached to the browser, downloads are refused in every tab, the operator's
   own tabs included, except in the short window around one of the server's clicks or Enter keys.
   To download a file yourself, stop the server or the MCP client; downloads work again as soon as
@@ -292,6 +282,6 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, through OpenCode)**: the 3D emblem "the glass D", drawn in Blender on the workstation, in two pupil variants (a round pupil and a pointer); it is the eye of the scene that illustrates the first release.
 - **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
 - **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
-- **Space Bunny Free (opencode)**: cleanup and pruning of the project's working framework at the start of the project.
+- **Space Bunny Free (opencode)**: the project's logo, the round-eyed D, used on the website, its icons and the title page of the manuals; cleanup and pruning of the project's working framework at the start of the project.
 
 License: MIT, see [LICENSE](LICENSE).

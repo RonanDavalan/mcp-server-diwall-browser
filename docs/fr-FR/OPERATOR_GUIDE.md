@@ -21,7 +21,7 @@ Lancez-la d'abord sans argument. Elle lit la machine et ne change rien : elle n
 mcp-server-diwall-browser-setup
 ```
 
-Le 20 octobre 2026, dans un conteneur Debian 13 propre où `gocryptfs` venait d'être installé avec la commande que le rapport avait donnée, sans navigateur ni écran :
+Dans un conteneur Debian 13 propre où `gocryptfs` venait d'être installé avec la commande que le rapport avait donnée, sans navigateur ni écran :
 
 ```
 Premier lancement : état du poste
@@ -106,12 +106,12 @@ que le répertoire chiffré est ouvert.
   navigateur, a passé sous Google Chrome 156.0.8078.47, et les 536 tests de navigateur d'une révision antérieure ont aussi
   passé sous Chromium 155.0.8059.39 (Debian 13), chacun seul. Chromium 154 n'y était pas disponible. Brave n'a pas été
   essayé.
-- Sur une machine ARM 64 bits, le même paquet et les mêmes commandes s'appliquent, avec le navigateur de la distribution (`chromium` sous Raspberry Pi OS, 155.0.8059.79 sur ce poste). Cela a été mesuré le 22 octobre 2026 sur un Raspberry Pi 4 Model B de 8 Go : l'installation, le premier lancement, le test de fumée et la suite complète, dont 2 694 tests ont réussi et 1 a été ignoré (cinq de ces tests sont des mesures de ce poste que le dépôt ne contient pas). Le processeur d'un Raspberry Pi 4 n'a pas d'instructions AES, et `gocryptfs` le dit quand il crée un volume : il suggère son option `-xchacha`, que l'assistant d'installation n'emploie pas . Dans un volume tenu en mémoire vive, l'écriture de 200 Mio a couru à 61 Mo/s avec les réglages par défaut et à 116 Mo/s avec `-xchacha`, et la relecture à 75 et 153 Mo/s.
+- Sur une machine ARM 64 bits, le même paquet et les mêmes commandes s'appliquent, avec le navigateur de la distribution (`chromium` sous Raspberry Pi OS, 155.0.8059.79 sur ce poste). Cela a été mesuré sur un Raspberry Pi 4 Model B de 8 Go : l'installation, le premier lancement, le test de fumée et la suite complète, dont 2 694 tests ont réussi et 1 a été ignoré (cinq de ces tests sont des mesures de ce poste que le dépôt ne contient pas). Le processeur d'un Raspberry Pi 4 n'a pas d'instructions AES, et `gocryptfs` le dit quand il crée un volume : il suggère son option `-xchacha`, que l'assistant d'installation n'emploie pas . Dans un volume tenu en mémoire vive, l'écriture de 200 Mio a couru à 61 Mo/s avec les réglages par défaut et à 116 Mo/s avec `-xchacha`, et la relecture à 75 et 153 Mo/s.
 - `fuse3` et `gocryptfs` pour le répertoire chiffré.
 - `kdialog` ou `zenity` pour la fenêtre de confirmation.
 - `git`, et `ss` (paquet `iproute2`) pour la vérification de la boucle locale.
 
-Les noms de paquets ont été vérifiés avec `apt-cache policy` sous Debian 13 le 18 octobre 2026 :
+Les noms de paquets ont été vérifiés avec `apt-cache policy` sous Debian 13 :
 
 ```
 $ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
@@ -133,7 +133,7 @@ chromium:
   Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-La commande d'installation, rejouée le 18 octobre 2026 dans un conteneur Debian 13 propre et dans un conteneur Ubuntu 24.04 propre :
+La commande d'installation, rejouée dans un conteneur Debian 13 propre et dans un conteneur Ubuntu 24.04 propre :
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -200,7 +200,7 @@ des deux ne touche à votre navigateur, à votre répertoire chiffré ni à votr
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Sortie du 22 octobre 2026, sur le code de la version 0.0.1, avec Python 3.12.11 (589 tests exigent un
+Sortie sur le code de la version 0.0.1, avec Python 3.12.11 (589 tests exigent un
 navigateur) :
 
 ```
@@ -351,7 +351,7 @@ ss -ltn "sport = :9222"
 
 La colonne de l'adresse locale ne doit montrer que `127.0.0.1:9222` ou `[::1]:9222`. `0.0.0.0:9222`, `*:9222` ou toute
 autre adresse signifie que quiconque atteint le port contrôle le navigateur : fermez le navigateur et relancez-le avec la
-commande ci-dessus. Sortie du 18 octobre 2026, avec le navigateur dédié de l'opérateur, lancé comme ci-dessus avec `--remote-debugging-port=9222` :
+commande ci-dessus. Sortie avec le navigateur dédié de l'opérateur, lancé comme ci-dessus avec `--remote-debugging-port=9222` :
 
 ```
 State  Recv-Q Send-Q Local Address:Port Peer Address:Port
@@ -376,7 +376,7 @@ ne monte ni ne démonte jamais le répertoire chiffré, ne lance jamais `gocrypt
 son mot de passe. Quand le répertoire chiffré est fermé, le serveur refuse d'écrire ; il n'a aucun repli vers un endroit
 non chiffré.
 
-`mcp-server-diwall-browser-setup` fait ce que décrit cette section (le premier lancement, plus haut) : le 20 octobre 2026, avec gocryptfs 2.5.1, il a créé, ouvert et fermé un volume jetable avec l'invite, dans un pseudo-terminal, et le serveur a lu `mounted` ; il lance les mêmes `gocryptfs -init`, `gocryptfs` et `fusermount3 -u` que les commandes ci-dessous, qui servent à le faire à la main. Le volume propre de l'opérateur, ouvert par l'opérateur, a servi à l'épreuve de la fenêtre de confirmation du 15 octobre 2026 (`README.md`).
+`mcp-server-diwall-browser-setup` fait ce que décrit cette section (le premier lancement, plus haut)  : avec gocryptfs 2.5.1, il a créé, ouvert et fermé un volume jetable avec l'invite, dans un pseudo-terminal, et le serveur a lu `mounted` ; il lance les mêmes `gocryptfs -init`, `gocryptfs` et `fusermount3 -u` que les commandes ci-dessous, qui servent à le faire à la main. Le volume propre de l'opérateur, ouvert par l'opérateur, a servi à l'épreuve de la fenêtre de confirmation (`README.md`).
 
 Créez le répertoire chiffré une seule fois. `gocryptfs` affiche une clé maîtresse à cette étape : notez-la sur papier ou
 gardez-la dans un gestionnaire de mots de passe, jamais dans un fichier de ce disque.
@@ -851,8 +851,7 @@ chaque pixel du champ de mot de passe est sous son masque, et le masque ne dépa
 La seconde commande n'exige aucun navigateur. Non mesuré : le zoom fait par les touches Ctrl et + d'un navigateur qui n'est
 pas sans interface (le protocole n'a aucune commande de zoom, si bien que les tests écrivent le zoom par défaut du profil,
 et que le navigateur garde les deux sortes de zoom de la même façon n'est pas confirmé), et un écran dont l'échelle est
-réellement de 1,5. Sous Google Chrome 154.0.8037.97, l'opérateur a rejoué les tests de zoom et d'échelle de la révision
-`ff8c433` (125 passés) et tous ses 188 tests de navigateur (188 passés). Les clics sont dans la section suivante.
+réellement de 1,5. Sous Google Chrome 154.0.8037.97, l'opérateur a rejoué les tests de zoom et d'échelle (125 passés) et tous ses 188 tests de navigateur (188 passés). Les clics sont dans la section suivante.
 
 ### Clics à tout zoom de page et sur une page défilée
 
@@ -980,8 +979,7 @@ cadre. Les tests sont dans `tests/test_click_swap_integration.py`.
 
 Ce qu'il n'arrête pas : un modèle qui a un shell sous votre compte. La liste de sites, les actions verrouillées et la
 liaison des identifiants retiennent un modèle qui n'a que les quatorze outils. Un modèle doté d'un shell peut modifier
-`profile.json` (une origine a été ajoutée ainsi à `allowed_origins` par une session d'OpenCode, et `status` l'a lue à son
-appel suivant), lancer le serveur depuis un script à lui et, tant que le répertoire chiffré est ouvert, lire les fichiers
+`profile.json` (une origine ajoutée ainsi à `allowed_origins` est lue par `status` à son appel suivant), lancer le serveur depuis un script à lui et, tant que le répertoire chiffré est ouvert, lire les fichiers
 d'identifiants. Un changement des trois listes d'origines laisse une ligne `profile_changed` dans le journal et un avis dans
 `status` (section 5), trouvés après coup, et le même acteur peut modifier le journal. Ce qui borne ce modèle, c'est la
 configuration du client (section 2.1) : donnez les outils à un agent dont le shell demande d'abord.
@@ -989,8 +987,7 @@ configuration du client (section 2.1) : donnez les outils à un agent dont le s
 ### Les onglets qu'un serveur arrêté a laissés ouverts
 
 Les onglets du serveur restent ouverts quand il s'arrête : vous voudrez peut-être regarder ce qu'une tâche a laissé. Un
-modèle qui redémarre dans un nouveau processus n'en connaissait aucun et ne pouvait pas les fermer (vingt onglets ont été
-laissés ainsi dans une session). Pour qu'il puisse les fermer, le serveur écrit dans `run/tabs.json` l'identifiant que le
+modèle qui redémarre dans un nouveau processus n'en connaissait aucun et ne pouvait pas les fermer. Pour qu'il puisse les fermer, le serveur écrit dans `run/tabs.json` l'identifiant que le
 navigateur donne à chaque onglet qu'il a ouvert, ou qu'une page à lui a ouvert, et le retire quand l'onglet se ferme. Le
 fichier contient ces identifiants et le processus qui les tient : aucune adresse, aucun titre. Il est remplacé en entier, en
 mode 600, dans un répertoire en mode 700.
@@ -1054,7 +1051,7 @@ Ce qu'il faut lire avant de répondre :
 - `Catégories` et `Signaux` : pourquoi le serveur demande.
 
 Les vrais `kdialog` et `zenity` ont montré les fenêtres dans un écran virtuel, et des frappes y ont répondu (Entrée, Échap et les flèches) :
-Entrée et Échap donnent le refus. Une personne a répondu à la fenêtre le 22 octobre 2026, avec chacun des deux outils seul (un refus, un accord et une expiration : `README.md`). Les tests automatiques emploient de faux programmes à sa place.
+Entrée et Échap donnent le refus. Une personne a répondu à la fenêtre avec chacun des deux outils seul (un refus, un accord et une expiration : `README.md`). Les tests automatiques emploient de faux programmes à sa place.
 
 La fenêtre appartient au serveur, pas au client MCP : le client agit pour le modèle et pourrait répondre seul, alors que la
 fenêtre du serveur reçoit la réponse d'une personne, hors de la conversation. Le serveur ne demande par le client que si
@@ -1282,7 +1279,6 @@ client MCP) contient le nom de l'outil et le type de la défaillance (pour une e
 - Sur le Raspberry Pi 4 mesuré, la première page qu'un Chromium qui vient de démarrer a chargée a pris 15 à 26 secondes, et les suivantes 0,2 seconde. Le serveur dit alors que la page n'a pas fini de charger en 15 secondes et que son contenu peut être incomplet. Avec le navigateur lancé dans un espace de noms réseau qui n'a que l'interface de boucle locale, le même chargement a pris 1,6 seconde : le retard vient des requêtes que le navigateur fait de lui-même au démarrage, sur ce réseau ; leur origine exacte n'a pas été trouvée.
 - Le répertoire chiffré protège autant que son mot de passe : qui a le mot de passe en lit le contenu, et un mot de passe faible ou réutilisé protège peu.
 - Les garde-fous sont ceux mesurés à la date de cette version, par les essais et les mesures que ce document nomme. Un modèle plus récent que ceux essayés peut trouver un contournement qu'aucun essai n'a vu.
-- Qui ne veut pas de ces garde-fous trouvera d'autres serveurs MCP qui pilotent un navigateur sans eux.
 - Tant que le serveur est attaché, le navigateur refuse tous les téléchargements, dans vos propres onglets aussi, sauf
   autour d'un clic ou d'une touche Entrée du serveur ; arrêtez le serveur ou le client MCP pour télécharger vous-même.
 - Un téléchargement qu'une page lance plus d'une demi-seconde après la fin d'un chargement est refusé ; téléchargez-le

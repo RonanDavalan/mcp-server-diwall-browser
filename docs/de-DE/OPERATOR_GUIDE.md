@@ -23,7 +23,7 @@ Führen Sie ihn zuerst ohne Argument aus. Er liest den Rechner und ändert nicht
 mcp-server-diwall-browser-setup
 ```
 
-Am 20. Oktober 2026, in einem sauberen Debian-13-Container, in dem `gocryptfs` gerade mit dem Befehl installiert worden war, den der Bericht gegeben hatte, ohne Browser und ohne Bildschirm:
+In einem sauberen Debian-13-Container, in dem `gocryptfs` gerade mit dem Befehl installiert worden war, den der Bericht gegeben hatte, ohne Browser und ohne Bildschirm:
 
 ```
 Premier lancement : état du poste
@@ -111,12 +111,12 @@ Schreibzugriff und nur, solange das verschlüsselte Verzeichnis geöffnet ist.
   Google Chrome 156.0.8078.47, und die 536 Browser-Tests einer früheren Revision bestanden ebenfalls
   unter Chromium 155.0.8059.39 (Debian 13), jeweils einzeln. Chromium 154 war dort nicht verfügbar.
   Brave wurde nicht ausprobiert.
-- Auf einer 64-Bit-ARM-Maschine gelten dasselbe Paket und dieselben Befehle, mit dem Browser der Distribution (`chromium` unter Raspberry Pi OS, dort 155.0.8059.79). Gemessen wurde am 22. Oktober 2026 auf einem Raspberry Pi 4 Model B mit 8 GB: Installation, erster Start, Smoke-Test und die vollständige Suite, von der 2694 Tests bestanden und 1 übersprungen wurde (fünf dieser Tests sind Messungen dieser Maschine, die das Repository nicht enthält). Der Prozessor eines Raspberry Pi 4 hat keine AES-Befehle, und `gocryptfs` sagt das beim Anlegen eines Volumes: Es schlägt seine Option `-xchacha` vor, die der Einrichtungsassistent nicht verwendet. In einem Volume im Arbeitsspeicher lief das Schreiben von 200 MiB mit den Standardeinstellungen mit 61 MB/s und mit `-xchacha` mit 116 MB/s, das Zurücklesen mit 75 und 153 MB/s.
+- Auf einer 64-Bit-ARM-Maschine gelten dasselbe Paket und dieselben Befehle, mit dem Browser der Distribution (`chromium` unter Raspberry Pi OS, dort 155.0.8059.79). Gemessen wurde auf einem Raspberry Pi 4 Model B mit 8 GB: Installation, erster Start, Smoke-Test und die vollständige Suite, von der 2694 Tests bestanden und 1 übersprungen wurde (fünf dieser Tests sind Messungen dieser Maschine, die das Repository nicht enthält). Der Prozessor eines Raspberry Pi 4 hat keine AES-Befehle, und `gocryptfs` sagt das beim Anlegen eines Volumes: Es schlägt seine Option `-xchacha` vor, die der Einrichtungsassistent nicht verwendet. In einem Volume im Arbeitsspeicher lief das Schreiben von 200 MiB mit den Standardeinstellungen mit 61 MB/s und mit `-xchacha` mit 116 MB/s, das Zurücklesen mit 75 und 153 MB/s.
 - `fuse3` und `gocryptfs` für das verschlüsselte Verzeichnis.
 - `kdialog` oder `zenity` für das Bestätigungsfenster.
 - `git` und `ss` (Paket `iproute2`) für die Loopback-Prüfung.
 
-Die Paketnamen wurden am 18. Oktober 2026 unter Debian 13 mit `apt-cache policy` geprüft:
+Die Paketnamen wurden unter Debian 13 mit `apt-cache policy` geprüft:
 
 ```
 $ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
@@ -138,7 +138,7 @@ chromium:
   Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-Der Installationsbefehl, am 18. Oktober 2026 in einem sauberen Debian-13-Container und in einem sauberen Ubuntu-24.04-Container wiederholt:
+Der Installationsbefehl, in einem sauberen Debian-13-Container und in einem sauberen Ubuntu-24.04-Container wiederholt:
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -208,7 +208,7 @@ Verzeichnis oder Ihr Bedienerprofil.
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Ausgabe vom 22. Oktober 2026, auf dem Code der Version 0.0.1, mit Python 3.12.11 (589 Tests brauchen
+Ausgabe auf dem Code der Version 0.0.1, mit Python 3.12.11 (589 Tests brauchen
 einen Browser):
 
 ```
@@ -370,7 +370,7 @@ ss -ltn "sport = :9222"
 
 Die Spalte der lokalen Adresse darf nur `127.0.0.1:9222` oder `[::1]:9222` zeigen. `0.0.0.0:9222`,
 `*:9222` oder jede andere Adresse bedeutet, dass jeder, der den Port erreicht, den Browser steuert:
-Schließen Sie den Browser und starten Sie ihn mit dem obigen Befehl neu. Ausgabe vom 18. Oktober 2026, mit dem eigenen Browser des Bedieners, wie oben mit `--remote-debugging-port=9222` gestartet:
+Schließen Sie den Browser und starten Sie ihn mit dem obigen Befehl neu. Ausgabe mit dem eigenen Browser des Bedieners, wie oben mit `--remote-debugging-port=9222` gestartet:
 
 ```
 State  Recv-Q Send-Q Local Address:Port Peer Address:Port
@@ -395,7 +395,7 @@ dieses Handbuchs). Er hängt das verschlüsselte Verzeichnis nie ein oder aus, f
 `fusermount3` aus und kennt sein Passwort nie. Ist das verschlüsselte Verzeichnis geschlossen, weigert
 sich der Server zu schreiben; es gibt keinen Rückfall auf einen unverschlüsselten Ort.
 
-`mcp-server-diwall-browser-setup` tut, was dieser Abschnitt beschreibt (der erste Start, oben): Am 20. Oktober 2026 hat er mit gocryptfs 2.5.1 ein Wegwerf-Volume mit der Eingabeaufforderung in einem Pseudoterminal angelegt, geöffnet und geschlossen, und der Server las `mounted`; er führt dieselben `gocryptfs -init`, `gocryptfs` und `fusermount3 -u` aus wie die folgenden Befehle, die dazu dienen, es von Hand zu tun. Das eigene Volume des Bedieners, vom Bediener geöffnet, diente am 15. Oktober 2026 der Erprobung des Bestätigungsfensters (`README.md`).
+`mcp-server-diwall-browser-setup` tut, was dieser Abschnitt beschreibt (der erste Start, oben): Er hat mit gocryptfs 2.5.1 ein Wegwerf-Volume mit der Eingabeaufforderung in einem Pseudoterminal angelegt, geöffnet und geschlossen, und der Server las `mounted`; er führt dieselben `gocryptfs -init`, `gocryptfs` und `fusermount3 -u` aus wie die folgenden Befehle, die dazu dienen, es von Hand zu tun. Das eigene Volume des Bedieners, vom Bediener geöffnet, diente der Erprobung des Bestätigungsfensters (`README.md`).
 
 Legen Sie das verschlüsselte Verzeichnis einmal an. `gocryptfs` gibt bei diesem Schritt einen
 Hauptschlüssel aus: Schreiben Sie ihn auf Papier oder bewahren Sie ihn in einem Passwortmanager auf,
@@ -926,8 +926,7 @@ Der zweite Befehl braucht keinen Browser. Nicht gemessen: der Zoom mit den Taste
 Browsers, der nicht ohne Oberfläche läuft (das Protokoll hat keinen Befehl für einen Zoom, daher
 schreiben die Tests den Standardzoom des Profils, und ob der Browser die beiden Arten von Zoom gleich
 behandelt, ist nicht bestätigt), und ein Bildschirm, dessen Skalierung tatsächlich 1,5 beträgt. Unter
-Google Chrome 154.0.8037.97 wiederholte der Bediener die Zoom- und Skalierungstests der Revision
-`ff8c433` (125 bestanden) und alle ihre 188 Browser-Tests (188 bestanden). Die Klicks stehen im
+Google Chrome 154.0.8037.97 wiederholte der Bediener die Zoom- und Skalierungstests (125 bestanden) und alle ihre 188 Browser-Tests (188 bestanden). Die Klicks stehen im
 nächsten Abschnitt.
 
 ### Klicks bei jedem Seitenzoom und auf einer gescrollten Seite
@@ -1071,9 +1070,8 @@ eines Frames. Die Tests stehen in `tests/test_click_swap_integration.py`.
 
 Was er nicht aufhält: ein Modell, das eine Shell unter Ihrem Konto hat. Die Liste der Websites, die
 gesperrten Aktionen und die Bindung der Zugangsdaten halten ein Modell, das nur die vierzehn Werkzeuge
-hat. Ein Modell mit einer Shell kann `profile.json` bearbeiten (ein Ursprung wurde auf diese Weise von
-einer OpenCode-Sitzung zu `allowed_origins` hinzugefügt, und `status` las ihn bei seinem nächsten
-Aufruf), den Server aus einem eigenen Skript starten und, bei geöffnetem verschlüsseltem Verzeichnis,
+hat. Ein Modell mit einer Shell kann `profile.json` bearbeiten (ein auf diese Weise zu `allowed_origins` hinzugefügter Ursprung wird von `status` beim nächsten
+Aufruf gelesen), den Server aus einem eigenen Skript starten und, bei geöffnetem verschlüsseltem Verzeichnis,
 die Zugangsdatendateien lesen. Eine Änderung der drei Ursprungslisten hinterlässt eine Zeile
 `profile_changed` im Journal und einen Hinweis in `status` (Abschnitt 5), im Nachhinein gefunden, und
 derselbe Akteur kann das Journal bearbeiten. Was dieses Modell begrenzt, ist die Konfiguration des
@@ -1083,7 +1081,7 @@ Clients (Abschnitt 2.1): Geben Sie die Werkzeuge einem Agenten, dessen Shell nac
 
 Die Tabs des Servers bleiben offen, wenn er anhält: Sie möchten vielleicht ansehen, was eine Aufgabe
 hinterlassen hat. Ein Modell, das in einem neuen Prozess wieder anfängt, kannte früher keinen davon und
-konnte sie nicht schließen (zwanzig Tabs blieben so in einer Sitzung zurück). Damit es sie schließen
+konnte sie nicht schließen. Damit es sie schließen
 kann, schreibt der Server in `run/tabs.json` die Kennung, die der Browser jedem Tab gibt, den er
 geöffnet hat oder den eine seiner Seiten geöffnet hat, und entfernt sie, wenn der Tab geschlossen wird.
 Die Datei enthält diese Kennungen und den Prozess, der sie hält: keine Adresse, keinen Titel. Sie wird
@@ -1157,7 +1155,7 @@ Was Sie vor der Antwort lesen sollten:
 - `Catégories` und `Signaux`: warum der Server fragt.
 
 Die echten `kdialog` und `zenity` haben die Fenster in einem virtuellen Bildschirm gezeigt, und Tastendrücke haben geantwortet (Eingabe, Escape und
-Pfeiltasten): Eingabe und Escape geben die Ablehnung. Eine Person hat das Fenster am 22. Oktober 2026 mit jedem der beiden Werkzeuge allein beantwortet (eine Ablehnung, eine Zustimmung und ein Ablauf: `README.md`). Die automatischen Tests verwenden an dessen
+Pfeiltasten): Eingabe und Escape geben die Ablehnung. Eine Person hat das Fenster mit jedem der beiden Werkzeuge allein beantwortet (eine Ablehnung, eine Zustimmung und ein Ablauf: `README.md`). Die automatischen Tests verwenden an dessen
 Stelle Attrappenprogramme.
 
 Das Fenster gehört dem Server, nicht dem MCP-Client: Der Client handelt für das Modell und könnte von
@@ -1402,7 +1400,6 @@ Protokollfehler des Browsers auch seinen numerischen Code), nie Seitendaten oder
 - Auf dem gemessenen Raspberry Pi 4 brauchte die erste Seite, die ein frisch gestarteter Chromium lud, 15 bis 26 Sekunden, die folgenden 0,2 Sekunden. Der Server sagt dann, dass die Seite nicht innerhalb von 15 Sekunden fertig geladen wurde und dass ihr Inhalt unvollständig sein kann. Mit dem Browser in einem Netzwerk-Namensraum, der nur die Loopback-Schnittstelle hat, dauerte dasselbe Laden 1,6 Sekunden: Die Verzögerung kommt von den Anfragen, die der Browser beim Start von sich aus in diesem Netz stellt; ihr genauer Ursprung wurde nicht gefunden.
 - Das verschlüsselte Verzeichnis schützt so viel wie sein Passwort: Wer das Passwort hat, liest seinen Inhalt, und ein schwaches oder mehrfach verwendetes Passwort schützt wenig.
 - Die Schutzmaßnahmen sind die, die zum Datum dieser Version gemessen wurden, mit den Tests und Messungen, die dieses Dokument nennt. Ein Modell, das neuer ist als die erprobten, kann einen Weg um sie herum finden, den kein Versuch gesehen hat.
-- Wer diese Schutzmaßnahmen nicht will, findet andere MCP-Server, die einen Browser ohne sie steuern.
 - Solange der Server verbunden ist, lehnt der Browser jeden Download ab, auch in Ihren eigenen Tabs,
   außer um einen Klick oder eine Eingabetaste des Servers; halten Sie den Server oder den MCP-Client
   an, um selbst herunterzuladen.

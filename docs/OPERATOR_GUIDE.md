@@ -21,7 +21,7 @@ Run it with no argument first. It reads the machine and changes nothing: it need
 mcp-server-diwall-browser-setup
 ```
 
-On 20 October 2026, in a clean Debian 13 container where `gocryptfs` had just been installed with the command the report gave, with no browser and no screen:
+In a clean Debian 13 container where `gocryptfs` had just been installed with the command the report gave, with no browser and no screen:
 
 ```
 Premier lancement : état du poste
@@ -108,12 +108,12 @@ write, and only while the encrypted directory is open.
   machine; the complete suite, 589 browser tests included, passed on Google Chrome 156.0.8078.47, and
   the 536 browser tests of an earlier revision also passed on Chromium 155.0.8059.39 (Debian 13), each
   alone. Chromium 154 was not available there. Brave was not tried.
-- On a 64-bit ARM machine the same package and the same commands apply, with the browser of the distribution (`chromium` on Raspberry Pi OS, 155.0.8059.79 there). It was measured on 22 October 2026 on a Raspberry Pi 4 Model B with 8 GB: installation, first launch, smoke test and the complete suite, of which 2694 tests passed and 1 was skipped (five of those tests are measurements of that machine that the repository does not hold). The processor of a Raspberry Pi 4 has no AES instructions, and `gocryptfs` says so when it creates a volume: it suggests its `-xchacha` option, which the setup assistant does not use. In a volume held in memory, writing 200 MiB ran at 61 MB/s with the defaults and at 116 MB/s with `-xchacha`, and reading it back at 75 and 153 MB/s.
+- On a 64-bit ARM machine the same package and the same commands apply, with the browser of the distribution (`chromium` on Raspberry Pi OS, 155.0.8059.79 there). It was measured on a Raspberry Pi 4 Model B with 8 GB: installation, first launch, smoke test and the complete suite, of which 2694 tests passed and 1 was skipped (five of those tests are measurements of that machine that the repository does not hold). The processor of a Raspberry Pi 4 has no AES instructions, and `gocryptfs` says so when it creates a volume: it suggests its `-xchacha` option, which the setup assistant does not use. In a volume held in memory, writing 200 MiB ran at 61 MB/s with the defaults and at 116 MB/s with `-xchacha`, and reading it back at 75 and 153 MB/s.
 - `fuse3` and `gocryptfs` for the encrypted directory.
 - `kdialog` or `zenity` for the confirmation window.
 - `git`, and `ss` (package `iproute2`) for the loopback check.
 
-The package names were checked with `apt-cache policy` on Debian 13 on 18 October 2026:
+The package names were checked with `apt-cache policy` on Debian 13:
 
 ```
 $ apt-cache policy python3-venv fuse3 gocryptfs kdialog zenity iproute2 git chromium | grep -E "^[a-z]|Candidate"
@@ -135,7 +135,7 @@ chromium:
   Candidate: 155.0.8059.79-1~deb13u1
 ```
 
-The installation command, replayed on 18 October 2026 in a clean Debian 13 container and in a clean Ubuntu 24.04 container:
+The installation command, replayed in a clean Debian 13 container and in a clean Ubuntu 24.04 container:
 
 ```
 sudo apt install python3-venv fuse3 gocryptfs kdialog iproute2 git
@@ -208,7 +208,7 @@ local demo page. Neither touches your browser, your encrypted directory or your 
 .venv/bin/python scripts/smoke_test.py
 ```
 
-Output on 22 October 2026, on the code of version 0.0.1, with Python 3.12.11 (589 of its tests
+Output on the code of version 0.0.1, with Python 3.12.11 (589 of its tests
 need a browser):
 
 ```
@@ -366,7 +366,7 @@ ss -ltn "sport = :9222"
 
 The local address column must show `127.0.0.1:9222` or `[::1]:9222` only. `0.0.0.0:9222`, `*:9222`
 or any other address means anyone who reaches the port controls the browser: close the browser and
-start it again with the command above. Output on 18 October 2026, with the operator's dedicated browser, started as above with `--remote-debugging-port=9222`:
+start it again with the command above. Output with the operator's dedicated browser, started as above with `--remote-debugging-port=9222`:
 
 ```
 State  Recv-Q Send-Q Local Address:Port Peer Address:Port
@@ -391,11 +391,10 @@ layout at the top of this guide). It never mounts or unmounts the encrypted dire
 `gocryptfs` or `fusermount3`, and never knows its password. When the encrypted directory is closed,
 the server refuses to write; it has no fallback to an unencrypted place.
 
-`mcp-server-diwall-browser-setup` does what this section describes (the first launch, above): on
-20 October 2026, with gocryptfs 2.5.1, it created, opened and closed a throw-away volume with the
+`mcp-server-diwall-browser-setup` does what this section describes (the first launch, above): with gocryptfs 2.5.1, it created, opened and closed a throw-away volume with the
 prompt, in a pseudo-terminal, and the server read `mounted`; it runs the same `gocryptfs -init`,
 `gocryptfs` and `fusermount3 -u` as the commands below, which are for doing it by hand. The operator's
-own volume, opened by the operator, served the test of the confirmation window on 15 October 2026
+own volume, opened by the operator, served the test of the confirmation window
 (`README.md`).
 
 Create the encrypted directory once. `gocryptfs` prints a master key at this step: write it down
@@ -905,7 +904,7 @@ The second command needs no browser. Not measured: the zoom made by the Ctrl and
 that is not headless (the protocol has no command for a zoom, so the tests write the default zoom of
 the profile, and whether the browser keeps the two kinds of zoom in the same way is not confirmed),
 and a screen whose scale really is 1.5. On Google Chrome 154.0.8037.97 the operator replayed the zoom
-and scale tests of the revision `ff8c433` (125 passed) and all of its 188 browser tests (188 passed).
+and scale tests (125 passed) and all of its 188 browser tests (188 passed).
 The clicks are in the next section.
 
 ### Clicks at any page zoom and on a scrolled page
@@ -1045,8 +1044,7 @@ the events of the main document only, not those of a frame. The tests are in
 
 What it does not stop: a model that has a shell under your account. The list of sites, the locked
 actions and the binding of credentials hold a model that has only the fourteen tools. A model with
-a shell can edit `profile.json` (an origin was added to `allowed_origins` that way by an OpenCode
-session, and `status` read it on its next call), start the server from a script of its own, and,
+a shell can edit `profile.json` (an origin added to `allowed_origins` that way is read by `status` at its next call), start the server from a script of its own, and,
 with the encrypted directory open, read the credential files. A change of the three origin lists
 or of the origin policy leaves a line `profile_changed` in the journal and a notice in `status` (section 5), found after the
 fact, and the same actor can edit the journal. What bounds that model is the client's configuration
@@ -1055,8 +1053,7 @@ fact, and the same actor can edit the journal. What bounds that model is the cli
 ### The tabs a stopped server left open
 
 The server's tabs stay open when it stops: you may want to look at what a task left. A model that
-starts again in a new process used to know none of them and could not close them (twenty tabs were
-left that way in one session). To let it close them, the server writes in `run/tabs.json` the
+starts again in a new process used to know none of them and could not close them. To let it close them, the server writes in `run/tabs.json` the
 identifier that the browser gives each tab it opened, or that a page of its own opened, and takes it
 out when the tab closes. The file holds those identifiers and the process that holds them: no
 address, no title. It is replaced whole, mode 600, in a directory in mode 700.
@@ -1122,7 +1119,7 @@ What to read before answering:
 - `Catégories` and `Signaux`: why the server asks.
 
 The windows were shown by the real `kdialog` and `zenity` in a virtual screen and answered by keystrokes
-(Enter, Escape and the arrow keys): Enter and Escape give the refusal. A person answered the window on 22 October 2026, with each tool alone (a refusal, an acceptance and an expiry: `README.md`).
+(Enter, Escape and the arrow keys): Enter and Escape give the refusal. A person answered the window with each tool alone (a refusal, an acceptance and an expiry: `README.md`).
 The automated tests use fake programs in their place.
 
 The window belongs to the server, not to the MCP client: the client acts for the model and could
@@ -1387,7 +1384,6 @@ parameter the tool does not have, or a value of the wrong kind; nothing was done
 - On the Raspberry Pi 4 measured, the first page that a freshly started Chromium loaded took 15 to 26 seconds, and the following ones 0.2 second. The server then says that the page did not finish loading in 15 seconds and that its content may be incomplete. With the browser run in a network namespace that has only the loopback interface, the same load took 1.6 seconds: the delay comes from the requests the browser makes on its own at start, on that network; their exact origin was not found.
 - The encrypted directory protects as much as its password does: whoever has the password reads its content, and a weak or reused password protects little.
 - The safeguards are those measured on the date of this version, by the tests and measurements this document names. A model more recent than the ones tried can find a way around them that no trial has seen.
-- Whoever does not want these safeguards will find other MCP servers that drive a browser without them.
 - While the server is attached, the browser refuses every download, in your own tabs too, except
   around one of the server's clicks or Enter keys; stop the server or the MCP client to download
   yourself.

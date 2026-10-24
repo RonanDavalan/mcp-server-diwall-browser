@@ -16,7 +16,7 @@ the weight of the work.
 - **Gemini (Google)**: architectural advisor and synthesizer. Proposed the name **Diwall**.
 - **gemini-3.5-flash (Google, through OpenCode)**: tests of the dedicated-agent connection: the server's tools reach the `navigateur` agent only, with the client recorded in the journal, and a shell command is not run without an answer.
 - **Qwen3.8 Max (Alibaba, through OpenCode)**: visitor test before the first release, from a blank session with no access to the framework: the site read through a screenshot and accessibility tool, the installation of the Debian package in a clean Debian 13 container up to the first-launch report, and five questions answered from the French manual; two defects of the site and one of the operator guide were corrected from its reports.
-- **Space Bunny Free (opencode)**: cleanup and pruning of the working framework at the start of the project.
+- **Space Bunny Free (opencode)**: the project's logo, the round-eyed D, used on the website, its icons and the title page of the manuals; cleanup and pruning of the working framework at the start of the project.
 
 ## Heritage
 
