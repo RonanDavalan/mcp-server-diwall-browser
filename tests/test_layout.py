@@ -116,7 +116,9 @@ def test_optional_import_check_catches_a_fallback() -> None:
 # Names reserved for examples and tests: they can never designate a real host.
 ALLOWED_HOSTS = {"example.invalid", "example.test", "localhost", "127.0.0.1", "[::1]"}
 # The addresses of the project itself, which the documentation gives to the reader: any other path on the same hosts is judged as a host.
-OWN_ADDRESSES = ("https://github.com/RonanDavalan/mcp-server-diwall-browser", "https://mcp-diwall.davalan.fr")
+OWN_ADDRESSES = ("https://github.com/RonanDavalan/mcp-server-diwall-browser", "https://mcp-diwall.davalan.fr",
+                 # The README plays its clip from a video uploaded to GitHub: the forge serves it under this prefix, and nowhere else.
+                 "https://github.com/user-attachments/assets/")
 # The one address of a third party the guide gives in full: the browser's package on Ubuntu, which the distribution does not ship. Only this exact file is let through, never its host.
 PUBLIC_DOWNLOADS = ("https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb",)
 RESERVED_SUFFIXES = (".test", ".invalid")
@@ -200,6 +202,7 @@ def test_real_data_check_catches_a_name_a_private_address_or_a_real_host(tmp_pat
 def test_real_data_check_leaves_the_addresses_of_the_project_alone_and_catches_others() -> None:
     assert real_data("https://github.com/RonanDavalan/mcp-server-diwall-browser/releases and https://mcp-diwall.davalan.fr/guides/install/") == []
     assert real_data("https://" + "github.com/someone/another-project") != []
+    assert real_data("https://github.com/user-attachments/assets/2e7f579f-5466-4bb2-b78d-9c617ebdbfc9") == []
     assert real_data("wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb") == []
     assert real_data("wget https://" + "dl.google.com/linux/direct/another-package.deb") != []
     assert real_data("https://" + "admin.davalan.fr/login") != []
