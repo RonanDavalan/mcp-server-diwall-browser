@@ -274,7 +274,7 @@ mcp-server-diwall-browser is built in an asymmetric human–LLM collaboration. T
 down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 - **Ronan Davalan**: architect and arbiter. Vision, security requirements, decisions, validation and testing.
-- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 and Haiku 5.5)**: systems engineer and lead developer. Server implementation, tests, documentation, the working framework, the text and upkeep of the project's website, the scene that illustrates the first release and its short clip, rendered in Blender on the workstation, driven through LibreModular-MCP, and a field report of the first launch from the Debian package.
+- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 and Haiku 5.5)**: systems engineer and lead developer. Server implementation, tests, documentation, the text and upkeep of the project's website, the scene that illustrates the first release and its short clip, rendered in Blender on the workstation, driven through LibreModular-MCP, and a field report of the first launch from the Debian package.
 - **Claude Cloud (Anthropic)**: wrote part of the code on branches, from prompts, reviewed before every merge.
 - **Muse Spark 1.3 Contributor (Meta, through OpenCode)**: first use of the server by a model other than Claude, on a local instance of a web application, whose field report shaped the next fixes; the stylesheet and layout of the project's website, chosen among several trials, the text and the behaviour of the pages left untouched; two readings of the website, with wording proposals in four languages kept as drafts and defects found, which were corrected.
 - **DeepSeek V4 Pro (DeepSeek, through OpenCode)**: independent security audit of the `v0.0.1` tag, from a blank session; four of its seven findings were confirmed at triage and corrected.
@@ -282,6 +282,6 @@ down as they were actually played; the full list is in [CONTRIBUTORS.md](CONTRIB
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, through OpenCode)**: the 3D emblem "the glass D", drawn in Blender on the workstation, in two pupil variants (a round pupil and a pointer); it is the eye of the scene that illustrates the first release.
 - **Gemini (Google)**: architectural advisor and synthesizer; gave the project its name, **Diwall**, "dike" in Breton.
 - **gemini-3.5-flash (Google, through OpenCode)**: tested the connection through a dedicated agent: the tools reach that agent only, and its shell asks before running.
-- **Space Bunny Free (opencode)**: the project's logo, the round-eyed D, used on the website, its icons and the title page of the manuals; cleanup and pruning of the project's working framework at the start of the project.
+- **Space Bunny Free (opencode)**: the project's logo, the round-eyed D, used on the website, its icons and the title page of the manuals; pruning of files at the start of the project.
 
 License: MIT, see [LICENSE](LICENSE).

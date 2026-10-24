@@ -282,7 +282,7 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 [CONTRIBUTORS.md](../../CONTRIBUTORS.md).
 
 - **Ronan Davalan**: Architekt und Schiedsrichter. Vision, Sicherheitsanforderungen, Entscheidungen, Abnahme und Tests.
-- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 und Haiku 5.5)**: Systemingenieur und Hauptentwickler. Umsetzung des Servers, Tests, Dokumentation, Arbeitsrahmen, Text und Pflege der Website des Projekts, die Szene zur ersten Veröffentlichung und ihr kurzer Clip, in Blender am Arbeitsplatz gerendert, gesteuert über LibreModular-MCP, und ein Feldbericht zum ersten Start aus dem Debian-Paket.
+- **Claude Code (Anthropic; Opus 5.5, Sonnet 5.5 und Haiku 5.5)**: Systemingenieur und Hauptentwickler. Umsetzung des Servers, Tests, Dokumentation, Text und Pflege der Website des Projekts, die Szene zur ersten Veröffentlichung und ihr kurzer Clip, in Blender am Arbeitsplatz gerendert, gesteuert über LibreModular-MCP, und ein Feldbericht zum ersten Start aus dem Debian-Paket.
 - **Claude Cloud (Anthropic)**: schrieb einen Teil des Codes auf Branches, nach Vorgaben, vor jeder Zusammenführung geprüft.
 - **Muse Spark 1.3 Contributor (Meta, über OpenCode)**: erste Nutzung des Servers durch ein anderes Modell als Claude, auf einer lokalen Instanz einer Webanwendung, deren Feldbericht die folgenden Korrekturen geprägt hat; das Stylesheet und das Layout der Website des Projekts, unter mehreren Versuchen ausgewählt, Text und Verhalten der Seiten blieben unberührt; zwei Durchsichten der Website, mit Formulierungsvorschlägen in vier Sprachen, als Entwürfe belassen, und gefundenen Mängeln, die behoben wurden.
 - **DeepSeek V4 Pro (DeepSeek, über OpenCode)**: unabhängiges Sicherheitsaudit des Tags `v0.0.1` auf einer leeren Sitzung; vier seiner sieben Befunde wurden bei der Sichtung bestätigt und behoben.
@@ -290,6 +290,6 @@ festgehalten, wie sie tatsächlich ausgeübt wurden; die vollständige Liste ste
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, über OpenCode)**: das 3D-Emblem „das Glas-D“, in Blender am Arbeitsplatz gezeichnet, in zwei Pupillenvarianten (eine runde Pupille und ein Mauszeiger); es ist das Auge der Szene, die die erste Version illustriert.
 - **Gemini (Google)**: Architekturberater und Synthetisierer; gab dem Projekt seinen Namen, **Diwall**, „Deich“ auf Bretonisch.
 - **gemini-3.5-flash (Google, über OpenCode)**: hat die Anbindung über einen eigenen Agenten getestet: Die Werkzeuge erreichen nur diesen Agenten, und seine Shell fragt, bevor sie etwas ausführt.
-- **Space Bunny Free (opencode)**: das Logo des Projekts, das D mit dem runden Auge, verwendet auf der Website, in ihren Icons und auf dem Titelblatt der Handbücher; Aufräumen und Beschneiden des Arbeitsrahmens des Projekts zu Beginn des Projekts.
+- **Space Bunny Free (opencode)**: das Logo des Projekts, das D mit dem runden Auge, verwendet auf der Website, in ihren Icons und auf dem Titelblatt der Handbücher; Beschneiden von Dateien zu Beginn des Projekts.
 
 Lizenz: MIT, siehe [LICENSE](../../LICENSE).
