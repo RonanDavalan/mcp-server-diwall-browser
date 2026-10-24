@@ -287,6 +287,6 @@ tels qu'ils ont été réellement tenus ; la liste complète est dans [CONTRIB
 - **DeepSeek V4.1 Flash 1017 (DeepSeek, par OpenCode)** : l'emblème en 3D « le D de verre », dessiné dans Blender sur le poste de travail, en deux variantes de pupille (une pupille ronde et un pointeur) ; il est l'œil de la scène qui illustre la première version.
 - **Gemini (Google)** : conseiller d'architecture et synthétiseur ; a donné son nom au projet, **Diwall**, « digue » en breton.
 - **gemini-3.5-flash (Google, par OpenCode)** : a testé le branchement par un agent dédié : les outils n'atteignent que cet agent, et son shell demande avant d'exécuter.
-- **Space Bunny Free (opencode)** : le logo du projet, le D à l'œil rond, repris sur le site, ses icônes et la page de titre des manuels ; élagage de fichiers au début du projet.
+- **Space Bunny Free (opencode)** : le logo du projet, le D à l'œil rond, repris sur le site, ses icônes et la page de titre des manuels ; élagage de fichiers au début du projet.
 
 Licence : MIT, voir [LICENSE](../../LICENSE).
